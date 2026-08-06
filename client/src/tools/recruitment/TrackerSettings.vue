@@ -136,7 +136,7 @@
           <input type="file" accept=".json,application/json" style="display: none" @change="importFile" />
         </label>
         <span style="flex: 1"></span>
-        <button class="tk-btn tk-btn-danger" @click="clearAll">清空全部数据</button>
+        <button class="tk-btn tk-btn-danger" @click="clearAll">清空我的数据</button>
       </div>
     </div>
 
@@ -310,13 +310,13 @@ async function doImport(mode) {
 }
 
 async function clearAll() {
-  const ok1 = window.confirm('确定清空秋招追踪器的全部数据（公司、节点、笔记、提醒）吗？此操作不可恢复！')
+  const ok1 = window.confirm('确定清空我的全部投递数据（公司、节点、笔记、提醒）吗？此操作不可恢复！')
   if (!ok1) return
-  const ok2 = window.confirm('再次确认：真的要清空全部数据吗？建议先导出备份。')
+  const ok2 = window.confirm('再次确认：真的要清空我的数据吗？建议先导出备份。')
   if (!ok2) return
   await api('/api/recruitment/companies', { method: 'DELETE' })
   emit('reload')
-  emit('notify', '已清空全部数据')
+  emit('notify', '已清空我的数据')
 }
 
 function randomCode(len = 10) {

@@ -1,5 +1,19 @@
 const TOKEN_KEY = 'tk_token'
 const USER_KEY = 'tk_user'
+const GUEST_KEY = 'tk_guest'
+
+// 游客空间标识：首次访问自动生成，用于在服务器端隔离/关联数据
+export function getGuestToken() {
+  let t = localStorage.getItem(GUEST_KEY)
+  if (!t) {
+    t =
+      window.crypto && crypto.randomUUID
+        ? crypto.randomUUID()
+        : 'g-' + Math.random().toString(36).slice(2) + Date.now().toString(36)
+    localStorage.setItem(GUEST_KEY, t)
+  }
+  return t
+}
 
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY)
@@ -31,6 +45,7 @@ export async function api(path, options = {}) {
   const headers = { 'Content-Type': 'application/json' }
   const token = getToken()
   if (token) headers.Authorization = `Bearer ${token}`
+  else headers['X-Space-Token'] = getGuestToken()
   const res = await fetch(path, {
     ...options,
     headers: { ...headers, ...(options.headers || {}) },
@@ -38,8 +53,9 @@ export async function api(path, options = {}) {
   });
   if (res.status === 401) {
     clearToken()
+    setStoredUser(null)
     if (window.location.pathname !== '/login') {
-      window.location.href = '/login'
+      window.location.reload()
     }
     throw new Error('登录已过期，请重新登录')
   }

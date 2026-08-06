@@ -13,42 +13,31 @@
   gap: 16px;
   margin-bottom: 26px;
 }
-.tk-header-top {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.tk-title {
-  font-size: 24px;
-  font-weight: 800;
-  letter-spacing: -0.3px;
-  color: var(--tk-text);
-}
-.tk-subtitle {
-  font-size: 13.5px;
-  color: var(--tk-faint);
-  margin-top: 2px;
-}
 .tk-tabs {
   display: flex;
-  gap: 4px;
+  gap: 8px;
   flex-wrap: wrap;
   border-bottom: 1px solid var(--tk-border);
 }
 .tk-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   border: none;
   background: transparent;
-  color: #4a5364;
-  padding: 10px 20px 13px;
-  font-size: 15px;
+  color: #5d6878;
+  padding: 10px 16px 12px;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
   position: relative;
-  transition: color 0.18s ease;
-  font-weight: 600;
+  transition: all 0.18s ease;
 }
 .tk-tabs button:hover { color: var(--tk-blue); }
-.tk-tabs button.active { color: var(--tk-blue); font-weight: 800; }
+.tk-tabs button.active {
+  color: var(--tk-blue);
+  font-weight: 700;
+}
 .tk-tabs button.active::after {
   content: '';
   position: absolute;
@@ -56,9 +45,10 @@
   right: 14px;
   bottom: -1px;
   height: 3px;
-  border-radius: 2px;
+  border-radius: 3px;
   background: var(--tk-blue);
 }
+.tk-tab-icon { width: 16px; height: 16px; flex: none; }
 
 .tk-card {
   background: #fff;
@@ -72,7 +62,7 @@
   gap: 14px;
   flex-wrap: wrap;
   align-items: center;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 .tk-input, .tk-select, .tk-textarea {
   border: 1px solid #dbe1ea;
@@ -204,16 +194,16 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 28px;
+  padding: 14px 24px;
   border-bottom: 1px solid var(--tk-border);
 }
-.tk-modal-header h3 { font-size: 17px; font-weight: 700; letter-spacing: -0.2px; }
+.tk-modal-header h3 { font-size: 16px; font-weight: 700; letter-spacing: -0.2px; }
 .tk-modal-close {
   border: none;
   background: #f1f3f7;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 14px;
   color: var(--tk-muted);
@@ -324,6 +314,6 @@
   .tk-tabs button { padding: 8px 14px 10px; font-size: 12.5px; }
   .tk-subtitle { display: none; }
   .tk-modal-body { padding: 18px; }
-  .tk-modal-header, .tk-modal-footer { padding: 15px 18px; }
+  .tk-modal-header, .tk-modal-footer { padding: 12px 16px; }
   .tk-settings-section { padding: 18px; }
 }

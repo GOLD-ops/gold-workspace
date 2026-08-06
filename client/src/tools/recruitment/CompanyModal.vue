@@ -386,10 +386,10 @@ async function save() {
           method: 'POST',
           body: { name: m.name, date: m.date, remind },
         })
-        const match = r.milestones.find(
+        const matches = r.milestones.filter(
           (x) => x.name === m.name.trim() && x.date === (m.date || '')
         )
-        m.id = match ? match.id : null
+        m.id = matches.length ? matches[matches.length - 1].id : null
       }
     }
 

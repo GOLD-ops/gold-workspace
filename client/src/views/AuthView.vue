@@ -74,6 +74,9 @@
         <button type="submit" class="tk-btn tk-btn-primary auth-submit" :disabled="loading">
           {{ loading ? '请稍候…' : mode === 'login' ? '登录' : '注册并登录' }}
         </button>
+        <p class="auth-hint">
+          登录后可在不同设备同步数据；游客期间产生的记录会自动合并到你的账号。
+        </p>
       </form>
     </div>
   </div>
@@ -82,7 +85,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { api, setToken, setStoredUser } from '../api'
+import { api, setToken, setStoredUser, getGuestToken } from '../api'
 
 const router = useRouter()
 const mode = ref('login')
@@ -104,16 +107,22 @@ async function submit() {
     const path = mode.value === 'login' ? '/api/auth/login' : '/api/auth/register'
     const body =
       mode.value === 'login'
-        ? { username: username.value.trim(), password: password.value }
+        ? {
+            username: username.value.trim(),
+            password: password.value,
+            guest_token: getGuestToken(),
+          }
         : {
             username: username.value.trim(),
             password: password.value,
             invite_code: inviteCode.value.trim(),
+            guest_token: getGuestToken(),
           }
     const r = await api(path, { method: 'POST', body })
     setToken(r.token)
     setStoredUser(r.user)
-    router.push('/')
+    const redirect = new URLSearchParams(window.location.search).get('redirect') || '/'
+    router.replace(redirect)
   } catch (e) {
     error.value = e.message
   } finally {
@@ -237,4 +246,11 @@ async function submit() {
 }
 .auth-submit:active { transform: translateY(0); }
 .auth-submit:disabled { opacity: 0.65; transform: none; }
+.auth-hint {
+  font-size: 11.5px;
+  color: var(--tk-faint);
+  text-align: center;
+  line-height: 1.7;
+  margin: 0;
+}
 </style>

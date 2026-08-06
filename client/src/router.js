@@ -1,5 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { getToken } from './api'
 import HomeView from './views/HomeView.vue'
 import AuthView from './views/AuthView.vue'
 
@@ -20,12 +19,6 @@ const router = createRouter({
   scrollBehavior() {
     return { top: 0 }
   },
-})
-
-router.beforeEach((to) => {
-  const logged = !!getToken()
-  if (to.path !== '/login' && !logged) return '/login'
-  if (to.path === '/login' && logged) return '/'
 })
 
 export default router

@@ -1,18 +1,7 @@
 <template>
   <div>
-    <div class="tk-card tl-toolbar-card">
-      <div class="tk-toolbar">
-        <button class="tk-btn tk-btn-primary" @click="$emit('open', null)">新增记录</button>
-        <button class="tk-btn" :disabled="!selected.size" @click="advance">
-          批量推进<template v-if="selected.size">（{{ selected.size }}）</template>
-        </button>
-        <span style="flex: 1"></span>
-        <button class="tk-btn" @click="exportData">导出</button>
-        <label class="tk-btn" style="cursor: pointer">
-          导入
-          <input type="file" accept=".json,application/json" style="display: none" @change="importFile" />
-        </label>
-      </div>
+    <div class="tk-card tl-panel">
+      <div class="tl-toolbar-area">
       <div class="tk-toolbar">
         <input
           v-model="q"
@@ -25,6 +14,13 @@
           <option value="company">按公司名</option>
           <option value="created">按创建时间</option>
         </select>
+        <span style="flex: 1"></span>
+        <button class="tk-btn tk-btn-sm" @click="exportData">导出</button>
+        <label class="tk-btn tk-btn-sm" style="cursor: pointer">
+          导入
+          <input type="file" accept=".json,application/json" style="display: none" @change="importFile" />
+        </label>
+        <button class="tk-btn tk-btn-primary" @click="$emit('open', null)">新增记录</button>
       </div>
       <div class="tl-chips">
         <button class="tk-chip" :class="{ active: statusFilter === '' }" @click="statusFilter = ''">
@@ -40,15 +36,14 @@
           {{ s }} {{ countBy[s] || 0 }}
         </button>
       </div>
-    </div>
+      </div>
 
-    <div v-if="!filtered.length" class="tk-card tk-empty">
+    <div v-if="!filtered.length" class="tk-empty">
       {{ companies.length ? '没有符合条件的记录' : '还没有投递记录，点击「新增记录」开始吧' }}
     </div>
 
-    <div v-else class="tk-card tl-table">
+    <div v-else class="tl-table">
       <div class="tk-row tk-row-head">
-        <input class="tl-check" type="checkbox" :checked="allSelected" @change="toggleAll" />
         <span>公司 / 岗位</span>
         <span>进展轨迹</span>
         <span>内推码</span>
@@ -56,11 +51,9 @@
       </div>
       <div
         class="tk-row"
-        :class="{ selected: selected.has(c.id) }"
         v-for="c in filtered"
         :key="c.id"
       >
-        <input class="tl-check" type="checkbox" :checked="selected.has(c.id)" @change="toggle(c.id)" />
         <div class="tl-cell-main">
           <div class="tl-company-row">
             <span class="tl-company">{{ c.company }}</span>
@@ -125,6 +118,7 @@
         </div>
       </div>
     </div>
+    </div>
 
     <!-- 导入方式选择 -->
     <div v-if="pendingImport" class="tk-modal-overlay" @click.self="pendingImport = null">
@@ -164,7 +158,6 @@ const emit = defineEmits(['open', 'reload', 'notify'])
 const q = ref('')
 const statusFilter = ref('')
 const sortBy = ref('updated')
-const selected = ref(new Set())
 const pendingImport = ref(null)
 
 const countBy = computed(() => {
@@ -193,48 +186,8 @@ const filtered = computed(() => {
   return arr
 })
 
-const allSelected = computed(
-  () => filtered.value.length > 0 && filtered.value.every((c) => selected.value.has(c.id))
-)
-
 function currentIdx(c) {
   return c.milestones.findIndex((m) => m.name === c.current_stage)
-}
-
-function toggle(id) {
-  const s = new Set(selected.value)
-  if (s.has(id)) s.delete(id)
-  else s.add(id)
-  selected.value = s
-}
-
-function toggleAll(e) {
-  const s = new Set(selected.value)
-  if (e.target.checked) for (const c of filtered.value) s.add(c.id)
-  else for (const c of filtered.value) s.delete(c.id)
-  selected.value = s
-}
-
-async function advance() {
-  if (!selected.value.size) return
-  const count = selected.value.size
-  const ok = window.confirm(`确定将选中的 ${count} 条记录统一推进到下一阶段吗？\n系统会自动追加对应节点并填写今天日期。`)
-  if (!ok) return
-  try {
-    const r = await api('/api/recruitment/companies/batch-advance', {
-      method: 'POST',
-      body: { ids: [...selected.value] },
-    })
-    selected.value = new Set()
-    emit('reload')
-    const skip = r.skipped.map((x) => x.company).join('、')
-    emit(
-      'notify',
-      `已推进 ${r.advanced.length} 条${skip ? `；${skip} 已到最终阶段，未变动` : ''}`
-    )
-  } catch (e) {
-    emit('notify', e.message)
-  }
 }
 
 async function remove(c) {
@@ -302,14 +255,16 @@ async function doImport(mode) {
 </script>
 
 <style scoped>
-.tl-toolbar-card { padding: 18px 20px; margin-bottom: 20px; }
-.tl-search { flex: 1; min-width: 220px; }
+.tl-panel { overflow: hidden; }
+.tl-toolbar-area { padding: 16px 20px; border-bottom: 1px solid #edf0f5; }
+.tl-search { width: 280px; flex: none; }
 .tl-chips { display: flex; gap: 10px; flex-wrap: wrap; }
 
 .tl-table { overflow-x: auto; }
+.tk-empty { padding: 56px 20px; }
 .tk-row {
   display: grid;
-  grid-template-columns: 26px minmax(210px, 1.9fr) minmax(210px, 1.5fr) 104px 178px;
+  grid-template-columns: minmax(210px, 1.9fr) minmax(210px, 1.5fr) 104px 178px;
   gap: 16px;
   align-items: center;
   padding: 16px 20px;
@@ -329,12 +284,6 @@ async function doImport(mode) {
   z-index: 1;
   letter-spacing: 0.02em;
   font-weight: 600;
-}
-.tl-check {
-  width: 15px;
-  height: 15px;
-  accent-color: var(--tk-blue);
-  cursor: pointer;
 }
 .tl-company-row {
   display: flex;
@@ -451,19 +400,18 @@ async function doImport(mode) {
 
 @media (max-width: 980px) {
   .tk-row {
-    grid-template-columns: 26px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
-      'cb main'
-      'cb timeline'
-      'cb actions';
+      'main'
+      'timeline'
+      'actions';
     row-gap: 10px;
     padding: 14px 16px;
   }
-  .tk-row > input { grid-area: cb; align-self: start; margin-top: 4px; }
   .tk-row-head { display: none; }
   .tl-cell-main { grid-area: main; }
   .tl-cell-timeline { grid-area: timeline; }
-  .tk-row > div:nth-of-type(4) { display: none; } /* 内推码 */
+  .tk-row > div:nth-of-type(3) { display: none; } /* 内推码 */
   .tl-actions { grid-area: actions; }
 }
 </style>

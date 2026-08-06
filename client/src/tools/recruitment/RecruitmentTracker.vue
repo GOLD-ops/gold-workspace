@@ -1,10 +1,6 @@
 <template>
   <div class="tk">
-    <div class="tk-header">
-      <div class="tk-header-top">
-        <div class="tk-title">秋招追踪器</div>
-        <span class="tk-subtitle">求职投递进度管理</span>
-      </div>
+<div class="tk-header">
       <div class="tk-tabs">
         <button
           v-for="t in tabs"
@@ -12,6 +8,17 @@
           :class="{ active: view === t.key }"
           @click="view = t.key"
         >
+          <svg
+            class="tk-tab-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path :d="t.icon" />
+          </svg>
           {{ t.label }}
         </button>
       </div>
@@ -59,11 +66,11 @@ import TrackerSettings from './TrackerSettings.vue'
 import CompanyModal from './CompanyModal.vue'
 
 const tabs = [
-  { key: 'list', label: '列表' },
-  { key: 'kanban', label: '看板' },
-  { key: 'dashboard', label: '仪表盘' },
-  { key: 'notes', label: '笔记库' },
-  { key: 'settings', label: '设置' },
+  { key: 'list', label: '列表', icon: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01' },
+  { key: 'kanban', label: '看板', icon: 'M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z' },
+  { key: 'dashboard', label: '仪表盘', icon: 'M18 20V10M12 20V4M6 20v-6' },
+  { key: 'notes', label: '笔记库', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8' },
+  { key: 'settings', label: '设置', icon: 'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6' },
 ]
 
 const view = ref('list')
@@ -107,4 +114,5 @@ function notify(msg, type = '') {
     toast.value = ''
   }, 2600)
 }
+
 </script>

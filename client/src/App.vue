@@ -3,18 +3,38 @@
     <!-- 导航栏 -->
     <nav class="navbar">
       <div class="nav-content">
-        <RouterLink to="/" class="logo">
-          <img src="/logo.svg" alt="GOLD" class="logo-mark" />
-          <span>GOLD Workspace</span>
-        </RouterLink>
-        <div class="nav-right">
-          <template v-if="user">
-            <span class="nav-user">{{ user.username }}<em v-if="user.is_admin">管理员</em></span>
-            <button class="nav-logout" @click="logout">退出</button>
-          </template>
-          <RouterLink v-else to="/login" class="nav-link">登录</RouterLink>
-          <a href="https://github.com/GOLD-ops" target="_blank" class="nav-link">GitHub</a>
-        </div>
+        <template v-if="isTracker">
+          <div class="logo tracker-brand">
+            <span class="tracker-name">秋招追踪器</span>
+            <span class="tracker-sub">求职投递进度管理</span>
+          </div>
+          <div class="nav-right">
+            <template v-if="user">
+              <span class="nav-user">{{ user.username }}<em v-if="user.is_admin">管理员</em></span>
+              <button class="nav-logout" @click="logout">退出</button>
+            </template>
+            <RouterLink
+              v-else
+              :to="{ path: '/login', query: { redirect: route.path } }"
+              class="nav-login"
+              >登录</RouterLink
+            >
+          </div>
+        </template>
+        <template v-else>
+          <RouterLink to="/" class="logo">
+            <img src="/logo.svg" alt="GOLD" class="logo-mark" />
+            <span>GOLD Workspace</span>
+          </RouterLink>
+          <div class="nav-right">
+            <template v-if="user">
+              <span class="nav-user">{{ user.username }}<em v-if="user.is_admin">管理员</em></span>
+              <button class="nav-logout" @click="logout">退出</button>
+            </template>
+            <RouterLink v-else to="/login" class="nav-link">登录</RouterLink>
+            <a href="https://github.com/GOLD-ops" target="_blank" class="nav-link">GitHub</a>
+          </div>
+        </template>
       </div>
     </nav>
 
@@ -29,13 +49,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api, getStoredUser, clearToken, setStoredUser } from './api'
 
 const route = useRoute()
 const router = useRouter()
 const user = ref(getStoredUser())
+const isTracker = computed(() => route.path.startsWith('/tools/recruitment'))
 
 function refreshUser() {
   user.value = getStoredUser()
@@ -66,6 +87,27 @@ watch(() => route.path, refreshUser)
 .nav-content { max-width: 1200px; margin: 0 auto; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
 .logo { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; color: #1a1a1a; text-decoration: none; }
 .logo-mark { width: 28px; height: 28px; flex: none; }
+.tracker-brand { gap: 10px; }
+.tracker-name { font-size: 18px; font-weight: 700; }
+.tracker-sub { font-size: 13px; color: var(--tk-faint); font-weight: 400; }
+.nav-login {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 18px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--tk-blue);
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(61, 110, 224, 0.24);
+  transition: all 0.15s ease;
+}
+.nav-login:hover {
+  background: var(--tk-blue-dark);
+  box-shadow: 0 6px 16px rgba(61, 110, 224, 0.3);
+}
 .nav-right { display: flex; align-items: center; gap: 14px; }
 .nav-user { font-size: 13px; color: #4a5568; display: inline-flex; align-items: center; gap: 6px; }
 .nav-user em {

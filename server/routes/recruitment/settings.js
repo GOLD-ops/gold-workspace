@@ -39,14 +39,15 @@ function readUserSettings(userId) {
 }
 
 router.get('/', (req, res) => {
+  const uid = req.user ? req.user.id : null;
   const out = {
-    ...readUserSettings(req.userId),
+    ...readUserSettings(uid),
     ai_provider: '',
     ai_model: '',
     ai_base_url: '',
   };
   const g = readGlobalSettings(true);
-  if (req.user.is_admin) {
+  if (req.user && req.user.is_admin) {
     out.ai_provider = g.ai_provider;
     out.ai_model = g.ai_model;
     out.ai_base_url = g.ai_base_url;
@@ -69,12 +70,12 @@ router.put('/', (req, res) => {
   for (const key of USER_KEYS) {
     if (body[key] !== undefined) userPatch[key] = String(body[key]);
   }
-  if (Object.keys(userPatch).length) {
+  if (Object.keys(userPatch).length && req.user) {
     const sets = Object.keys(userPatch)
       .map((k) => `${k} = ?`)
       .join(', ');
     const vals = Object.keys(userPatch).map((k) => userPatch[k]);
-    db.prepare(`UPDATE users SET ${sets} WHERE id = ?`).run(...vals, req.userId);
+    db.prepare(`UPDATE users SET ${sets} WHERE id = ?`).run(...vals, req.user.id);
   }
 
   // 全局配置：仅管理员
@@ -82,7 +83,7 @@ router.put('/', (req, res) => {
   for (const key of ADMIN_KEYS) {
     if (body[key] !== undefined) adminPatch[key] = String(body[key]);
   }
-  if (Object.keys(adminPatch).length && !req.user.is_admin) {
+  if (Object.keys(adminPatch).length && !(req.user && req.user.is_admin)) {
     return res.status(403).json({ error: '需要管理员权限' });
   }
   if (Object.keys(adminPatch).length) {
@@ -99,19 +100,21 @@ router.put('/', (req, res) => {
     }
   }
 
+  const uid = req.user ? req.user.id : null;
   const out = {
-    ...readUserSettings(req.userId),
+    ...readUserSettings(uid),
     ai_provider: readGlobalSettings(true).ai_provider,
     ai_model: readGlobalSettings(true).ai_model,
   };
-  if (req.user.is_admin) {
+  if (req.user && req.user.is_admin) {
     Object.assign(out, readGlobalSettings(true));
   }
   res.json(out);
 });
 
 router.post('/test-mail', async (req, res) => {
-  const to = auth.userById(req.userId).email;
+  if (!req.user) return res.status(400).json({ error: '游客请先登录后使用邮件提醒' });
+  const to = auth.userById(req.user.id).email;
   if (!to) return res.status(400).json({ error: '请先填写接收提醒的邮箱' });
   try {
     const r = await mailer.sendMail(
@@ -130,7 +133,8 @@ router.post('/test-mail', async (req, res) => {
 });
 
 router.post('/mail-check', async (req, res) => {
-  const r = await mailer.checkReminders(req.userId);
+  if (!req.user) return res.status(400).json({ error: '游客请先登录后使用邮件提醒' });
+  const r = await mailer.checkReminders(req.user.id);
   res.json(r);
 });
 
@@ -141,11 +145,11 @@ router.get('/reminders', (req, res) => {
        FROM reminders r
        JOIN companies c ON c.id = r.company_id
        LEFT JOIN milestones m ON m.id = r.milestone_id
-       WHERE r.user_id = ?
+       WHERE r.space_id = ?
        ORDER BY r.created_at DESC, r.id DESC
        LIMIT 100`
     )
-    .all(req.userId);
+    .all(req.spaceId);
   res.json(rows);
 });
 

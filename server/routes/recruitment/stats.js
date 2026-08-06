@@ -17,10 +17,10 @@ router.get('/', (req, res) => {
   let companies;
   if (cutoff) {
     companies = db
-      .prepare('SELECT * FROM companies WHERE user_id = ? AND created_at >= ? ORDER BY id')
-      .all(req.userId, cutoff);
+      .prepare('SELECT * FROM companies WHERE space_id = ? AND created_at >= ? ORDER BY id')
+      .all(req.spaceId, cutoff);
   } else {
-    companies = db.prepare('SELECT * FROM companies WHERE user_id = ? ORDER BY id').all(req.userId);
+    companies = db.prepare('SELECT * FROM companies WHERE space_id = ? ORDER BY id').all(req.spaceId);
   }
 
   const byStatus = {};
@@ -43,9 +43,9 @@ router.get('/', (req, res) => {
   const milestones = db
     .prepare(
       `SELECT m.* FROM milestones m JOIN companies c ON c.id = m.company_id
-       WHERE c.user_id = ? AND c.created_at >= COALESCE(?, '1970-01-01')`
+       WHERE c.space_id = ? AND c.created_at >= COALESCE(?, '1970-01-01')`
     )
-    .all(req.userId, cutoff || '1970-01-01');
+    .all(req.spaceId, cutoff || '1970-01-01');
 
   const stageDate = new Map(); // companyId -> { apply, exam, interview, offer }
   for (const m of milestones) {

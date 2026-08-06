@@ -106,20 +106,20 @@ const SEED_COMPANIES = [
   },
 ];
 
-// 为用户导入初始数据（仅当该用户还没有任何记录时执行，幂等）
-function seedUser(userId) {
-  const count = db.prepare('SELECT COUNT(*) AS n FROM companies WHERE user_id = ?').get(userId).n;
+// 为空间导入初始数据（仅当该空间还没有任何记录时执行，幂等）
+function seedSpace(spaceId) {
+  const count = db.prepare('SELECT COUNT(*) AS n FROM companies WHERE space_id = ?').get(spaceId).n;
   if (count > 0) return { seeded: false, count: 0, reason: '已有记录，跳过' };
   const ts = new Date().toISOString();
   const insert = db.prepare(
     `INSERT INTO companies
-     (user_id, company, position, department, city, salary, channel, link, referral_code, notes, status, created_at, updated_at)
+     (space_id, company, position, department, city, salary, channel, link, referral_code, notes, status, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '未投递', ?, ?)`
   );
   let n = 0;
   for (const c of SEED_COMPANIES) {
     insert.run(
-      userId,
+      spaceId,
       c.company,
       c.position || '',
       c.department || '',
@@ -137,4 +137,11 @@ function seedUser(userId) {
   return { seeded: true, count: n };
 }
 
-module.exports = { SEED_COMPANIES, seedUser };
+function seedUser(userId) {
+  const space = db
+    .prepare('SELECT * FROM spaces WHERE user_id = ? ORDER BY id LIMIT 1')
+    .get(userId);
+  return space ? seedSpace(space.id) : { seeded: false, count: 0 };
+}
+
+module.exports = { SEED_COMPANIES, seedSpace, seedUser };

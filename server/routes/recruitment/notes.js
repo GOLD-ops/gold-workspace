@@ -26,10 +26,10 @@ router.get('/', (req, res) => {
          FROM notes n
          JOIN companies c ON c.id = n.company_id
          LEFT JOIN milestones m ON m.id = n.milestone_id
-         WHERE n.user_id = ? AND (n.title LIKE ? OR n.content LIKE ? OR c.company LIKE ?)
+         WHERE n.space_id = ? AND (n.title LIKE ? OR n.content LIKE ? OR c.company LIKE ?)
          ORDER BY n.updated_at DESC, n.id DESC`
       )
-      .all(req.userId, like, like, like);
+      .all(req.spaceId, like, like, like);
   } else {
     rows = db
       .prepare(
@@ -37,10 +37,10 @@ router.get('/', (req, res) => {
          FROM notes n
          JOIN companies c ON c.id = n.company_id
          LEFT JOIN milestones m ON m.id = n.milestone_id
-         WHERE n.user_id = ?
+         WHERE n.space_id = ?
          ORDER BY n.updated_at DESC, n.id DESC`
       )
-      .all(req.userId);
+      .all(req.spaceId);
   }
   let list = rows.map(noteRow);
   if (tag) list = list.filter((n) => n.tags.includes(tag));
@@ -53,9 +53,9 @@ router.get('/tags', (req, res) => {
     .prepare(
       `SELECT n.tags, n.id, n.title, n.created_at, c.company AS company_name
        FROM notes n JOIN companies c ON c.id = n.company_id
-       WHERE n.user_id = ?`
+       WHERE n.space_id = ?`
     )
-    .all(req.userId);
+    .all(req.spaceId);
   const tagMap = new Map();
   for (const r of rows) {
     let tags = [];
@@ -75,20 +75,26 @@ router.get('/tags', (req, res) => {
 
 router.post('/companies/:id/notes', (req, res) => {
   const c = db
-    .prepare('SELECT id FROM companies WHERE id = ? AND user_id = ?')
-    .get(req.params.id, req.userId);
+    .prepare('SELECT id FROM companies WHERE id = ? AND space_id = ?')
+    .get(req.params.id, req.spaceId);
   if (!c) return res.status(404).json({ error: '记录不存在' });
   const { milestone_id = null, title = '', content = '', tags = [] } = req.body || {};
+  if (milestone_id) {
+    const m = db
+      .prepare('SELECT id FROM milestones WHERE id = ? AND company_id = ?')
+      .get(milestone_id, c.id);
+    if (!m) return res.status(400).json({ error: '节点不属于该公司' });
+  }
   const ts = nowIso();
   const r = db
     .prepare(
-      `INSERT INTO notes (company_id, milestone_id, user_id, title, content, tags, created_at, updated_at)
+      `INSERT INTO notes (company_id, milestone_id, space_id, title, content, tags, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       c.id,
       milestone_id || null,
-      req.userId,
+      req.spaceId,
       String(title || ''),
       String(content || ''),
       JSON.stringify(parseTags(tags)),
@@ -102,12 +108,18 @@ router.post('/companies/:id/notes', (req, res) => {
 
 router.put('/:id', (req, res) => {
   const n = db
-    .prepare('SELECT * FROM notes WHERE id = ? AND user_id = ?')
-    .get(req.params.id, req.userId);
+    .prepare('SELECT * FROM notes WHERE id = ? AND space_id = ?')
+    .get(req.params.id, req.spaceId);
   if (!n) return res.status(404).json({ error: '笔记不存在' });
   const { title, content, tags, milestone_id } = req.body || {};
+  if (milestone_id !== undefined && milestone_id) {
+    const m = db
+      .prepare('SELECT id FROM milestones WHERE id = ? AND company_id = ?')
+      .get(milestone_id, n.company_id);
+    if (!m) return res.status(400).json({ error: '节点不属于该公司' });
+  }
   db.prepare(
-    `UPDATE notes SET title = ?, content = ?, tags = ?, milestone_id = ?, updated_at = ? WHERE id = ? AND user_id = ?`
+    `UPDATE notes SET title = ?, content = ?, tags = ?, milestone_id = ?, updated_at = ? WHERE id = ? AND space_id = ?`
   ).run(
     title !== undefined ? String(title) : n.title,
     content !== undefined ? String(content) : n.content,
@@ -115,7 +127,7 @@ router.put('/:id', (req, res) => {
     milestone_id !== undefined ? milestone_id || null : n.milestone_id,
     nowIso(),
     n.id,
-    req.userId
+    req.spaceId
   );
   touchCompany(n.company_id);
   res.json(noteRow(db.prepare('SELECT * FROM notes WHERE id = ?').get(n.id)));
@@ -123,10 +135,10 @@ router.put('/:id', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   const n = db
-    .prepare('SELECT * FROM notes WHERE id = ? AND user_id = ?')
-    .get(req.params.id, req.userId);
+    .prepare('SELECT * FROM notes WHERE id = ? AND space_id = ?')
+    .get(req.params.id, req.spaceId);
   if (!n) return res.status(404).json({ error: '笔记不存在' });
-  db.prepare('DELETE FROM notes WHERE id = ? AND user_id = ?').run(n.id, req.userId);
+  db.prepare('DELETE FROM notes WHERE id = ? AND space_id = ?').run(n.id, req.spaceId);
   touchCompany(n.company_id);
   res.json({ ok: true });
 });

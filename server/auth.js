@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const db = require('./db');
-const { seedUser } = require('./seed-data');
+const { seedSpace } = require('./seed-data');
+const spaces = require('./spaces');
 
 const SESSION_DAYS = 30;
 
@@ -106,7 +107,8 @@ function ensureAdmin() {
   }
   const id = createUser(username, password, true);
   db.prepare('UPDATE companies SET user_id = ? WHERE user_id IS NULL').run(id);
-  seedUser(id);
+  const space = spaces.ensureUserSpace(id);
+  seedSpace(space.id);
   return id;
 }
 
@@ -136,6 +138,27 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+// 业务接口鉴权：正式用户（Bearer）或游客（X-Space-Token）均可使用
+function requireSpace(req, res, next) {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  if (token) {
+    const user = userByToken(token);
+    if (!user) return res.status(401).json({ error: '登录已过期，请重新登录' });
+    const space = spaces.ensureUserSpace(user.id);
+    req.user = user;
+    req.userId = user.id;
+    req.spaceId = space.id;
+    return next();
+  }
+  const guestToken = req.headers['x-space-token'] || '';
+  const space = spaces.getOrCreateSpaceByToken(guestToken);
+  if (!space) return res.status(400).json({ error: '缺少空间标识' });
+  req.spaceId = space.id;
+  seedSpace(space.id); // 游客首次使用自动导入初始数据（幂等）
+  next();
+}
+
 module.exports = {
   hashPassword,
   publicUser,
@@ -149,4 +172,5 @@ module.exports = {
   login,
   requireAuth,
   requireAdmin,
+  requireSpace,
 };

@@ -40,7 +40,7 @@ function pickBody(body) {
 function insertMilestone(companyId, userId, name, date, remind = null) {
   const m = db
     .prepare(
-      'INSERT INTO milestones (company_id, user_id, name, date, created_at) VALUES (?, ?, ?, ?, ?)'
+      'INSERT INTO milestones (company_id, space_id, name, date, created_at) VALUES (?, ?, ?, ?, ?)'
     )
     .run(companyId, userId, String(name || '').trim() || '新节点', date || '', nowIso());
   const milestoneId = m.lastInsertRowid;
@@ -52,11 +52,12 @@ function insertMilestone(companyId, userId, name, date, remind = null) {
     const remindAt = computeRemindAt(date, remind.value, remind.unit);
     if (remindAt) {
       db.prepare(
-        `INSERT INTO reminders (company_id, milestone_id, user_id, email, remind_at, remind_value, remind_unit, sent, kind, created_at)
-         VALUES (?, ?, ?, '', ?, ?, ?, 0, 'milestone', ?)`
+        `INSERT INTO reminders (company_id, milestone_id, user_id, space_id, email, remind_at, remind_value, remind_unit, sent, kind, created_at)
+         VALUES (?, ?, ?, ?, '', ?, ?, ?, 0, 'milestone', ?)`
       ).run(
         companyId,
         milestoneId,
+        userId,
         userId,
         remindAt,
         String(remind.value),
@@ -74,11 +75,12 @@ function upsertReminderForMilestone(milestoneId, companyId, userId, date, remind
     const remindAt = computeRemindAt(date, remind.value, remind.unit);
     if (remindAt) {
       db.prepare(
-        `INSERT INTO reminders (company_id, milestone_id, user_id, email, remind_at, remind_value, remind_unit, sent, kind, created_at)
-         VALUES (?, ?, ?, '', ?, ?, ?, 0, 'milestone', ?)`
+        `INSERT INTO reminders (company_id, milestone_id, user_id, space_id, email, remind_at, remind_value, remind_unit, sent, kind, created_at)
+         VALUES (?, ?, ?, ?, '', ?, ?, ?, 0, 'milestone', ?)`
       ).run(
         companyId,
         milestoneId,
+        userId,
         userId,
         remindAt,
         String(remind.value),
@@ -98,14 +100,14 @@ router.get('/', (req, res) => {
     rows = db
       .prepare(
         `SELECT * FROM companies
-         WHERE user_id = ? AND (company LIKE ? OR position LIKE ? OR department LIKE ? OR city LIKE ? OR notes LIKE ?)
+         WHERE space_id = ? AND (company LIKE ? OR position LIKE ? OR department LIKE ? OR city LIKE ? OR notes LIKE ?)
          ORDER BY updated_at DESC, id DESC`
       )
-      .all(req.userId, like, like, like, like, like);
+      .all(req.spaceId, like, like, like, like, like);
   } else {
     rows = db
-      .prepare('SELECT * FROM companies WHERE user_id = ? ORDER BY updated_at DESC, id DESC')
-      .all(req.userId);
+      .prepare('SELECT * FROM companies WHERE space_id = ? ORDER BY updated_at DESC, id DESC')
+      .all(req.spaceId);
   }
   let list = rows.map(companyPublic);
   if (status) list = list.filter((c) => c.status === status);
@@ -125,14 +127,14 @@ router.get('/', (req, res) => {
 
 router.get('/export', (req, res) => {
   const companies = db
-    .prepare('SELECT * FROM companies WHERE user_id = ? ORDER BY id')
-    .all(req.userId);
+    .prepare('SELECT * FROM companies WHERE space_id = ? ORDER BY id')
+    .all(req.spaceId);
   const milestones = db
-    .prepare('SELECT * FROM milestones WHERE user_id = ? ORDER BY id')
-    .all(req.userId);
+    .prepare('SELECT * FROM milestones WHERE space_id = ? ORDER BY id')
+    .all(req.spaceId);
   const notes = db
-    .prepare('SELECT * FROM notes WHERE user_id = ? ORDER BY id')
-    .all(req.userId);
+    .prepare('SELECT * FROM notes WHERE space_id = ? ORDER BY id')
+    .all(req.spaceId);
   res.json({
     app: 'autumn-recruitment-tracker',
     version: 1,
@@ -148,13 +150,13 @@ router.post('/import', (req, res) => {
   if (!data || !Array.isArray(data.companies)) {
     return res.status(400).json({ error: '导入数据格式不正确' });
   }
-  const uid = req.userId;
+  const uid = req.spaceId;
   const tx = db.transaction(() => {
     let imported = 0;
     let merged = 0;
 
     if (mode === 'overwrite') {
-      db.prepare('DELETE FROM companies WHERE user_id = ?').run(uid); // 级联删除该用户数据
+      db.prepare('DELETE FROM companies WHERE space_id = ?').run(uid); // 级联删除该用户数据
     }
 
     const msRows = new Map();
@@ -177,7 +179,7 @@ router.post('/import', (req, res) => {
         const found = db
           .prepare(
             `SELECT id FROM companies
-             WHERE user_id = ? AND company = ? AND (position = ? OR (? = '' AND position = ''))
+             WHERE space_id = ? AND company = ? AND (position = ? OR (? = '' AND position = ''))
              ORDER BY id LIMIT 1`
           )
           .get(uid, fields.company, fields.position || '', fields.position || '');
@@ -207,7 +209,7 @@ router.post('/import', (req, res) => {
       if (!targetId) {
         const r = db
           .prepare(
-            `INSERT INTO companies (user_id, company, position, department, city, salary, channel, link, referral_code, notes, status, created_at, updated_at)
+            `INSERT INTO companies (space_id, company, position, department, city, salary, channel, link, referral_code, notes, status, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           )
           .run(
@@ -233,7 +235,7 @@ router.post('/import', (req, res) => {
       for (const m of msRows.get(c.id) || []) {
         const r = db
           .prepare(
-            'INSERT INTO milestones (company_id, user_id, name, date, created_at) VALUES (?, ?, ?, ?, ?)'
+            'INSERT INTO milestones (company_id, space_id, name, date, created_at) VALUES (?, ?, ?, ?, ?)'
           )
           .run(targetId, uid, m.name || '新节点', m.date || '', m.created_at || nowIso());
         idMap.set(m.id, r.lastInsertRowid);
@@ -241,7 +243,7 @@ router.post('/import', (req, res) => {
       for (const n of noteRows.get(c.id) || []) {
         const newMid = n.milestone_id != null ? idMap.get(n.milestone_id) || null : null;
         db.prepare(
-          `INSERT INTO notes (company_id, milestone_id, user_id, title, content, tags, created_at, updated_at)
+          `INSERT INTO notes (company_id, milestone_id, space_id, title, content, tags, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
         ).run(
           targetId,
@@ -264,8 +266,8 @@ router.post('/import', (req, res) => {
 
 router.get('/:id', (req, res) => {
   const row = db
-    .prepare('SELECT * FROM companies WHERE id = ? AND user_id = ?')
-    .get(req.params.id, req.userId);
+    .prepare('SELECT * FROM companies WHERE id = ? AND space_id = ?')
+    .get(req.params.id, req.spaceId);
   if (!row) return res.status(404).json({ error: '记录不存在' });
   res.json(companyDetail(row));
 });
@@ -277,11 +279,11 @@ router.post('/', (req, res) => {
   const ts = nowIso();
   const r = db
     .prepare(
-      `INSERT INTO companies (user_id, company, position, department, city, salary, channel, link, referral_code, notes, status, created_at, updated_at)
+      `INSERT INTO companies (space_id, company, position, department, city, salary, channel, link, referral_code, notes, status, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
-      req.userId,
+      req.spaceId,
       fields.company,
       fields.position || '',
       fields.department || '',
@@ -297,15 +299,15 @@ router.post('/', (req, res) => {
     );
   const id = r.lastInsertRowid;
   for (const m of req.body.milestones || []) {
-    insertMilestone(id, req.userId, m.name, m.date, m.remind);
+    insertMilestone(id, req.spaceId, m.name, m.date, m.remind);
   }
   res.json(companyDetail(db.prepare('SELECT * FROM companies WHERE id = ?').get(id)));
 });
 
 router.put('/:id', (req, res) => {
   const row = db
-    .prepare('SELECT * FROM companies WHERE id = ? AND user_id = ?')
-    .get(req.params.id, req.userId);
+    .prepare('SELECT * FROM companies WHERE id = ? AND space_id = ?')
+    .get(req.params.id, req.spaceId);
   if (!row) return res.status(404).json({ error: '记录不存在' });
   const fields = pickBody(req.body || {});
   if (fields.company !== undefined && !fields.company) {
@@ -313,18 +315,18 @@ router.put('/:id', (req, res) => {
   }
   const sets = FIELDS.map((f) => `${f} = ?`).join(', ');
   const vals = FIELDS.map((f) => (fields[f] !== undefined ? fields[f] : row[f] || ''));
-  db.prepare(`UPDATE companies SET ${sets}, updated_at = ? WHERE id = ? AND user_id = ?`).run(
+  db.prepare(`UPDATE companies SET ${sets}, updated_at = ? WHERE id = ? AND space_id = ?`).run(
     ...vals,
     nowIso(),
     row.id,
-    req.userId
+    req.spaceId
   );
   if (req.body.status && STATUSES.includes(req.body.status)) {
-    db.prepare('UPDATE companies SET status = ?, updated_at = ? WHERE id = ? AND user_id = ?').run(
+    db.prepare('UPDATE companies SET status = ?, updated_at = ? WHERE id = ? AND space_id = ?').run(
       req.body.status,
       nowIso(),
       row.id,
-      req.userId
+      req.spaceId
     );
   }
   res.json(companyDetail(db.prepare('SELECT * FROM companies WHERE id = ?').get(row.id)));
@@ -332,15 +334,15 @@ router.put('/:id', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   const r = db
-    .prepare('DELETE FROM companies WHERE id = ? AND user_id = ?')
-    .run(req.params.id, req.userId);
+    .prepare('DELETE FROM companies WHERE id = ? AND space_id = ?')
+    .run(req.params.id, req.spaceId);
   if (!r.changes) return res.status(404).json({ error: '记录不存在' });
   res.json({ ok: true });
 });
 
 // 清空当前用户全部记录（设置页危险操作）
 router.delete('/', (req, res) => {
-  const r = db.prepare('DELETE FROM companies WHERE user_id = ?').run(req.userId);
+  const r = db.prepare('DELETE FROM companies WHERE space_id = ?').run(req.spaceId);
   res.json({ ok: true, deleted: r.changes });
 });
 
@@ -352,8 +354,8 @@ router.post('/batch-advance', (req, res) => {
   const skipped = [];
   for (const id of ids) {
     const c = db
-      .prepare('SELECT * FROM companies WHERE id = ? AND user_id = ?')
-      .get(id, req.userId);
+      .prepare('SELECT * FROM companies WHERE id = ? AND space_id = ?')
+      .get(id, req.spaceId);
     if (!c) continue;
     const next = nextStatus(c.status);
     if (!next) {
@@ -366,8 +368,8 @@ router.post('/batch-advance', (req, res) => {
       id
     );
     db.prepare(
-      'INSERT INTO milestones (company_id, user_id, name, date, created_at) VALUES (?, ?, ?, ?, ?)'
-    ).run(id, req.userId, milestoneNameForStatus(next), todayStr(), nowIso());
+      'INSERT INTO milestones (company_id, space_id, name, date, created_at) VALUES (?, ?, ?, ?, ?)'
+    ).run(id, req.spaceId, milestoneNameForStatus(next), todayStr(), nowIso());
     advanced.push({ id, company: c.company, status: next });
   }
   res.json({ ok: true, advanced, skipped });
@@ -378,8 +380,8 @@ router.patch('/:id/status', (req, res) => {
   const { status } = req.body || {};
   if (!STATUSES.includes(status)) return res.status(400).json({ error: '无效状态' });
   const row = db
-    .prepare('SELECT * FROM companies WHERE id = ? AND user_id = ?')
-    .get(req.params.id, req.userId);
+    .prepare('SELECT * FROM companies WHERE id = ? AND space_id = ?')
+    .get(req.params.id, req.spaceId);
   if (!row) return res.status(404).json({ error: '记录不存在' });
   db.prepare('UPDATE companies SET status = ?, updated_at = ? WHERE id = ?').run(
     status,
@@ -391,8 +393,8 @@ router.patch('/:id/status', (req, res) => {
   const name = milestoneNameForStatus(status);
   if (!last || last.name !== name || last.date !== todayStr()) {
     db.prepare(
-      'INSERT INTO milestones (company_id, user_id, name, date, created_at) VALUES (?, ?, ?, ?, ?)'
-    ).run(row.id, req.userId, name, todayStr(), nowIso());
+      'INSERT INTO milestones (company_id, space_id, name, date, created_at) VALUES (?, ?, ?, ?, ?)'
+    ).run(row.id, req.spaceId, name, todayStr(), nowIso());
   }
   res.json(companyDetail(db.prepare('SELECT * FROM companies WHERE id = ?').get(row.id)));
 });
@@ -400,12 +402,12 @@ router.patch('/:id/status', (req, res) => {
 // ===== 进展节点 =====
 router.post('/:id/milestones', (req, res) => {
   const row = db
-    .prepare('SELECT * FROM companies WHERE id = ? AND user_id = ?')
-    .get(req.params.id, req.userId);
+    .prepare('SELECT * FROM companies WHERE id = ? AND space_id = ?')
+    .get(req.params.id, req.spaceId);
   if (!row) return res.status(404).json({ error: '记录不存在' });
   const { name, date, remind } = req.body || {};
   if (!String(name || '').trim()) return res.status(400).json({ error: '节点名称不能为空' });
-  insertMilestone(row.id, req.userId, name, date, remind);
+  insertMilestone(row.id, req.spaceId, name, date, remind);
   touchCompany(row.id);
   res.json(companyDetail(db.prepare('SELECT * FROM companies WHERE id = ?').get(row.id)));
 });
@@ -414,9 +416,9 @@ router.put('/milestones/:id', (req, res) => {
   const m = db
     .prepare(
       `SELECT m.* FROM milestones m JOIN companies c ON c.id = m.company_id
-       WHERE m.id = ? AND c.user_id = ?`
+       WHERE m.id = ? AND c.space_id = ?`
     )
-    .get(req.params.id, req.userId);
+    .get(req.params.id, req.spaceId);
   if (!m) return res.status(404).json({ error: '节点不存在' });
   const { name, date, remind } = req.body || {};
   db.prepare('UPDATE milestones SET name = ?, date = ? WHERE id = ?').run(
@@ -428,7 +430,7 @@ router.put('/milestones/:id', (req, res) => {
     upsertReminderForMilestone(
       m.id,
       m.company_id,
-      req.userId,
+      req.spaceId,
       date !== undefined ? date || '' : m.date,
       remind
     );
@@ -442,9 +444,9 @@ router.delete('/milestones/:id', (req, res) => {
   const m = db
     .prepare(
       `SELECT m.* FROM milestones m JOIN companies c ON c.id = m.company_id
-       WHERE m.id = ? AND c.user_id = ?`
+       WHERE m.id = ? AND c.space_id = ?`
     )
-    .get(req.params.id, req.userId);
+    .get(req.params.id, req.spaceId);
   if (!m) return res.status(404).json({ error: '节点不存在' });
   db.prepare('DELETE FROM milestones WHERE id = ?').run(m.id);
   recomputeStatus(m.company_id);

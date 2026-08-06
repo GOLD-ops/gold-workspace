@@ -1,6 +1,7 @@
 const express = require('express');
 const auth = require('../auth');
-const { seedUser } = require('../seed-data');
+const { seedSpace } = require('../seed-data');
+const spaces = require('../spaces');
 
 const router = express.Router();
 
@@ -15,7 +16,14 @@ router.post('/register', (req, res) => {
   if (r.error) return res.status(400).json({ error: r.error });
   const user = auth.userById(r.userId);
   const token = auth.createSession(r.userId);
-  seedUser(r.userId);
+  // 绑定游客空间（若有），实现游客数据合并；否则创建账号空间
+  let space = null;
+  if (req.body.guest_token) {
+    const b = spaces.bindSpaceToUser(String(req.body.guest_token), r.userId);
+    if (b.ok) space = b.space;
+  }
+  space = space || spaces.ensureUserSpace(r.userId);
+  seedSpace(space.id);
   res.json({ token, user: auth.publicUser(user), is_first_user: r.isAdmin });
 });
 
@@ -24,6 +32,12 @@ router.post('/login', (req, res) => {
   const r = auth.login(String(username || '').trim(), String(password || ''));
   if (r.error) return res.status(400).json({ error: r.error });
   const token = auth.createSession(r.user.id);
+  let space = spaces.ensureUserSpace(r.user.id);
+  if (req.body.guest_token) {
+    const b = spaces.bindSpaceToUser(String(req.body.guest_token), r.user.id);
+    if (b.ok) space = b.space;
+  }
+  seedSpace(space.id);
   res.json({ token, user: auth.publicUser(r.user) });
 });
 
