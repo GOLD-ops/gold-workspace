@@ -1,0 +1,13 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 应用图标式底：浅蓝圆角方块 -->
+  <rect x="5" y="5" width="110" height="110" rx="26" fill="#EAF2FD" stroke="#BFDBFE" stroke-width="2"/>
+
+  <!-- 几何模块 G：蓝色矩形拼成 -->
+  <rect x="38" y="32" width="16" height="56" rx="6" fill="#2563EB"/>
+  <rect x="38" y="32" width="27" height="16" rx="6" fill="#2563EB"/>
+  <rect x="38" y="72" width="29" height="16" rx="6" fill="#2563EB"/>
+  <rect x="66" y="58" width="16" height="30" rx="6" fill="#2563EB"/>
+
+  <!-- 青色信号点 -->
+  <circle cx="60" cy="53" r="5" fill="#22D3EE"/>
+</svg>

@@ -1,0 +1,17 @@
+<svg width="720" height="200" viewBox="0 0 720 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 应用图标式底：浅蓝圆角方块 -->
+  <rect x="38" y="45" width="110" height="110" rx="26" fill="#EAF2FD" stroke="#BFDBFE" stroke-width="2"/>
+
+  <!-- 几何模块 G：蓝色矩形拼成 -->
+  <rect x="71" y="72" width="16" height="56" rx="6" fill="#2563EB"/>
+  <rect x="71" y="72" width="27" height="16" rx="6" fill="#2563EB"/>
+  <rect x="71" y="112" width="29" height="16" rx="6" fill="#2563EB"/>
+  <rect x="99" y="98" width="16" height="30" rx="6" fill="#2563EB"/>
+
+  <!-- 青色信号点 -->
+  <circle cx="93" cy="93" r="5" fill="#22D3EE"/>
+
+  <!-- 字标 -->
+  <text x="178" y="112" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="56" font-weight="800" fill="#1E40AF" letter-spacing="2">GOLD</text>
+  <text x="181" y="146" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="19" font-weight="500" fill="#64748B" letter-spacing="7.5">WORKSPACE</text>
+</svg>

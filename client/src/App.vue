@@ -3,150 +3,93 @@
     <!-- 导航栏 -->
     <nav class="navbar">
       <div class="nav-content">
-        <span class="logo">🛠️ Gold Workspace</span>
-        <a href="https://github.com/GOLD-ops" target="_blank" class="nav-link">GitHub</a>
+        <RouterLink to="/" class="logo">
+          <img src="/logo.svg" alt="GOLD" class="logo-mark" />
+          <span>GOLD Workspace</span>
+        </RouterLink>
+        <div class="nav-right">
+          <template v-if="user">
+            <span class="nav-user">{{ user.username }}<em v-if="user.is_admin">管理员</em></span>
+            <button class="nav-logout" @click="logout">退出</button>
+          </template>
+          <RouterLink v-else to="/login" class="nav-link">登录</RouterLink>
+          <a href="https://github.com/GOLD-ops" target="_blank" class="nav-link">GitHub</a>
+        </div>
       </div>
     </nav>
 
-    <!-- Hero 个人介绍区 -->
-    <header class="hero">
-      <div class="avatar">G</div>
-      <h1>GOLD-ops</h1>
-      <p class="subtitle">全栈开发者 · 小工具创作者 · 持续学习中</p>
-      <p class="desc">这里是我的个人工作坊，收集了我开发的各种实用小工具和成长经历。</p>
-    </header>
-
-    <!-- Tab 切换 -->
-    <div class="tabs">
-      <button :class="{ active: tab === 'tools' }" @click="tab = 'tools'">🧰 我的工具</button>
-      <button :class="{ active: tab === 'journey' }" @click="tab = 'journey'">📍 过往经历</button>
-    </div>
-
-    <!-- 工具列表 -->
-    <section v-if="tab === 'tools'" class="content">
-      <div class="add-form">
-        <input v-model="name" placeholder="工具名称" />
-        <input v-model="desc" placeholder="简短描述" />
-        <button @click="addTool">添加</button>
-      </div>
-      <div class="card-grid">
-        <div class="card" v-for="t in tools" :key="t.id">
-          <h3>{{ t.name }}</h3>
-          <p>{{ t.description }}</p>
-          <span class="time">{{ formatDate(t.created_at) }}</span>
-        </div>
-        <div v-if="!tools.length" class="empty">暂无工具，快来添加第一个吧 ✨</div>
-      </div>
-    </section>
-
-    <!-- 过往经历时间轴 -->
-    <section v-if="tab === 'journey'" class="content">
-      <div class="timeline">
-        <div class="timeline-item" v-for="(item, i) in journey" :key="i">
-          <div class="timeline-dot"></div>
-          <div class="timeline-card">
-            <span class="timeline-date">{{ item.date }}</span>
-            <h3>{{ item.title }}</h3>
-            <p>{{ item.desc }}</p>
-          </div>
-        </div>
-      </div>
-    </section>
+    <!-- 路由视图：主页 / 各工具页面 -->
+    <router-view />
 
     <!-- Footer -->
     <footer class="footer">
-      <p>© 2026 GOLD-ops · Built with Vue + Node.js + SQLite</p>
+      <p>© 2026 GOLD · Built with Vue + Node.js + SQLite</p>
     </footer>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-const tab = ref('tools')
-const tools = ref([])
-const name = ref('')
-const desc = ref('')
+import { ref, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { api, getStoredUser, clearToken, setStoredUser } from './api'
 
-// 过往经历数据（后续可改为从API读取）
-const journey = ref([
-  { date: '2026-08', title: '搭建个人工作坊', desc: '使用 Node.js + Vue + SQLite 在阿里云 ECS 上部署了个人网站，作为小工具集合和成长记录平台。' },
-  { date: '2026-07', title: '开始秋招准备', desc: '启动 Autumn Recruitment Tracker 项目，系统梳理求职目标和技术栈提升计划。' },
-  { date: '2026-05', title: '学习全栈开发', desc: '完成 Node.js + Vue 3 全栈技术学习，掌握 Express、SQLite、Nginx 部署等核心技能。' },
-  { date: '2025-12', title: '接触云计算', desc: '首次使用阿里云 ECS，学习 Linux 运维、安全组配置和远程部署流程。' },
-])
+const route = useRoute()
+const router = useRouter()
+const user = ref(getStoredUser())
 
-const load = async () => { const r = await fetch('/api/tools'); tools.value = await r.json() }
-const addTool = async () => {
-  if (!name.value) return
-  await fetch('/api/tools', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name: name.value, description: desc.value }) })
-  name.value = ''; desc.value = ''; load()
+function refreshUser() {
+  user.value = getStoredUser()
 }
-const formatDate = (d) => d ? new Date(d).toLocaleDateString('zh-CN') : ''
-onMounted(load)
+
+async function logout() {
+  try {
+    await api('/api/auth/logout', { method: 'POST' })
+  } catch {
+    // 忽略退出接口错误
+  }
+  clearToken()
+  setStoredUser(null)
+  user.value = null
+  router.push('/login')
+}
+
+onMounted(refreshUser)
+watch(() => route.path, refreshUser)
 </script>
 
 <style scoped>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-.app { min-height: 100vh; background: #f8f9fa; color: #333; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+.app { min-height: 100vh; background: #fbfcfd; color: #333; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
 
 /* 导航栏 */
 .navbar { background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.06); position: sticky; top: 0; z-index: 10; }
-.nav-content { max-width: 800px; margin: 0 auto; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; }
-.logo { font-size: 18px; font-weight: 700; color: #1a1a1a; }
+.nav-content { max-width: 1200px; margin: 0 auto; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+.logo { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; color: #1a1a1a; text-decoration: none; }
+.logo-mark { width: 28px; height: 28px; flex: none; }
+.nav-right { display: flex; align-items: center; gap: 14px; }
+.nav-user { font-size: 13px; color: #4a5568; display: inline-flex; align-items: center; gap: 6px; }
+.nav-user em {
+  font-style: normal;
+  font-size: 11px;
+  background: #eef3fc;
+  color: #3d6ee0;
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+.nav-logout {
+  border: 1px solid #e4e8f0;
+  background: #fff;
+  color: #5d6878;
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.nav-logout:hover { border-color: #fecaca; color: #dc2626; background: #fef2f2; }
 .nav-link { color: #666; text-decoration: none; font-size: 14px; transition: color 0.2s; }
 .nav-link:hover { color: #4a90d9; }
 
-/* Hero区 */
-.hero { text-align: center; padding: 60px 20px 40px; max-width: 600px; margin: 0 auto; }
-.avatar { width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, #4a90d9, #7bb3f0); color: #fff; font-size: 32px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
-.hero h1 { font-size: 28px; margin-bottom: 8px; color: #1a1a1a; }
-.subtitle { color: #666; font-size: 15px; margin-bottom: 12px; }
-.desc { color: #888; font-size: 14px; line-height: 1.6; }
-
-/* Tabs */
-.tabs { display: flex; justify-content: center; gap: 8px; padding: 0 20px 24px; }
-.tabs button { padding: 10px 24px; border: none; border-radius: 20px; background: #fff; color: #666; font-size: 14px; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-.tabs button.active { background: #4a90d9; color: #fff; box-shadow: 0 2px 8px rgba(74,144,217,0.3); }
-
-/* 内容区 */
-.content { max-width: 800px; margin: 0 auto; padding: 0 20px 40px; }
-
-/* 添加工具表单 */
-.add-form { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
-.add-form input { flex: 1; min-width: 150px; padding: 10px 14px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.2s; }
-.add-form input:focus { border-color: #4a90d9; }
-.add-form button { padding: 10px 20px; background: #4a90d9; color: #fff; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; transition: background 0.2s; }
-.add-form button:hover { background: #3a7bc8; }
-
-/* 工具卡片网格 */
-.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
-.card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); transition: transform 0.2s, box-shadow 0.2s; }
-.card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-.card h3 { font-size: 16px; margin-bottom: 8px; color: #1a1a1a; }
-.card p { font-size: 14px; color: #666; line-height: 1.5; margin-bottom: 8px; }
-.card .time { font-size: 12px; color: #aaa; }
-.empty { grid-column: 1 / -1; text-align: center; padding: 40px; color: #aaa; font-size: 14px; }
-
-/* 时间轴 */
-.timeline { position: relative; padding-left: 24px; }
-.timeline::before { content: ''; position: absolute; left: 7px; top: 8px; bottom: 8px; width: 2px; background: #e0e0e0; }
-.timeline-item { position: relative; margin-bottom: 24px; }
-.timeline-dot { position: absolute; left: -20px; top: 8px; width: 12px; height: 12px; border-radius: 50%; background: #4a90d9; border: 2px solid #fff; box-shadow: 0 0 0 2px #e0e0e0; }
-.timeline-card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-.timeline-date { font-size: 12px; color: #4a90d9; font-weight: 600; margin-bottom: 6px; display: block; }
-.timeline-card h3 { font-size: 16px; margin-bottom: 6px; color: #1a1a1a; }
-.timeline-card p { font-size: 14px; color: #666; line-height: 1.6; }
-
 /* Footer */
 .footer { text-align: center; padding: 32px 20px; color: #aaa; font-size: 12px; border-top: 1px solid #eee; margin-top: 40px; background: #fff; }
-
-/* 移动端适配 */
-@media (max-width: 600px) {
-  .hero { padding: 40px 16px 30px; }
-  .hero h1 { font-size: 24px; }
-  .add-form { flex-direction: column; }
-  .add-form input, .add-form button { width: 100%; }
-  .card-grid { grid-template-columns: 1fr; }
-  .tabs button { padding: 8px 18px; font-size: 13px; }
-}
 </style>

@@ -1,0 +1,21 @@
+/* 全局设计令牌：各工具共享的颜色、圆角等变量 */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  --tk-blue: #3d6ee0;
+  --tk-blue-dark: #2f56b8;
+  --tk-blue-soft: #eef3fc;
+  --tk-border: #e4e8f0;
+  --tk-bg: #fbfcfd;
+  --tk-text: #1b2333;
+  --tk-muted: #5d6878;
+  --tk-faint: #98a2b3;
+  --tk-radius: 14px;
+  --tk-shadow-sm: 0 1px 3px rgba(23, 32, 56, 0.06), 0 1px 2px rgba(23, 32, 56, 0.04);
+  --tk-shadow-md: 0 6px 20px rgba(23, 32, 56, 0.08);
+  --tk-shadow-lg: 0 24px 64px rgba(15, 23, 42, 0.2);
+}
