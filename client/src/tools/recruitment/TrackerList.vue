@@ -97,7 +97,7 @@
               <i v-if="i < c.milestones.length - 1" class="tl-link"></i>
             </template>
           </div>
-          <span v-else class="tl-none">—</span>
+          <span v-else class="tl-none">未投递</span>
         </div>
         <div class="tl-cell-code">
           <span v-if="c.referral_code" class="tl-code" @click="copy(c)">{{ c.referral_code }}</span>
@@ -415,12 +415,13 @@ async function doImport(mode) {
   color: #9a6700;
   border: 1px dashed #f0d9a8;
   border-radius: 7px;
-  padding: 3px 10px;
+  padding: 4px 10px;
   cursor: pointer;
-  white-space: nowrap;
+  display: inline-block;
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-all;
+  line-height: 1.5;
   transition: background 0.15s ease;
 }
 .tl-code:hover { background: #fff3d6; }

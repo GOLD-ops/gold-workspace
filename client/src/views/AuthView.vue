@@ -2,7 +2,7 @@
   <div class="auth-wrap">
     <div class="auth-card">
       <div class="auth-brand">
-        <div class="auth-logo">G</div>
+        <img src="/logo.svg" alt="GOLD" class="auth-logo" />
         <h1>GOLD Workspace</h1>
         <p class="auth-tagline">个人工具与求职进度管理</p>
       </div>
@@ -141,17 +141,10 @@ async function submit() {
 }
 .auth-brand { text-align: center; margin-bottom: 26px; }
 .auth-logo {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--tk-blue), #7bb3f0);
-  color: #fff;
-  font-size: 26px;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 68px;
+  height: 68px;
   margin: 0 auto 14px;
+  display: block;
 }
 .auth-brand h1 { font-size: 20px; font-weight: 800; color: var(--tk-text); }
 .auth-tagline { font-size: 13px; color: var(--tk-faint); margin-top: 6px; }

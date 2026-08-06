@@ -434,15 +434,16 @@ async function removeCompany() {
 </script>
 
 <style scoped>
+.cm-ai { margin-top: 0; }
 .cm-ai-box {
   border: 1px dashed #d3dcf0;
   background: #f8fafd;
   border-radius: 12px;
-  padding: 14px;
+  padding: 12px 14px;
 }
 .cm-ai-hint { font-size: 12px; color: var(--tk-faint); font-weight: 400; }
-.cm-ai-text { min-height: 96px; }
-.cm-ai-actions { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+.cm-ai-text { width: 100%; min-height: 76px; }
+.cm-ai-actions { display: flex; align-items: center; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
 .cm-ai-note { font-size: 12px; color: var(--tk-muted); }
 .cm-ai-provider { color: var(--tk-faint); }
 .cm-ai-error {
