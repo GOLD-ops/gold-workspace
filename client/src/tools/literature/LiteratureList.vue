@@ -175,7 +175,7 @@ const dragging = ref(false)
 const fileInput = ref(null)
 const progress = ref({ total: 0, done: 0, failed: 0, queued: 0, running: false })
 const uploadQueue = ref([])
-const UPLOAD_CONCURRENCY = 3
+const UPLOAD_CONCURRENCY = 5
 let pollTimer = null
 let lastProgressKey = ''
 
