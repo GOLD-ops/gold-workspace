@@ -40,7 +40,9 @@
     </nav>
 
     <!-- 路由视图：主页 / 各工具页面 -->
-    <router-view />
+    <main class="main">
+      <router-view />
+    </main>
 
     <!-- Footer -->
     <footer class="footer">
@@ -92,10 +94,24 @@ watch(() => route.path, refreshUser)
 
 <style scoped>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-.app { min-height: 100vh; background: #fbfcfd; color: #333; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #fbfcfd;
+  color: #333;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
 
 /* 导航栏 */
-.navbar { background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.06); position: sticky; top: 0; z-index: 10; }
+.navbar {
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  flex: none;
+}
 .nav-content { max-width: 1200px; margin: 0 auto; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
 .logo { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; color: #1a1a1a; text-decoration: none; }
 .logo-mark { width: 28px; height: 28px; flex: none; }
@@ -146,5 +162,28 @@ watch(() => route.path, refreshUser)
 .nav-link:hover { color: #4a90d9; }
 
 /* Footer */
-.footer { text-align: center; padding: 32px 20px; color: #aaa; font-size: 12px; border-top: 1px solid #eee; margin-top: 40px; background: #fff; }
+.footer {
+  text-align: center;
+  padding: 32px 20px;
+  color: #aaa;
+  font-size: 12px;
+  border-top: 1px solid #eee;
+  margin-top: 40px;
+  background: #fff;
+  flex: none;
+}
+.main { flex: 1 0 auto; width: 100%; }
+</style>
+
+<style>
+/* 全局基础重置与滚动条空间预留，避免导航栏跳动 */
+html,
+body,
+#app {
+  margin: 0;
+  padding: 0;
+}
+html {
+  scrollbar-gutter: stable;
+}
 </style>
