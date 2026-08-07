@@ -142,6 +142,7 @@ const dragging = ref(false)
 const fileInput = ref(null)
 const progress = ref({ total: 0, done: 0, failed: 0, queued: 0, running: false })
 let pollTimer = null
+let lastProgressKey = ''
 
 const filtered = computed(() => {
   let list = papers.value
@@ -173,7 +174,14 @@ async function reload() {
 
 async function pollStatus() {
   try {
-    progress.value = await api('/api/literature/analysis/status')
+    const p = await api('/api/literature/analysis/status')
+    progress.value = p
+    // 分析进度有变化时，同步刷新列表，保证「分析状态」列实时更新
+    const key = `${p.total}|${p.done}|${p.failed}|${p.queued}|${p.running}`
+    if (key !== lastProgressKey) {
+      lastProgressKey = key
+      papers.value = await api('/api/literature/papers')
+    }
   } catch {
     // 忽略
   }

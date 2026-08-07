@@ -136,8 +136,10 @@ router.delete('/:id', (req, res) => {
     .get(req.params.id, req.spaceId);
   if (!row) return res.status(404).json({ error: '文献不存在' });
   for (const p of [row.stored_name, row.text_path]) {
-    if (p && p.startsWith(req.litUploadDir)) {
-      fs.unlink(p, () => {});
+    if (!p) continue;
+    const full = path.isAbsolute(p) ? p : path.join(req.litUploadDir, p);
+    if (full.startsWith(req.litUploadDir)) {
+      fs.unlink(full, () => {});
     }
   }
   db.prepare('DELETE FROM literature_papers WHERE id = ?').run(row.id);

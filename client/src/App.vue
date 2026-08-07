@@ -5,6 +5,7 @@
       <div class="nav-content">
         <template v-if="isTool">
           <div class="logo tracker-brand">
+            <span class="tracker-icon">{{ toolMeta.icon }}</span>
             <span class="tracker-name">{{ toolMeta.name }}</span>
             <span class="tracker-sub">{{ toolMeta.sub }}</span>
           </div>
@@ -57,8 +58,8 @@ const route = useRoute()
 const router = useRouter()
 const user = ref(getStoredUser())
 const TOOL_META = {
-  '/tools/recruitment': { name: '秋招追踪器', sub: '求职投递进度管理' },
-  '/tools/literature': { name: '文献分析', sub: '文献阅读与 AI 整理' },
+  '/tools/recruitment': { name: '秋招追踪器', sub: '求职投递进度管理', icon: '🎯' },
+  '/tools/literature': { name: '文献分析', sub: '文献阅读与 AI 整理', icon: '📚' },
 }
 const toolMeta = computed(
   () =>
@@ -99,6 +100,7 @@ watch(() => route.path, refreshUser)
 .logo { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; color: #1a1a1a; text-decoration: none; }
 .logo-mark { width: 28px; height: 28px; flex: none; }
 .tracker-brand { gap: 10px; }
+.tracker-icon { font-size: 20px; line-height: 1; }
 .tracker-name { font-size: 18px; font-weight: 700; }
 .tracker-sub { font-size: 13px; color: var(--tk-faint); font-weight: 400; }
 .nav-login {
