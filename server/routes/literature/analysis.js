@@ -44,7 +44,7 @@ function buildPrompt(fields, text) {
     })
     .join(', ');
   return `字段清单：{${fieldMap}}
-文献文本（节选，可能被截断）："""${text.slice(0, 12000)}"""`;
+文献全文："""${text}"""`;
 }
 
 async function processPaper(paperId, spaceId, fields) {
@@ -70,7 +70,7 @@ async function processPaper(paperId, spaceId, fields) {
     const { parsed } = await chatJson({
       system,
       user: buildPrompt(fields, text),
-      maxTokens: 2400,
+      maxTokens: 4000,
       timeoutMs: 120000,
       namespace: 'lit',
       spaceId,

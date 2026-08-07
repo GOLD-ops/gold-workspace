@@ -65,10 +65,7 @@
       </div>
 
       <!-- 列表 -->
-      <div v-if="!filtered.length && !uploadQueue.length" class="lt-empty">
-        {{ papers.length ? '没有匹配的文献' : '还没有文献，先上传一批 PDF 吧' }}
-      </div>
-      <div v-else class="lt-table">
+      <div class="lt-table">
         <div class="lt-row lt-row-head">
           <span class="lt-check">
             <input
@@ -79,8 +76,56 @@
             />
           </span>
           <span>文件名</span>
-          <span>正文状态</span>
-          <span>分析状态</span>
+          <span>
+            <span class="lt-filter">
+              <button
+                class="lt-filter-btn"
+                :class="{ active: textFilters.length }"
+                @click.stop="toggleFilter('text')"
+              >
+                正文状态
+                <span v-if="textFilters.length" class="lt-filter-count">{{ textFilters.length }}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+              </button>
+              <div v-if="openFilter === 'text'" class="lt-filter-menu" @click.stop>
+                <button :class="{ active: !textFilters.length }" @click="clearFilter('text')">全部</button>
+                <button
+                  v-for="opt in TEXT_STATUS_OPTIONS"
+                  :key="opt.value"
+                  :class="{ active: textFilters.includes(opt.value) }"
+                  @click="toggleFilterValue('text', opt.value)"
+                >
+                  <span class="lt-filter-check">{{ textFilters.includes(opt.value) ? '✓' : '' }}</span>
+                  <span>{{ opt.label }}</span>
+                </button>
+              </div>
+            </span>
+          </span>
+          <span>
+            <span class="lt-filter">
+              <button
+                class="lt-filter-btn"
+                :class="{ active: statusFilters.length }"
+                @click.stop="toggleFilter('status')"
+              >
+                分析状态
+                <span v-if="statusFilters.length" class="lt-filter-count">{{ statusFilters.length }}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+              </button>
+              <div v-if="openFilter === 'status'" class="lt-filter-menu" @click.stop>
+                <button :class="{ active: !statusFilters.length }" @click="clearFilter('status')">全部</button>
+                <button
+                  v-for="opt in STATUS_OPTIONS"
+                  :key="opt.value"
+                  :class="{ active: statusFilters.includes(opt.value) }"
+                  @click="toggleFilterValue('status', opt.value)"
+                >
+                  <span class="lt-filter-check">{{ statusFilters.includes(opt.value) ? '✓' : '' }}</span>
+                  <span>{{ opt.label }}</span>
+                </button>
+              </div>
+            </span>
+          </span>
           <span>操作</span>
         </div>
         <div class="lt-row lt-row-uploading" v-for="item in uploadQueue" :key="'up-' + item.key">
@@ -129,6 +174,9 @@
             <button class="lt-btn lt-btn-danger lt-btn-sm" @click="remove(p)">删除</button>
           </span>
         </div>
+        <div v-if="!filtered.length && !uploadQueue.length" class="lt-empty">
+          {{ papers.length ? '没有匹配的文献' : '还没有文献，先上传一批 PDF 吧' }}
+        </div>
       </div>
     </div>
 
@@ -168,6 +216,9 @@ const emit = defineEmits(['notify'])
 const papers = ref([])
 const q = ref('')
 const selectedIds = ref([])
+const openFilter = ref('')
+const textFilters = ref([])
+const statusFilters = ref([])
 const editing = ref(null)
 const showExport = ref(false)
 const uploading = ref(false)
@@ -179,12 +230,29 @@ const UPLOAD_CONCURRENCY = 5
 let pollTimer = null
 let lastProgressKey = ''
 
+const TEXT_STATUS_OPTIONS = [
+  { value: 'pending', label: '提取中' },
+  { value: 'text', label: '已提取' },
+  { value: 'ocr', label: 'OCR 识别' },
+  { value: 'failed', label: '提取失败' },
+]
+const STATUS_OPTIONS = [
+  { value: 'pending', label: '待分析' },
+  { value: 'analyzing', label: '分析中' },
+  { value: 'done', label: '已完成' },
+  { value: 'error', label: '失败' },
+]
+
 const filtered = computed(() => {
   let list = papers.value
   if (q.value.trim()) {
     const k = q.value.trim().toLowerCase()
     list = list.filter((p) => p.filename.toLowerCase().includes(k))
   }
+  if (textFilters.value.length)
+    list = list.filter((p) => textFilters.value.includes(p.text_status))
+  if (statusFilters.value.length)
+    list = list.filter((p) => statusFilters.value.includes(p.status))
   return list
 })
 const allSelected = computed(
@@ -199,8 +267,38 @@ const progressPct = computed(() =>
 onMounted(() => {
   reload()
   pollTimer = setInterval(pollStatus, 2000)
+  document.addEventListener('click', onClickOutside)
 })
-onBeforeUnmount(() => clearInterval(pollTimer))
+onBeforeUnmount(() => {
+  clearInterval(pollTimer)
+  document.removeEventListener('click', onClickOutside)
+})
+
+function toggleFilter(kind) {
+  openFilter.value = openFilter.value === kind ? '' : kind
+}
+
+function toggleFilterValue(kind, value) {
+  const key = kind === 'text' ? 'textFilters' : 'statusFilters'
+  const cur = key === 'textFilters' ? textFilters.value : statusFilters.value
+  if (cur.includes(value)) {
+    if (key === 'textFilters') textFilters.value = cur.filter((v) => v !== value)
+    else statusFilters.value = cur.filter((v) => v !== value)
+  } else {
+    if (key === 'textFilters') textFilters.value = [...cur, value]
+    else statusFilters.value = [...cur, value]
+  }
+}
+
+function clearFilter(kind) {
+  if (kind === 'text') textFilters.value = []
+  else statusFilters.value = []
+  openFilter.value = ''
+}
+
+function onClickOutside(e) {
+  if (!e.target.closest('.lt-filter')) openFilter.value = ''
+}
 
 async function reload() {
   papers.value = await api('/api/literature/papers')
@@ -394,7 +492,9 @@ async function downloadBlob(path) {
 async function doExport(format) {
   showExport.value = false
   try {
-    await downloadBlob(`/api/literature/export?format=${format}`)
+    const ids = selectedIds.value
+    const qs = ids.length ? `&ids=${ids.join(',')}` : ''
+    await downloadBlob(`/api/literature/export?format=${format}${qs}`)
     emit('notify', format === 'xlsx' ? 'Excel 已导出' : 'JSON 已导出')
   } catch (e) {
     emit('notify', e.message, 'error')
@@ -430,7 +530,7 @@ async function doExport(format) {
 }
 .lt-upload-title { font-size: 15px; font-weight: 700; margin: 0 0 5px; color: var(--tk-text); }
 .lt-upload-hint { font-size: 12px; color: var(--tk-faint); margin: 0 0 14px; }
-.lt-list-card { overflow: hidden; }
+.lt-list-card { overflow: visible; }
 .lt-list-toolbar { padding: 14px 16px 0; }
 .lt-search { width: 260px; flex: none; }
 .lt-row-uploading { background: #f7faff; }
@@ -486,7 +586,7 @@ async function doExport(format) {
   border-bottom: 1px solid #edf0f5;
   transition: background 0.15s ease;
 }
-.lt-row:last-child { border-bottom: none; }
+.lt-row:last-child { border-bottom: none; border-radius: 0 0 var(--tk-radius) var(--tk-radius); }
 .lt-row:hover { background: #f8fafd; }
 .lt-row-head {
   font-size: 12px;
@@ -494,7 +594,71 @@ async function doExport(format) {
   background: #fafbfd;
   font-weight: 600;
   letter-spacing: 0.02em;
+  border-radius: var(--tk-radius) var(--tk-radius) 0 0;
 }
+.lt-filter { position: relative; display: inline-flex; }
+.lt-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  letter-spacing: inherit;
+  cursor: pointer;
+  padding: 2px 5px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+.lt-filter-btn:hover { background: #eef1f6; color: var(--tk-blue); }
+.lt-filter-btn.active { color: var(--tk-blue); }
+.lt-filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--tk-blue);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+.lt-filter-menu {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  z-index: 30;
+  background: #fff;
+  border: 1px solid var(--tk-border);
+  border-radius: 10px;
+  box-shadow: var(--tk-shadow-md);
+  padding: 4px;
+  min-width: 132px;
+  display: grid;
+}
+.lt-filter-menu button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 7px 10px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  color: var(--tk-text);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.12s ease;
+}
+.lt-filter-check { width: 14px; flex: none; color: var(--tk-blue); font-weight: 700; }
+.lt-filter-menu button:hover { background: var(--tk-blue-soft); color: var(--tk-blue); }
+.lt-filter-menu button.active { background: var(--tk-blue-soft); color: var(--tk-blue); font-weight: 600; }
 .lt-check input { width: 15px; height: 15px; accent-color: var(--tk-blue); cursor: pointer; }
 .lt-filename {
   font-size: 13.5px;

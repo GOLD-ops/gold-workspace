@@ -6,14 +6,21 @@ const router = express.Router();
 
 router.get('/', async (req, res) => {
   const format = req.query.format === 'json' ? 'json' : 'xlsx';
+  const ids = req.query.ids
+    ? String(req.query.ids)
+        .split(',')
+        .map(Number)
+        .filter(Boolean)
+    : [];
   const fields = db
     .prepare(
       'SELECT field_key, label FROM literature_fields WHERE space_id = ? AND enabled = 1 ORDER BY sort, id'
     )
     .all(req.spaceId);
-  const papers = db
+  let papers = db
     .prepare('SELECT * FROM literature_papers WHERE space_id = ? ORDER BY created_at, id')
     .all(req.spaceId);
+  if (ids.length) papers = papers.filter((p) => ids.includes(p.id));
   const rows = papers.map((p) => {
     const values = {};
     const analyses = db
@@ -31,13 +38,14 @@ router.get('/', async (req, res) => {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('文献分析');
   ws.columns = [
+    { header: '序号', key: 'no', width: 8 },
     { header: '文件名', key: 'filename', width: 32 },
     ...fields.map((f) => ({ header: f.label, key: f.field_key, width: 32 })),
   ];
   ws.getRow(1).font = { bold: true };
   ws.getRow(1).alignment = { vertical: 'middle' };
-  for (const r of rows) {
-    const row = { filename: r.filename, ...r.values };
+  for (const [idx, r] of rows.entries()) {
+    const row = { no: idx + 1, filename: r.filename, ...r.values };
     ws.addRow(row);
   }
   ws.eachRow((row) => {

@@ -3,7 +3,7 @@ const path = require('path');
 const { PDFParse } = require('pdf-parse');
 const { createWorker } = require('tesseract.js');
 
-const OCR_MAX_PAGES = 15;
+const OCR_MAX_PAGES = null; // 扫描版 PDF 识别全部页面，不截断
 const OCR_MIN_TEXT = 80;
 const TESSDATA_DIR = path.join(__dirname, 'tessdata');
 
@@ -29,7 +29,9 @@ async function extractPdf(buffer) {
       return { text, status: 'text' };
     }
     // 文本层缺失或过少，走 OCR
-    const shots = await parser.getScreenshot({ first: OCR_MAX_PAGES });
+    const shots = await parser.getScreenshot(
+      OCR_MAX_PAGES ? { first: OCR_MAX_PAGES } : {}
+    );
     const worker = await getOcrWorker();
     let ocr = '';
     for (const page of shots.pages || []) {
@@ -41,7 +43,7 @@ async function extractPdf(buffer) {
     if (!ocr) {
       return { text: '', status: 'failed', error: '无法从 PDF 提取文本（可能为扫描版或加密）' };
     }
-    return { text: ocr, status: 'ocr', truncated: true };
+    return { text: ocr, status: 'ocr' };
   } finally {
     await parser.destroy().catch(() => {});
   }
