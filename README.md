@@ -2,6 +2,10 @@
 
 基于 Vue 3 + Express + SQLite 的个人工作坊，内置「秋招追踪器」求职投递进度管理工具，支持多用户注册与数据隔离。
 
+内置工具：
+- **秋招追踪器**：求职投递进度管理（记录、追踪、看板、仪表盘、复盘笔记、邮件提醒、AI 识别）。
+- **文献分析**：上传 PDF/txt/md，AI 按自定义字段自动分析（研究方法、核心结论等），一键导出 Excel；扫描版 PDF 自动 OCR。
+
 ## 用户与登录
 
 - **打开即用，无需注册**：首次访问自动获得一个"游客空间"，数据直接保存在服务器，按空间隔离，互不可见。
@@ -153,3 +157,25 @@ SMTP_PASS=your-smtp-authorization-code  # 授权码（非登录密码）
 ## 数据备份
 
 所有数据存于 `server/data.db`（SQLite）。可在「设置 → 数据管理」导出 JSON 备份；直接复制该文件也可完整备份。
+
+## 文献分析工具
+
+- 支持拖拽/选择批量上传 PDF、txt、md（单篇 ≤ 20MB，批量 ≤ 300 篇）。
+- 文本型 PDF 直接提取文本；扫描版 PDF 自动 OCR（中英文），OCR 最多处理前 15 页。
+- 分析字段可自定义（默认 11 个：标题、作者、年份、来源、研究方法、研究问题、核心结论、创新点、局限性、备注、标签），字段开关与增删均生效。
+- 分析为手动触发（勾选后点「开始分析」），后端队列逐篇处理，前端实时显示进度；AI 未配置时记录失败状态，配置后可在「查看/编辑」中重新保存或重试。
+- 导出 Excel / JSON 均按当前启用的字段生成。
+- **每个用户独立的 AI 服务配置**：任何用户（含游客）都能在「文献分析 → AI 设置」中配置自己的服务商 / 接口地址 / 模型 / API Key，各自隔离、互不影响，也无需共用管理员的 Key；选择服务商时自动带出默认接口地址与模型，可手动修改。
+
+### 部署注意（OCR）
+
+OCR 语言包（`chi_sim`、`eng`，约 30MB）放在 `server/tessdata/`，该目录已被 git 忽略，**部署时需单独拷贝或下载**：
+
+```bash
+cd /opt/gold-workspace/server
+mkdir -p tessdata
+curl -L -o tessdata/eng.traineddata.gz https://tessdata.projectnaptha.com/4.0.0/eng.traineddata.gz
+curl -L -o tessdata/chi_sim.traineddata.gz https://tessdata.projectnaptha.com/4.0.0/chi_sim.traineddata.gz
+```
+
+上传的文献文件保存在 `server/uploads/literature/`（git 忽略）。服务器内存较小（2GB）时，OCR 大批量任务建议分批处理。

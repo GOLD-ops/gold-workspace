@@ -10,6 +10,11 @@ client/dist/
 *.db-wal
 *.db-shm
 
+# OCR 语言包（大文件，部署时单独下载）
+server/tessdata/
+server/uploads/
+server/*.traineddata
+
 # Environment & secrets
 .env
 .env.*

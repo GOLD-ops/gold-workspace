@@ -3,10 +3,10 @@
     <!-- 导航栏 -->
     <nav class="navbar">
       <div class="nav-content">
-        <template v-if="isTracker">
+        <template v-if="isTool">
           <div class="logo tracker-brand">
-            <span class="tracker-name">秋招追踪器</span>
-            <span class="tracker-sub">求职投递进度管理</span>
+            <span class="tracker-name">{{ toolMeta.name }}</span>
+            <span class="tracker-sub">{{ toolMeta.sub }}</span>
           </div>
           <div class="nav-right">
             <template v-if="user">
@@ -56,7 +56,18 @@ import { api, getStoredUser, clearToken, setStoredUser } from './api'
 const route = useRoute()
 const router = useRouter()
 const user = ref(getStoredUser())
-const isTracker = computed(() => route.path.startsWith('/tools/recruitment'))
+const TOOL_META = {
+  '/tools/recruitment': { name: '秋招追踪器', sub: '求职投递进度管理' },
+  '/tools/literature': { name: '文献分析', sub: '文献阅读与 AI 整理' },
+}
+const toolMeta = computed(
+  () =>
+    TOOL_META[Object.keys(TOOL_META).find((k) => route.path.startsWith(k))] || {
+      name: '',
+      sub: '',
+    }
+)
+const isTool = computed(() => !!toolMeta.value.name)
 
 function refreshUser() {
   user.value = getStoredUser()

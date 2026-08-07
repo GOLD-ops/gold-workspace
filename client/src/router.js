@@ -10,6 +10,11 @@ const routes = [
     name: 'recruitment',
     component: () => import('./tools/recruitment/RecruitmentTracker.vue'),
   },
+  {
+    path: '/tools/literature',
+    name: 'literature',
+    component: () => import('./tools/literature/LiteratureTracker.vue'),
+  },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 

@@ -7,10 +7,13 @@ const mailer = require('./mailer');
 
 const recruitmentRouter = require('./routes/recruitment');
 const authRouter = require('./routes/auth');
+const literatureRouter = require('./routes/literature');
 const auth = require('./auth');
 
 // 服务启动时确保预设管理员存在
 auth.ensureAdmin();
+// 重置上次未完成的分析状态
+require('./routes/literature/analysis').resetAll();
 
 const app = express();
 app.use(cors());
@@ -33,6 +36,9 @@ app.post('/api/tools', auth.requireAuth, auth.requireAdmin, (req, res) => {
 
 // 秋招追踪器接口（按工具模块挂载，未来新工具追加独立前缀）
 app.use('/api/recruitment', recruitmentRouter);
+
+// 文献分析工具接口
+app.use('/api/literature', literatureRouter);
 
 // 若存在前端构建产物，直接托管（同时兼容 Nginx 反向代理部署）
 const dist = path.join(__dirname, '..', 'client', 'dist');

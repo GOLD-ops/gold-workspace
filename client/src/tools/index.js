@@ -8,4 +8,11 @@ export const builtinTools = [
     desc: '求职投递进度管理：记录、追踪、复盘、分析与提醒全流程',
     path: '/tools/recruitment',
   },
+  {
+    id: 'literature',
+    name: '文献分析',
+    icon: '📚',
+    desc: '上传文献，AI 自动提取研究方法、核心结论等，一键导出 Excel',
+    path: '/tools/literature',
+  },
 ]

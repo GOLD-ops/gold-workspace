@@ -155,7 +155,68 @@ CREATE TABLE IF NOT EXISTS settings (
   value TEXT DEFAULT ''
 );
 
+CREATE TABLE IF NOT EXISTS literature_papers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  space_id INTEGER REFERENCES spaces(id) ON DELETE CASCADE,
+  filename TEXT NOT NULL,
+  stored_name TEXT NOT NULL,
+  file_size INTEGER DEFAULT 0,
+  file_type TEXT DEFAULT '',
+  text_status TEXT DEFAULT 'pending',
+  text_path TEXT DEFAULT '',
+  status TEXT DEFAULT 'pending',
+  error TEXT DEFAULT '',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS literature_fields (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  space_id INTEGER REFERENCES spaces(id) ON DELETE CASCADE,
+  field_key TEXT NOT NULL,
+  label TEXT NOT NULL,
+  type TEXT DEFAULT 'text',
+  description TEXT DEFAULT '',
+  options TEXT DEFAULT '',
+  enabled INTEGER DEFAULT 1,
+  sort INTEGER DEFAULT 0,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS literature_analyses (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  paper_id INTEGER NOT NULL REFERENCES literature_papers(id) ON DELETE CASCADE,
+  field_key TEXT NOT NULL,
+  value TEXT DEFAULT '',
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS literature_ai_config (
+  space_id INTEGER PRIMARY KEY REFERENCES spaces(id) ON DELETE CASCADE,
+  ai_provider TEXT DEFAULT 'deepseek',
+  ai_base_url TEXT DEFAULT '',
+  ai_model TEXT DEFAULT '',
+  ai_api_key TEXT DEFAULT '',
+  updated_at TEXT NOT NULL
+);
+
 `);
+
+// 兼容旧库：文献字段补充类型列
+try {
+  const cols = db.prepare('PRAGMA table_info(literature_fields)').all().map((c) => c.name);
+  if (!cols.includes('type')) {
+    db.exec("ALTER TABLE literature_fields ADD COLUMN type TEXT DEFAULT 'text'");
+  }
+  if (!cols.includes('description')) {
+    db.exec("ALTER TABLE literature_fields ADD COLUMN description TEXT DEFAULT ''");
+  }
+  if (!cols.includes('options')) {
+    db.exec("ALTER TABLE literature_fields ADD COLUMN options TEXT DEFAULT ''");
+  }
+} catch (e) {
+  console.error('[db] literature_fields.type 迁移失败:', e.message);
+}
 
 // 兼容旧库：为业务表补充归属字段（user_id / space_id）
 try {
@@ -285,6 +346,9 @@ try {
     CREATE INDEX IF NOT EXISTS idx_milestones_space ON milestones(space_id);
     CREATE INDEX IF NOT EXISTS idx_notes_space ON notes(space_id);
     CREATE INDEX IF NOT EXISTS idx_reminders_space ON reminders(space_id);
+    CREATE INDEX IF NOT EXISTS idx_lit_papers_space ON literature_papers(space_id);
+    CREATE INDEX IF NOT EXISTS idx_lit_fields_space ON literature_fields(space_id);
+    CREATE INDEX IF NOT EXISTS idx_lit_analyses_paper ON literature_analyses(paper_id);
   `);
 } catch (e) {
   console.error('[db] 索引创建失败:', e.message);
