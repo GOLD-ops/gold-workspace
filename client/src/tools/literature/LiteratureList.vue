@@ -41,6 +41,13 @@
         <button class="lt-btn lt-btn-primary lt-btn-sm" :disabled="!selectedIds.length || analyzing" @click="startAnalysis">
           {{ analyzing ? '分析中…' : `开始分析${selectedIds.length ? '（' + selectedIds.length + '）' : ''}` }}
         </button>
+        <button
+          class="lt-btn lt-btn-danger lt-btn-sm"
+          :disabled="!selectedIds.length"
+          @click="removeSelected"
+        >
+          删除选中{{ selectedIds.length ? '（' + selectedIds.length + '）' : '' }}
+        </button>
         <button class="lt-btn lt-btn-sm" :disabled="!papers.length" @click="showExport = true">导出</button>
       </div>
 
@@ -58,7 +65,7 @@
       </div>
 
       <!-- 列表 -->
-      <div v-if="!filtered.length" class="lt-empty">
+      <div v-if="!filtered.length && !uploadQueue.length" class="lt-empty">
         {{ papers.length ? '没有匹配的文献' : '还没有文献，先上传一批 PDF 吧' }}
       </div>
       <div v-else class="lt-table">
@@ -75,6 +82,32 @@
           <span>正文状态</span>
           <span>分析状态</span>
           <span>操作</span>
+        </div>
+        <div class="lt-row lt-row-uploading" v-for="item in uploadQueue" :key="'up-' + item.key">
+          <span class="lt-check">
+            <input type="checkbox" disabled />
+          </span>
+          <div class="lt-name">
+            <div class="lt-filename" :title="item.name">{{ item.name }}</div>
+            <div class="lt-filesize">
+              <template v-if="item.state === 'pending'">等待上传</template>
+              <template v-else-if="item.state === 'uploading'">上传中 {{ item.progress }}%</template>
+              <template v-else-if="item.state === 'done'">上传完成</template>
+              <template v-else>上传失败：{{ item.error }}</template>
+            </div>
+          </div>
+          <span>
+            <span v-if="item.state === 'uploading'" class="lt-uploading-cell">
+              <span class="lt-uploading-bar">
+                <span :style="{ width: item.progress + '%' }"></span>
+              </span>
+            </span>
+            <span v-else-if="item.state === 'done'" class="lt-badge lt-st-done">✓ 已上传</span>
+            <span v-else-if="item.state === 'error'" class="lt-badge lt-st-error">失败</span>
+            <span v-else class="lt-badge lt-ts-pending">等待中</span>
+          </span>
+          <span class="lt-faint">—</span>
+          <span class="lt-actions"></span>
         </div>
         <div class="lt-row" v-for="p in filtered" :key="p.id">
           <span class="lt-check">
@@ -141,6 +174,8 @@ const uploading = ref(false)
 const dragging = ref(false)
 const fileInput = ref(null)
 const progress = ref({ total: 0, done: 0, failed: 0, queued: 0, running: false })
+const uploadQueue = ref([])
+const UPLOAD_CONCURRENCY = 3
 let pollTimer = null
 let lastProgressKey = ''
 
@@ -201,29 +236,82 @@ function statusLabel(s) {
   return { pending: '待分析', analyzing: '分析中', done: '已完成', error: '失败' }[s] || s
 }
 
-async function uploadFiles(files) {
-  if (!files || !files.length) return
-  uploading.value = true
-  try {
+function uploadOne(item) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
     const fd = new FormData()
-    for (const f of files) fd.append('files', f)
-    const headers = {}
+    fd.append('files', item.file)
+    xhr.open('POST', '/api/literature/papers/upload')
     const token = getToken()
-    if (token) headers.Authorization = 'Bearer ' + token
-    else headers['X-Space-Token'] = getGuestToken()
-    const res = await fetch('/api/literature/papers/upload', {
-      method: 'POST',
-      headers,
-      body: fd,
-    })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.error || '上传失败')
-    emit('notify', `已上传 ${data.uploaded || 0} 篇文献`)
-    await reload()
-  } catch (e) {
-    emit('notify', e.message, 'error')
-  } finally {
-    uploading.value = false
+    if (token) xhr.setRequestHeader('Authorization', 'Bearer ' + token)
+    else xhr.setRequestHeader('X-Space-Token', getGuestToken())
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) item.progress = Math.round((e.loaded / e.total) * 100)
+    }
+    xhr.onload = () => {
+      try {
+        const data = JSON.parse(xhr.responseText)
+        if (xhr.status >= 200 && xhr.status < 300) resolve(data)
+        else reject(new Error(data.error || '上传失败'))
+      } catch {
+        reject(new Error('上传失败'))
+      }
+    }
+    xhr.onerror = () => reject(new Error('网络错误'))
+    xhr.ontimeout = () => reject(new Error('上传超时'))
+    xhr.timeout = 300000
+    xhr.send(fd)
+  })
+}
+
+async function uploadFiles(fileList) {
+  const files = Array.from(fileList || [])
+  if (!files.length) return
+  uploading.value = true
+  uploadQueue.value = files.map((f, i) => ({
+    key: i,
+    file: f,
+    name: f.name,
+    size: f.size,
+    state: 'pending',
+    progress: 0,
+    error: '',
+  }))
+
+  let ok = 0
+  let fail = 0
+  let next = 0
+
+  async function worker() {
+    while (next < uploadQueue.value.length) {
+      const i = next++
+      const item = uploadQueue.value[i]
+      item.state = 'uploading'
+      try {
+        await uploadOne(item)
+        item.state = 'done'
+        ok++
+      } catch (e) {
+        item.state = 'error'
+        item.error = e.message || '上传失败'
+        fail++
+      }
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(UPLOAD_CONCURRENCY, uploadQueue.value.length) },
+    worker
+  )
+  await Promise.all(workers)
+
+  uploading.value = false
+  emit('notify', `上传完成：成功 ${ok} 篇${fail ? `，失败 ${fail} 篇` : ''}`)
+  await reload()
+
+  // 全部成功时短暂展示后收起进度面板
+  if (!fail) {
+    setTimeout(() => (uploadQueue.value = []), 2500)
   }
 }
 
@@ -268,6 +356,20 @@ async function remove(p) {
   selectedIds.value = selectedIds.value.filter((x) => x !== p.id)
   emit('notify', '已删除')
   await reload()
+}
+
+async function removeSelected() {
+  const ids = selectedIds.value
+  if (!ids.length) return
+  if (!window.confirm(`确定删除选中的 ${ids.length} 篇文献及其分析结果？`)) return
+  try {
+    await Promise.all(ids.map((id) => api(`/api/literature/papers/${id}`, { method: 'DELETE' })))
+    selectedIds.value = []
+    emit('notify', `已删除 ${ids.length} 篇文献`)
+    await reload()
+  } catch (e) {
+    emit('notify', e.message, 'error')
+  }
 }
 
 function openPaper(p) {
@@ -331,6 +433,29 @@ async function doExport(format) {
 .lt-list-card { overflow: hidden; }
 .lt-list-toolbar { padding: 14px 16px 0; }
 .lt-search { width: 260px; flex: none; }
+.lt-row-uploading { background: #f7faff; }
+.lt-row-uploading:hover { background: #f2f7ff; }
+.lt-uploading-cell {
+  display: inline-flex;
+  align-items: center;
+  width: 76px;
+  height: 14px;
+}
+.lt-uploading-bar {
+  width: 100%;
+  height: 6px;
+  background: #e4eaf4;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.lt-uploading-bar span {
+  display: block;
+  height: 100%;
+  background: var(--tk-blue);
+  border-radius: 3px;
+  transition: width 0.2s ease;
+}
+.lt-faint { color: var(--tk-faint); }
 .lt-progress {
   display: flex;
   align-items: center;
