@@ -170,7 +170,7 @@ router.post('/import', (req, res) => {
           c.city || '',
           c.salary || '',
           '',
-          ['准备中', '已投递', '笔试', '面试', 'Offer', '已淘汰'].includes(c.status)
+          ['未投递', '已投递', '笔试', '面试', 'Offer', '已淘汰'].includes(c.status)
             ? c.status
             : '已投递',
           c.created_at || nowIso(),

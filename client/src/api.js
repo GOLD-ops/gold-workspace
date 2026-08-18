@@ -68,10 +68,10 @@ export async function api(path, options = {}) {
   return data;
 }
 
-export const STATUSES = ['准备中', '已投递', '笔试', '面试', 'Offer', '已淘汰'];
+export const STATUSES = ['未投递', '已投递', '笔试', '面试', 'Offer', '已淘汰'];
 
 export const STATUS_COLORS = {
-  准备中: '#94a3b8',
+  未投递: '#94a3b8',
   已投递: '#4a90d9',
   笔试: '#f59e0b',
   面试: '#8b5cf6',

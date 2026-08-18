@@ -167,7 +167,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { api, STATUSES, STATUS_COLORS, PRIORITY_COLORS, RESULT_COLORS, copyText, todayStr } from '../../api'
 
 const props = defineProps({ companies: { type: Array, default: () => [] } })
@@ -185,18 +185,7 @@ const q = ref('')
 const statusFilter = ref('')
 const sortBy = ref('updated')
 const pendingImport = ref(null)
-const expanded = ref(new Set(props.companies.map((c) => c.id)))
-
-// 数据到达后，新公司默认展开（用户可点击收缩）
-watch(
-  () => props.companies.map((c) => c.id),
-  (ids) => {
-    const s = new Set(expanded.value)
-    for (const id of ids) s.add(id)
-    expanded.value = s
-  },
-  { immediate: true }
-)
+const expanded = ref(new Set())
 
 const totalApps = computed(() => props.companies.reduce((s, c) => s + c.applications.length, 0))
 const countBy = computed(() => {
@@ -335,7 +324,7 @@ async function doImport(mode) {
 .tk-empty { padding: 56px 20px; }
 .tk-row {
   display: grid;
-  grid-template-columns: minmax(200px, 1fr) 104px 188px;
+  grid-template-columns: minmax(140px, 0.8fr) 96px 250px;
   gap: 16px;
   align-items: center;
   padding: 14px 20px;
@@ -490,7 +479,7 @@ async function doImport(mode) {
 }
 .tl-code:hover { background: #fff3d6; }
 .tl-none { color: #cbd5e1; font-size: 12px; }
-.tl-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.tl-actions { display: flex; gap: 6px; flex-wrap: nowrap; }
 .tl-apply-btn { color: var(--tk-blue); border-color: #bcd0f2; background: #f7faff; }
 .tl-apply-btn:hover { background: var(--tk-blue); border-color: var(--tk-blue); color: #fff; }
 .tl-view-btn { color: var(--tk-blue); border-color: #bcd0f2; background: #fff; }

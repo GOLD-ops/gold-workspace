@@ -1,7 +1,7 @@
 const db = require('../../db');
 
 // 流程阶段：一条投递所处的位置（准备中 → 已投递 → 笔试 → 面试 → Offer / 已淘汰）
-const STATUSES = ['准备中', '已投递', '笔试', '面试', 'Offer', '已淘汰'];
+const STATUSES = ['未投递', '已投递', '笔试', '面试', 'Offer', '已淘汰'];
 
 // 节点结果：细化每个阶段的状态
 const RESULT_OPTIONS = [
@@ -23,7 +23,7 @@ const STATUS_KEYWORDS = [
   { status: '已淘汰', keywords: ['淘汰', '拒', 'fail', 'reject', '不通过', '未通过'] },
   { status: '面试', keywords: ['一面', '二面', '三面', '四面', 'hr面', '群面', '背调', '面试'] },
   { status: '笔试', keywords: ['笔试', '机试', '测评'] },
-  { status: '准备中', keywords: ['准备', '未投递'] },
+  { status: '未投递', keywords: ['准备', '未投递'] },
   { status: '已投递', keywords: ['投递', '内推', '网申', '申请'] },
 ];
 
@@ -99,7 +99,7 @@ function currentMilestone(application, milestones) {
 // 自动优先级：由「进度深度 + 最近节点距今天数 + 状态加成」综合打分
 function computePriority(application, milestones) {
   const status = application.status || '准备中';
-  if (status === '准备中' || status === '已淘汰') return { level: '低', score: 0 };
+  if (status === '未投递' || status === '已淘汰') return { level: '低', score: 0 };
 
   const sorted = sortMilestones(milestones);
   let score = Math.min(Math.max(sorted.length, 1), 6) * 12;

@@ -30,7 +30,7 @@ router.get('/', (req, res) => {
   for (const a of applications) byStatus[a.status] = (byStatus[a.status] || 0) + 1;
 
   const total = applications.length;
-  const applied = applications.filter((a) => a.status !== '准备中').length;
+  const applied = applications.filter((a) => a.status !== '未投递').length;
   const interviewing = byStatus['面试'];
   const offers = byStatus['Offer'];
   const rejected = byStatus['已淘汰'];
