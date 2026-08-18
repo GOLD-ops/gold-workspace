@@ -45,16 +45,16 @@
       <div v-else class="tl-table">
         <div class="tk-row tk-row-head tl-head">
           <span>公司</span>
-          <span>岗位与进展</span>
           <span>内推码</span>
           <span>操作</span>
         </div>
 
         <div v-for="c in filtered" :key="c.id" class="tl-company-block">
           <!-- 公司行 -->
-          <div class="tk-row tl-company-row">
+          <div class="tk-row tl-company-row" @click="toggleExpand(c.id)">
             <div class="tl-cell-main">
               <div class="tl-company-line">
+                <span class="tl-expand-arrow">{{ expanded.has(c.id) ? '▾' : '▸' }}</span>
                 <span class="tl-company">{{ c.name }}</span>
                 <span class="tl-app-count">{{ c.applications.length }} 个投递</span>
                 <span v-if="c.channel" class="tl-meta-chip">{{ c.channel }}</span>
@@ -62,10 +62,10 @@
               <div v-if="c.notes" class="tl-sub">{{ c.notes }}</div>
             </div>
             <div class="tl-cell-code">
-              <span v-if="c.referral_code" class="tl-code" @click="copyReferral(c)">{{ c.referral_code }}</span>
+              <span v-if="c.referral_code" class="tl-code" @click.stop="copyReferral(c)">{{ c.referral_code }}</span>
               <span v-else class="tl-none">—</span>
             </div>
-            <div class="tl-actions">
+            <div class="tl-actions" @click.stop>
               <button
                 class="tk-btn tk-btn-icon tl-apply-btn"
                 :disabled="!c.link"
@@ -80,54 +80,58 @@
             </div>
           </div>
 
-          <!-- 投递行 -->
-          <div v-for="a in c.applications" :key="a.id" class="tk-row tl-app-row">
-            <div class="tl-cell-main tl-app-main">
-              <div class="tl-position-line">
-                <span class="tl-position">{{ a.position || '未填写岗位' }}</span>
-                <span
-                  class="tk-badge tl-priority"
-                  :style="{
-                    background: PRIORITY_COLORS[a.priority].bg,
-                    color: PRIORITY_COLORS[a.priority].color,
-                  }"
-                  >{{ a.priority }}</span
-                >
-                <span class="tk-badge tl-status" :style="statusStyle(a.status)">
-                  {{ a.status }}
-                </span>
-              </div>
-              <div class="tl-meta">
-                <span v-if="a.department" class="tl-meta-chip">{{ a.department }}</span>
-                <span v-if="a.city" class="tl-meta-chip">{{ a.city }}</span>
-                <span v-if="a.salary" class="tl-meta-chip">{{ a.salary }}</span>
-              </div>
-              <div v-if="a.notes" class="tl-sub">{{ a.notes }}</div>
+          <!-- 投递展开区 -->
+          <div v-if="expanded.has(c.id)" class="tl-app-area">
+            <div v-if="!c.applications.length" class="tl-no-apps">
+              暂无投递记录，点击「添加投递」记录第一个岗位。
             </div>
-            <div class="tl-cell-timeline">
-              <div v-if="a.milestones.length" class="tl-track">
-                <template v-for="(m, i) in a.milestones" :key="m.id">
+            <div v-for="a in c.applications" :key="a.id" class="tl-app-row">
+              <div class="tl-app-main">
+                <div class="tl-position-line">
+                  <span class="tl-position">{{ a.position || '未填写岗位' }}</span>
                   <span
-                    class="tl-node"
-                    :class="{ done: i < currentIdx(a), current: m.name === a.current_stage }"
-                    :title="`${m.name} ${m.date || ''}`"
+                    class="tk-badge tl-priority"
+                    :style="{
+                      background: PRIORITY_COLORS[a.priority].bg,
+                      color: PRIORITY_COLORS[a.priority].color,
+                    }"
+                    >{{ a.priority }}</span
                   >
-                    <i class="tl-dot" :style="m.result !== 'none' ? { background: RESULT_COLORS[m.result].color } : {}"></i>
-                    <span class="tl-label">{{ m.name }}</span>
-                    <em v-if="m.result !== 'none'" class="tl-result" :style="resultStyle(m.result)">{{ resultLabel(m.result) }}</em>
-                    <em v-if="m.date" class="tl-date">{{ m.date.slice(5) }}</em>
+                  <span class="tk-badge tl-status" :style="statusStyle(a.status)">
+                    {{ a.status }}
                   </span>
-                  <i v-if="i < a.milestones.length - 1" class="tl-link"></i>
-                </template>
+                </div>
+                <div class="tl-meta">
+                  <span v-if="a.department" class="tl-meta-chip">{{ a.department }}</span>
+                  <span v-if="a.city" class="tl-meta-chip">{{ a.city }}</span>
+                  <span v-if="a.salary" class="tl-meta-chip">{{ a.salary }}</span>
+                </div>
+                <div v-if="a.notes" class="tl-sub">{{ a.notes }}</div>
               </div>
-              <span v-else class="tl-none">尚无进展节点</span>
-            </div>
-            <div class="tl-cell-code tl-none">—</div>
-            <div class="tl-actions">
-              <button class="tk-btn tk-btn-icon tl-view-btn" @click="$emit('open-application', a)">
-                查看进度
-              </button>
-              <button class="tk-btn tk-btn-danger tk-btn-icon" @click="removeApplication(a)">删除</button>
+              <div class="tl-app-timeline">
+                <div v-if="a.milestones.length" class="tl-track">
+                  <template v-for="(m, i) in a.milestones" :key="m.id">
+                    <span
+                      class="tl-node"
+                      :class="{ done: i < currentIdx(a), current: m.name === a.current_stage }"
+                      :title="`${m.name} ${m.date || ''}`"
+                    >
+                      <i class="tl-dot" :style="m.result !== 'none' ? { background: RESULT_COLORS[m.result].color } : {}"></i>
+                      <span class="tl-label">{{ m.name }}</span>
+                      <em v-if="m.result !== 'none'" class="tl-result" :style="resultStyle(m.result)">{{ resultLabel(m.result) }}</em>
+                      <em v-if="m.date" class="tl-date">{{ m.date.slice(5) }}</em>
+                    </span>
+                    <i v-if="i < a.milestones.length - 1" class="tl-link"></i>
+                  </template>
+                </div>
+                <span v-else class="tl-none">尚无进展节点</span>
+              </div>
+              <div class="tl-app-actions">
+                <button class="tk-btn tk-btn-icon tl-view-btn" @click="$emit('open-application', a)">
+                  查看进度
+                </button>
+                <button class="tk-btn tk-btn-danger tk-btn-icon" @click="removeApplication(a)">删除</button>
+              </div>
             </div>
           </div>
         </div>
@@ -163,7 +167,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { api, STATUSES, STATUS_COLORS, PRIORITY_COLORS, RESULT_COLORS, copyText, todayStr } from '../../api'
 
 const props = defineProps({ companies: { type: Array, default: () => [] } })
@@ -181,6 +185,18 @@ const q = ref('')
 const statusFilter = ref('')
 const sortBy = ref('updated')
 const pendingImport = ref(null)
+const expanded = ref(new Set(props.companies.map((c) => c.id)))
+
+// 数据到达后，新公司默认展开（用户可点击收缩）
+watch(
+  () => props.companies.map((c) => c.id),
+  (ids) => {
+    const s = new Set(expanded.value)
+    for (const id of ids) s.add(id)
+    expanded.value = s
+  },
+  { immediate: true }
+)
 
 const totalApps = computed(() => props.companies.reduce((s, c) => s + c.applications.length, 0))
 const countBy = computed(() => {
@@ -229,6 +245,12 @@ const filtered = computed(() => {
 
 function currentIdx(a) {
   return a.milestones.findIndex((m) => m.name === a.current_stage)
+}
+function toggleExpand(id) {
+  const s = new Set(expanded.value)
+  if (s.has(id)) s.delete(id)
+  else s.add(id)
+  expanded.value = s
 }
 function statusStyle(s) {
   return { background: STATUS_COLORS[s] + '1a', color: STATUS_COLORS[s] }
@@ -313,7 +335,7 @@ async function doImport(mode) {
 .tk-empty { padding: 56px 20px; }
 .tk-row {
   display: grid;
-  grid-template-columns: minmax(200px, 1.5fr) minmax(260px, 2fr) 104px 188px;
+  grid-template-columns: minmax(200px, 1fr) 104px 188px;
   gap: 16px;
   align-items: center;
   padding: 14px 20px;
@@ -335,8 +357,19 @@ async function doImport(mode) {
 }
 
 /* 公司行 */
-.tl-company-row { background: #fcfdff; }
-.tl-company-row:hover { background: #f6f9ff; }
+.tl-company-row {
+  background: #fcfdff;
+  cursor: pointer;
+  user-select: none;
+}
+.tl-company-row:hover { background: #f2f6ff; }
+.tl-expand-arrow {
+  color: var(--tk-blue);
+  font-size: 11px;
+  width: 14px;
+  text-align: center;
+  flex: none;
+}
 .tl-company-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .tl-company { font-size: 15px; font-weight: 700; color: var(--tk-text); letter-spacing: -0.2px; }
 .tl-app-count {
@@ -357,10 +390,27 @@ async function doImport(mode) {
   max-width: 420px;
 }
 
-/* 投递行 */
-.tl-app-row { background: #fff; border-bottom: 1px solid #f0f2f7; }
-.tl-app-row:hover { background: #f8fafd; }
-.tl-app-main { padding-left: 22px; }
+/* 投递展开区 */
+.tl-app-area {
+  background: #f8fafd;
+  border-bottom: 1px solid #edf0f5;
+  padding: 4px 20px 12px 44px;
+}
+.tl-no-apps {
+  font-size: 12.5px;
+  color: var(--tk-faint);
+  padding: 10px 0 6px;
+}
+.tl-app-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.2fr) minmax(240px, 1.8fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px dashed #e4e9f1;
+}
+.tl-app-row:last-child { border-bottom: none; }
+.tl-app-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .tl-position-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .tl-position { font-size: 13.5px; font-weight: 600; color: #2a3446; }
 .tl-priority { flex: none; font-size: 11px; padding: 2px 9px; }
@@ -466,18 +516,17 @@ async function doImport(mode) {
 @media (max-width: 980px) {
   .tk-row {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-      'main'
-      'timeline'
-      'actions';
+    grid-template-areas: 'main' 'actions';
     row-gap: 10px;
     padding: 14px 16px;
   }
   .tk-row-head { display: none; }
   .tl-cell-main { grid-area: main; }
-  .tl-cell-timeline { grid-area: timeline; }
-  .tk-row > div:nth-of-type(3) { display: none; }
+  .tk-row > div:nth-of-type(2) { display: none; } /* 内推码 */
   .tl-actions { grid-area: actions; }
-  .tl-app-main { padding-left: 0; }
+  .tl-app-area { padding: 8px 16px 12px; }
+  .tl-app-row { grid-template-columns: minmax(0, 1fr); row-gap: 8px; }
+  .tl-app-timeline { order: 2; }
+  .tl-app-actions { order: 3; }
 }
 </style>
