@@ -39,11 +39,7 @@ function extractJson(text) {
 
 function cleanFields(obj) {
   const allowed = [
-    'company',
-    'position',
-    'department',
-    'city',
-    'salary',
+    'name',
     'channel',
     'link',
     'referral_code',
@@ -76,11 +72,7 @@ router.post('/parse', async (req, res) => {
 
   const system = `你是专业的秋招信息提取助手。请从用户粘贴的招聘文本 / 内推帖中提取以下字段，并只输出一个 JSON 对象，不要输出任何解释或 Markdown：
 {
-  "company": "公司名",
-  "position": "应聘岗位",
-  "department": "部门（没有则空字符串）",
-  "city": "城市/工作地点",
-  "salary": "薪资范围（如 20k-30k·14薪，没有则空字符串）",
+  "name": "公司名",
   "channel": "投递渠道（如官网/牛客/内推群，没有则空字符串）",
   "link": "投递链接或内推链接（没有则空字符串）",
   "referral_code": "内推码（没有则空字符串）",

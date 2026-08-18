@@ -128,7 +128,7 @@
 
     <div class="tk-settings-section tk-card">
       <h4>数据管理</h4>
-      <p class="tk-desc">导出 JSON 备份可跨设备迁移；导入支持「合并」与「完全覆盖」两种模式。</p>
+      <p class="tk-desc">导出 JSON 备份（公司、投递、节点、笔记）可跨设备迁移；导入支持「合并」与「完全覆盖」两种模式。</p>
       <div class="tk-toolbar">
         <button class="tk-btn" @click="exportData">导出 JSON 备份</button>
         <label class="tk-btn" style="cursor: pointer">
@@ -144,12 +144,13 @@
       <h4>最近提醒记录</h4>
       <table class="st-table">
         <thead>
-          <tr><th>时间</th><th>公司</th><th>节点</th><th>类型</th><th>状态</th></tr>
+          <tr><th>时间</th><th>公司</th><th>岗位</th><th>节点</th><th>类型</th><th>状态</th></tr>
         </thead>
         <tbody>
           <tr v-for="r in reminders.slice(0, 20)" :key="r.id">
             <td>{{ formatDateTime(r.created_at) }}</td>
             <td>{{ r.company }}</td>
+            <td>{{ r.position || '—' }}</td>
             <td>{{ r.milestone_name || '—' }}</td>
             <td>{{ r.kind === 'silence' ? '沉默提醒' : '节点提醒' }}</td>
             <td>

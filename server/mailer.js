@@ -134,9 +134,10 @@ async function checkForUser(u) {
   // 1) 节点定时提醒（到点未发送）
   const due = db
     .prepare(
-      `SELECT r.id, r.remind_at, c.company, c.position, m.name AS milestone_name, m.date AS milestone_date
+      `SELECT r.id, r.remind_at, c.name AS company, a.position, m.name AS milestone_name, m.date AS milestone_date
        FROM reminders r
-       JOIN companies c ON c.id = r.company_id
+       JOIN applications a ON a.id = r.application_id
+       JOIN companies c ON c.id = a.company_id
        LEFT JOIN milestones m ON m.id = r.milestone_id
        WHERE r.user_id = ? AND r.sent = 0 AND r.remind_at <> '' AND r.remind_at <= ?`
     )
@@ -171,15 +172,17 @@ async function checkForUser(u) {
     const cutoff = new Date(Date.now() - silenceDays * 86400000).toISOString();
     const quiet = db
       .prepare(
-        `SELECT id, company, position FROM companies
-         WHERE user_id = ? AND status IN ('已投递', '笔试', '面试中') AND updated_at < ?`
+        `SELECT a.id, c.name AS company, a.position FROM applications a
+         JOIN companies c ON c.id = a.company_id
+         JOIN spaces sp ON sp.id = a.space_id
+         WHERE sp.user_id = ? AND a.status IN ('已投递', '笔试', '面试') AND a.updated_at < ?`
       )
       .all(u.id, cutoff);
 
     for (const c of quiet) {
       const recent = db
         .prepare(
-          `SELECT COUNT(*) AS n FROM reminders WHERE company_id = ? AND kind = 'silence' AND created_at > ?`
+          `SELECT COUNT(*) AS n FROM reminders WHERE application_id = ? AND kind = 'silence' AND created_at > ?`
         )
         .get(c.id, cutoff).n;
       if (recent > 0) continue;
@@ -194,7 +197,7 @@ async function checkForUser(u) {
           ])
         );
         db.prepare(
-          `INSERT INTO reminders (company_id, user_id, email, remind_at, sent, kind, created_at)
+          `INSERT INTO reminders (application_id, user_id, email, remind_at, sent, kind, created_at)
            VALUES (?, ?, ?, ?, 1, 'silence', ?)`
         ).run(c.id, u.id, to, now, now);
         sent++;

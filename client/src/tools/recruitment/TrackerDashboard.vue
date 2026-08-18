@@ -20,7 +20,7 @@
         <div class="tk-card db-kpi">
           <div class="db-kpi-label">进行中</div>
           <div class="db-kpi-value">{{ stats.active }}</div>
-          <div class="db-kpi-sub">已投递 / 笔试 / 面试中</div>
+          <div class="db-kpi-sub">已投递 / 笔试 / 面试</div>
         </div>
         <div class="tk-card db-kpi">
           <div class="db-kpi-label">已获 Offer</div>

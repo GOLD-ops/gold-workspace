@@ -141,9 +141,10 @@ router.post('/mail-check', async (req, res) => {
 router.get('/reminders', (req, res) => {
   const rows = db
     .prepare(
-      `SELECT r.*, c.company, m.name AS milestone_name
+      `SELECT r.*, c.name AS company, a.position, m.name AS milestone_name
        FROM reminders r
-       JOIN companies c ON c.id = r.company_id
+       JOIN applications a ON a.id = r.application_id
+       JOIN companies c ON c.id = a.company_id
        LEFT JOIN milestones m ON m.id = r.milestone_id
        WHERE r.space_id = ?
        ORDER BY r.created_at DESC, r.id DESC

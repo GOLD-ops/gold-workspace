@@ -1,6 +1,6 @@
 <template>
   <div class="tk">
-<div class="tk-header">
+    <div class="tk-header">
       <div class="tk-tabs">
         <button
           v-for="t in tabs"
@@ -27,14 +27,18 @@
     <TrackerList
       v-if="view === 'list'"
       :companies="companies"
-      @open="openCompany"
+      @open-company="openCompany"
+      @open-application="openApplication"
+      @add-application="addApplication"
+      @remove-company="removeCompany"
+      @remove-application="removeApplication"
       @reload="reload"
       @notify="notify"
     />
     <TrackerKanban
       v-else-if="view === 'kanban'"
       :companies="companies"
-      @open="openCompany"
+      @open-application="openApplication"
       @move="moveStatus"
       @notify="notify"
     />
@@ -43,11 +47,22 @@
     <TrackerSettings v-else @reload="reload" @notify="notify" />
 
     <CompanyModal
-      v-if="modal.open"
-      :company="modal.company"
-      :initial="modal.initial"
-      @close="modal.open = false"
+      v-if="companyModal.open"
+      :company="companyModal.company"
+      @open-application="openApplication"
+      @add-application="addApplication"
+      @reload="reload"
+      @close="companyModal.open = false"
       @saved="onSaved"
+      @notify="notify"
+    />
+    <ApplicationModal
+      v-if="appModal.open"
+      :application="appModal.application"
+      :company-id="appModal.companyId"
+      @close="appModal.open = false"
+      @saved="onSaved"
+      @notify="notify"
     />
 
     <div v-if="toast" class="tk-toast" :class="{ error: toastType === 'error' }">{{ toast }}</div>
@@ -64,6 +79,7 @@ import TrackerDashboard from './TrackerDashboard.vue'
 import TrackerNotes from './TrackerNotes.vue'
 import TrackerSettings from './TrackerSettings.vue'
 import CompanyModal from './CompanyModal.vue'
+import ApplicationModal from './ApplicationModal.vue'
 
 const tabs = [
   { key: 'list', label: '列表', icon: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01' },
@@ -75,7 +91,8 @@ const tabs = [
 
 const view = ref('list')
 const companies = ref([])
-const modal = ref({ open: false, company: null, initial: null })
+const companyModal = ref({ open: false, company: null })
+const appModal = ref({ open: false, application: null, companyId: null })
 const toast = ref('')
 const toastType = ref('')
 let toastTimer = null
@@ -86,24 +103,53 @@ async function reload() {
   companies.value = await api('/api/recruitment/companies')
 }
 
-function openCompany(company, initial = null) {
-  modal.value = { open: true, company: company || null, initial: initial || null }
+function openCompany(company = null) {
+  companyModal.value = { open: true, company }
+}
+
+function openApplication(application, companyId = null) {
+  appModal.value = {
+    open: true,
+    application: application || null,
+    companyId:
+      companyId || (application && application.company_id) || null,
+  }
+}
+
+function addApplication(companyId) {
+  appModal.value = { open: true, application: null, companyId }
 }
 
 async function onSaved() {
-  modal.value.open = false
+  companyModal.value.open = false
+  appModal.value.open = false
   notify('已保存')
   await reload()
 }
 
 async function moveStatus({ id, status }) {
   try {
-    await api(`/api/recruitment/companies/${id}/status`, { method: 'PATCH', body: { status } })
+    await api(`/api/recruitment/applications/${id}/status`, {
+      method: 'PATCH',
+      body: { status },
+    })
     notify(`已移动到「${status}」`)
     await reload()
   } catch (e) {
     notify(e.message, 'error')
   }
+}
+
+async function removeCompany(id) {
+  await api(`/api/recruitment/companies/${id}`, { method: 'DELETE' })
+  notify('公司已删除')
+  await reload()
+}
+
+async function removeApplication(id) {
+  await api(`/api/recruitment/applications/${id}`, { method: 'DELETE' })
+  notify('投递已删除')
+  await reload()
 }
 
 function notify(msg, type = '') {
@@ -114,5 +160,4 @@ function notify(msg, type = '') {
     toast.value = ''
   }, 2600)
 }
-
 </script>

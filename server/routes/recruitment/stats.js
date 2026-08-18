@@ -14,22 +14,24 @@ router.get('/', (req, res) => {
   const range = ['week', 'month', 'all'].includes(req.query.range) ? req.query.range : 'all';
   const cutoff = rangeCutoff(range);
 
-  let companies;
+  let applications;
   if (cutoff) {
-    companies = db
-      .prepare('SELECT * FROM companies WHERE space_id = ? AND created_at >= ? ORDER BY id')
+    applications = db
+      .prepare('SELECT * FROM applications WHERE space_id = ? AND created_at >= ? ORDER BY id')
       .all(req.spaceId, cutoff);
   } else {
-    companies = db.prepare('SELECT * FROM companies WHERE space_id = ? ORDER BY id').all(req.spaceId);
+    applications = db
+      .prepare('SELECT * FROM applications WHERE space_id = ? ORDER BY id')
+      .all(req.spaceId);
   }
 
   const byStatus = {};
   for (const s of STATUSES) byStatus[s] = 0;
-  for (const c of companies) byStatus[c.status] = (byStatus[c.status] || 0) + 1;
+  for (const a of applications) byStatus[a.status] = (byStatus[a.status] || 0) + 1;
 
-  const total = companies.length;
-  const applied = companies.filter((c) => c.status !== '未投递').length;
-  const interviewing = byStatus['面试中'];
+  const total = applications.length;
+  const applied = applications.filter((a) => a.status !== '准备中').length;
+  const interviewing = byStatus['面试'];
   const offers = byStatus['Offer'];
   const rejected = byStatus['已淘汰'];
   const active = applied - offers - rejected;
@@ -39,25 +41,33 @@ router.get('/', (req, res) => {
   const interviewToOfferRate =
     interviewing + offers > 0 ? Math.round((offers / (interviewing + offers)) * 1000) / 10 : null;
 
-  // 各阶段平均耗时（基于节点日期）
+  // 各阶段平均耗时（基于投递的节点日期）
   const milestones = db
     .prepare(
-      `SELECT m.* FROM milestones m JOIN companies c ON c.id = m.company_id
-       WHERE c.space_id = ? AND c.created_at >= COALESCE(?, '1970-01-01')`
+      `SELECT m.* FROM milestones m JOIN applications a ON a.id = m.application_id
+       WHERE a.space_id = ? AND a.created_at >= COALESCE(?, '1970-01-01')`
     )
     .all(req.spaceId, cutoff || '1970-01-01');
 
-  const stageDate = new Map(); // companyId -> { apply, exam, interview, offer }
+  const stageDate = new Map(); // applicationId -> { apply, exam, interview, offer }
   for (const m of milestones) {
     if (!m.date) continue;
     const implied = statusFromMilestoneName(m.name);
     if (!implied) continue;
-    const bucket = stageDate.get(m.company_id) || {};
+    const bucket = stageDate.get(m.application_id) || {};
     const key =
-      implied === '已投递' ? 'apply' : implied === '笔试' ? 'exam' : implied === '面试中' ? 'interview' : implied === 'Offer' ? 'offer' : null;
+      implied === '已投递'
+        ? 'apply'
+        : implied === '笔试'
+        ? 'exam'
+        : implied === '面试'
+        ? 'interview'
+        : implied === 'Offer'
+        ? 'offer'
+        : null;
     if (!key) continue;
     if (!bucket[key] || m.date < bucket[key]) bucket[key] = m.date;
-    stageDate.set(m.company_id, bucket);
+    stageDate.set(m.application_id, bucket);
   }
 
   const avg = (fn) => {
@@ -67,12 +77,8 @@ router.get('/', (req, res) => {
   };
 
   const durations = {
-    apply_to_exam: avg((s) =>
-      s.apply && s.exam ? daysBetween(s.apply, s.exam) : null
-    ),
-    exam_to_interview: avg((s) =>
-      s.exam && s.interview ? daysBetween(s.exam, s.interview) : null
-    ),
+    apply_to_exam: avg((s) => (s.apply && s.exam ? daysBetween(s.apply, s.exam) : null)),
+    exam_to_interview: avg((s) => (s.exam && s.interview ? daysBetween(s.exam, s.interview) : null)),
     interview_to_offer: avg((s) =>
       s.interview && s.offer ? daysBetween(s.interview, s.offer) : null
     ),

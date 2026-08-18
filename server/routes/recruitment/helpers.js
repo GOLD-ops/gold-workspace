@@ -1,14 +1,29 @@
 const db = require('../../db');
 
-const STATUSES = ['未投递', '已投递', '笔试', '面试中', 'Offer', '已淘汰'];
+// 流程阶段：一条投递所处的位置（准备中 → 已投递 → 笔试 → 面试 → Offer / 已淘汰）
+const STATUSES = ['准备中', '已投递', '笔试', '面试', 'Offer', '已淘汰'];
 
-// 节点名称 -> 状态 的推断规则（按顺序匹配，前面的优先）
+// 节点结果：细化每个阶段的状态
+const RESULT_OPTIONS = [
+  { value: 'none', label: '无结果' },
+  { value: 'waiting', label: '等待中' },
+  { value: 'pass', label: '通过' },
+  { value: 'fail', label: '未通过' },
+];
+const RESULT_META = {
+  none: { label: '无结果', color: '#64748b', bg: '#f1f5f9' },
+  waiting: { label: '等待中', color: '#d97706', bg: '#fef3c7' },
+  pass: { label: '通过', color: '#0e9f6e', bg: '#e8f5ee' },
+  fail: { label: '未通过', color: '#dc2626', bg: '#fee2e2' },
+};
+
+// 节点名称 → 流程阶段 的推断规则（按顺序匹配，前面的优先）
 const STATUS_KEYWORDS = [
   { status: 'Offer', keywords: ['offer'] },
-  { status: '已淘汰', keywords: ['淘汰', '拒', 'fail', 'reject', '不通过'] },
-  { status: '面试中', keywords: ['一面', '二面', '三面', '四面', 'hr面', '群面', '背调', '面试'] },
+  { status: '已淘汰', keywords: ['淘汰', '拒', 'fail', 'reject', '不通过', '未通过'] },
+  { status: '面试', keywords: ['一面', '二面', '三面', '四面', 'hr面', '群面', '背调', '面试'] },
   { status: '笔试', keywords: ['笔试', '机试', '测评'] },
-  { status: '未投递', keywords: ['未投递', '准备'] },
+  { status: '准备中', keywords: ['准备', '未投递'] },
   { status: '已投递', keywords: ['投递', '内推', '网申', '申请'] },
 ];
 
@@ -28,7 +43,7 @@ function nextStatus(status) {
 }
 
 function milestoneNameForStatus(status) {
-  return status === '面试中' ? '面试' : status;
+  return status === '面试' ? '面试' : status;
 }
 
 function nowIso() {
@@ -58,25 +73,39 @@ function sortMilestones(milestones) {
   });
 }
 
-// 当前所处阶段：优先取与公司状态匹配的最后一个节点
-function currentMilestone(company, milestones) {
+function getMilestones(applicationId) {
+  return db
+    .prepare(
+      `SELECT * FROM milestones WHERE application_id = ?
+       ORDER BY (date IS NULL OR date = '') ASC, date ASC, id ASC`
+    )
+    .all(applicationId);
+}
+
+function getApplications(companyId) {
+  return db
+    .prepare('SELECT * FROM applications WHERE company_id = ? ORDER BY id')
+    .all(companyId);
+}
+
+// 当前所处阶段：优先取与投递状态匹配的最后一个节点
+function currentMilestone(application, milestones) {
   const sorted = sortMilestones(milestones);
-  const matching = sorted.filter((m) => statusFromMilestoneName(m.name) === company.status);
+  const matching = sorted.filter((m) => statusFromMilestoneName(m.name) === application.status);
   if (matching.length) return matching[matching.length - 1];
   return sorted.length ? sorted[sorted.length - 1] : null;
 }
 
 // 自动优先级：由「进度深度 + 最近节点距今天数 + 状态加成」综合打分
-// 高分 >= 65 / 中分 >= 35 / 其余低分
-function computePriority(company, milestones) {
-  const status = company.status || '未投递';
-  if (status === '未投递' || status === '已淘汰') return { level: '低', score: 0 };
+function computePriority(application, milestones) {
+  const status = application.status || '准备中';
+  if (status === '准备中' || status === '已淘汰') return { level: '低', score: 0 };
 
   const sorted = sortMilestones(milestones);
-
   let score = Math.min(Math.max(sorted.length, 1), 6) * 12;
-  const latest = currentMilestone(company, milestones);
-  const refDate = (latest && latest.date) || String(company.updated_at || '').slice(0, 10);
+  const latest = currentMilestone(application, milestones);
+  const refDate =
+    (latest && latest.date) || String(application.updated_at || '').slice(0, 10);
   const days = daysBetween(refDate, todayStr());
   if (days !== null) {
     if (days <= 2) score += 20;
@@ -84,35 +113,37 @@ function computePriority(company, milestones) {
     else if (days <= 14) score += 6;
     else if (days <= 30) score += 2;
   }
-  if (status === '面试中' || status === '笔试') score += 15;
+  if (status === '面试' || status === '笔试') score += 15;
   if (status === 'Offer') score += 5;
 
   const level = score >= 65 ? '高' : score >= 35 ? '中' : '低';
   return { level, score };
 }
 
-function getMilestones(companyId) {
-  return db
-    .prepare(
-      `SELECT * FROM milestones WHERE company_id = ?
-       ORDER BY (date IS NULL OR date = '') ASC, date ASC, id ASC`
-    )
-    .all(companyId);
-}
-
-// 根据最新节点推断状态；推断不出时保持原状
-function recomputeStatus(companyId) {
-  const ms = getMilestones(companyId);
+// 根据最新节点推断阶段；result=fail 强制已淘汰；推断不出时保持原状
+function recomputeStatus(applicationId) {
+  const ms = getMilestones(applicationId);
   const latest = ms.length ? ms[ms.length - 1] : null;
-  const implied = latest ? statusFromMilestoneName(latest.name) : null;
-  if (implied) {
-    db.prepare('UPDATE companies SET status = ? WHERE id = ?').run(implied, companyId);
+  if (!latest) return null;
+  const status =
+    latest.result === 'fail' ? '已淘汰' : statusFromMilestoneName(latest.name);
+  if (status) {
+    db.prepare('UPDATE applications SET status = ? WHERE id = ?').run(status, applicationId);
   }
-  return implied;
+  return status;
 }
 
 function touchCompany(companyId) {
   db.prepare('UPDATE companies SET updated_at = ? WHERE id = ?').run(nowIso(), companyId);
+}
+
+function touchApplication(applicationId) {
+  db.prepare('UPDATE applications SET updated_at = ? WHERE id = ?').run(
+    nowIso(),
+    applicationId
+  );
+  const row = db.prepare('SELECT company_id FROM applications WHERE id = ?').get(applicationId);
+  if (row) touchCompany(row.company_id);
 }
 
 function computeRemindAt(dateStr, value, unit) {
@@ -135,7 +166,7 @@ function parseTags(raw) {
   return [];
 }
 
-function companyPublic(row) {
+function applicationPublic(row) {
   if (!row) return null;
   const milestones = getMilestones(row.id);
   const current = currentMilestone(row, milestones);
@@ -148,16 +179,16 @@ function companyPublic(row) {
     current_stage: current ? current.name : '',
     latest_date: current ? current.date : '',
     notes_count: db
-      .prepare('SELECT COUNT(*) AS n FROM notes WHERE company_id = ?')
+      .prepare('SELECT COUNT(*) AS n FROM notes WHERE application_id = ?')
       .get(row.id).n,
   };
 }
 
-function companyDetail(row) {
-  const pub = companyPublic(row);
+function applicationDetail(row) {
+  const pub = applicationPublic(row);
   if (!pub) return null;
   const reminderRows = db
-    .prepare('SELECT * FROM reminders WHERE company_id = ? AND kind = ?')
+    .prepare('SELECT * FROM reminders WHERE application_id = ? AND kind = ?')
     .all(row.id, 'milestone');
   const remindersByMilestone = new Map();
   for (const r of reminderRows) {
@@ -183,8 +214,25 @@ function companyDetail(row) {
   return pub;
 }
 
+function companyPublic(row) {
+  if (!row) return null;
+  return {
+    ...row,
+    applications: getApplications(row.id).map(applicationPublic),
+  };
+}
+
+function companyDetail(row) {
+  const pub = companyPublic(row);
+  if (!pub) return null;
+  pub.applications = getApplications(row.id).map(applicationDetail);
+  return pub;
+}
+
 module.exports = {
   STATUSES,
+  RESULT_OPTIONS,
+  RESULT_META,
   statusFromMilestoneName,
   nextStatus,
   milestoneNameForStatus,
@@ -194,10 +242,14 @@ module.exports = {
   computePriority,
   currentMilestone,
   getMilestones,
+  getApplications,
   recomputeStatus,
   touchCompany,
+  touchApplication,
   computeRemindAt,
   parseTags,
+  applicationPublic,
+  applicationDetail,
   companyPublic,
   companyDetail,
 };

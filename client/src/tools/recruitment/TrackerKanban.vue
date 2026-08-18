@@ -17,25 +17,34 @@
       <div class="kb-col-body">
         <div
           class="kb-card"
-          v-for="c in columns[s]"
-          :key="c.id"
+          v-for="a in columns[s]"
+          :key="a.id"
           draggable="true"
-          @dragstart="dragStart($event, c.id)"
+          @dragstart="dragStart($event, a.id)"
           @dragend="dragEnd"
-          @click="$emit('open', c)"
+          @click="$emit('open-application', a)"
         >
           <div class="kb-card-top">
-            <span class="kb-company">{{ c.company }}</span>
+            <span class="kb-company">{{ a.company_name }}</span>
             <span
               class="tk-badge kb-pri"
               :style="{
-                background: PRIORITY_COLORS[c.priority].bg,
-                color: PRIORITY_COLORS[c.priority].color,
+                background: PRIORITY_COLORS[a.priority].bg,
+                color: PRIORITY_COLORS[a.priority].color,
               }"
-              >{{ c.priority }}</span
+              >{{ a.priority }}</span
             >
           </div>
-          <div class="kb-pos">{{ c.position || '未填写岗位' }}</div>
+          <div class="kb-pos">{{ a.position || '未填写岗位' }}</div>
+          <div v-if="latestNode(a)" class="kb-node">
+            <span class="kb-node-name">{{ latestNode(a).name }}</span>
+            <span
+              v-if="latestNode(a).result !== 'none'"
+              class="kb-node-result"
+              :style="resultStyle(latestNode(a).result)"
+              >{{ resultLabel(latestNode(a).result) }}</span
+            >
+          </div>
         </div>
         <div v-if="!columns[s].length" class="kb-empty">拖拽卡片到这里</div>
       </div>
@@ -45,23 +54,45 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { STATUSES, STATUS_COLORS, PRIORITY_COLORS } from '../../api'
+import { STATUSES, STATUS_COLORS, PRIORITY_COLORS, RESULT_COLORS } from '../../api'
 
 const props = defineProps({ companies: { type: Array, default: () => [] } })
-const emit = defineEmits(['open', 'move', 'notify'])
+const emit = defineEmits(['open-application', 'move', 'notify'])
 
 const dragOver = ref(null)
 let draggingId = null
 
+const applications = computed(() => {
+  const out = []
+  for (const c of props.companies) {
+    for (const a of c.applications) {
+      out.push({ ...a, company_name: c.name, company_link: c.link })
+    }
+  }
+  return out
+})
+
 const columns = computed(() => {
   const m = {}
   for (const s of STATUSES) m[s] = []
-  for (const c of props.companies) {
-    if (!m[c.status]) m[c.status] = []
-    m[c.status].push(c)
+  for (const a of applications.value) {
+    if (!m[a.status]) m[a.status] = []
+    m[a.status].push(a)
   }
   return m
 })
+
+function latestNode(a) {
+  if (!a.milestones || !a.milestones.length) return null
+  return a.milestones[a.milestones.length - 1]
+}
+function resultLabel(r) {
+  return { none: '无结果', waiting: '等待中', pass: '通过', fail: '未通过' }[r] || ''
+}
+function resultStyle(r) {
+  const c = RESULT_COLORS[r] || RESULT_COLORS.none
+  return { color: c.color, background: c.bg }
+}
 
 function dragStart(e, id) {
   draggingId = id
@@ -156,6 +187,27 @@ function drop(status) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.kb-node {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 7px;
+  min-width: 0;
+}
+.kb-node-name {
+  font-size: 11.5px;
+  color: var(--tk-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kb-node-result {
+  flex: none;
+  font-size: 10px;
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-weight: 600;
 }
 .kb-empty {
   text-align: center;

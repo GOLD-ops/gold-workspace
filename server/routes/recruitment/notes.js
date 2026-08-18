@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../../db');
-const { nowIso, parseTags, touchCompany } = require('./helpers');
+const { nowIso, parseTags, touchApplication } = require('./helpers');
 
 const router = express.Router();
 
@@ -14,7 +14,7 @@ function noteRow(n) {
   return { ...n, tags };
 }
 
-// 全部笔记（可带 company 搜索 / 标签筛选）
+// 全部笔记（可带 q 搜索 / 标签筛选）
 router.get('/', (req, res) => {
   const { q = '', tag = '' } = req.query;
   let rows;
@@ -22,20 +22,22 @@ router.get('/', (req, res) => {
     const like = `%${q}%`;
     rows = db
       .prepare(
-        `SELECT n.*, c.company AS company_name, c.position AS company_position, m.name AS milestone_name
+        `SELECT n.*, c.name AS company_name, a.position AS company_position, m.name AS milestone_name
          FROM notes n
-         JOIN companies c ON c.id = n.company_id
+         JOIN applications a ON a.id = n.application_id
+         JOIN companies c ON c.id = a.company_id
          LEFT JOIN milestones m ON m.id = n.milestone_id
-         WHERE n.space_id = ? AND (n.title LIKE ? OR n.content LIKE ? OR c.company LIKE ?)
+         WHERE n.space_id = ? AND (n.title LIKE ? OR n.content LIKE ? OR c.name LIKE ? OR a.position LIKE ?)
          ORDER BY n.updated_at DESC, n.id DESC`
       )
-      .all(req.spaceId, like, like, like);
+      .all(req.spaceId, like, like, like, like);
   } else {
     rows = db
       .prepare(
-        `SELECT n.*, c.company AS company_name, c.position AS company_position, m.name AS milestone_name
+        `SELECT n.*, c.name AS company_name, a.position AS company_position, m.name AS milestone_name
          FROM notes n
-         JOIN companies c ON c.id = n.company_id
+         JOIN applications a ON a.id = n.application_id
+         JOIN companies c ON c.id = a.company_id
          LEFT JOIN milestones m ON m.id = n.milestone_id
          WHERE n.space_id = ?
          ORDER BY n.updated_at DESC, n.id DESC`
@@ -51,8 +53,10 @@ router.get('/', (req, res) => {
 router.get('/tags', (req, res) => {
   const rows = db
     .prepare(
-      `SELECT n.tags, n.id, n.title, n.created_at, c.company AS company_name
-       FROM notes n JOIN companies c ON c.id = n.company_id
+      `SELECT n.tags, n.id, n.title, n.created_at, c.name AS company_name
+       FROM notes n
+       JOIN applications a ON a.id = n.application_id
+       JOIN companies c ON c.id = a.company_id
        WHERE n.space_id = ?`
     )
     .all(req.spaceId);
@@ -73,26 +77,27 @@ router.get('/tags', (req, res) => {
   res.json(list);
 });
 
-router.post('/companies/:id/notes', (req, res) => {
-  const c = db
-    .prepare('SELECT id FROM companies WHERE id = ? AND space_id = ?')
+// 在投递下创建笔记（可选挂到节点）
+router.post('/applications/:id/notes', (req, res) => {
+  const a = db
+    .prepare('SELECT * FROM applications WHERE id = ? AND space_id = ?')
     .get(req.params.id, req.spaceId);
-  if (!c) return res.status(404).json({ error: '记录不存在' });
+  if (!a) return res.status(404).json({ error: '投递记录不存在' });
   const { milestone_id = null, title = '', content = '', tags = [] } = req.body || {};
   if (milestone_id) {
     const m = db
-      .prepare('SELECT id FROM milestones WHERE id = ? AND company_id = ?')
-      .get(milestone_id, c.id);
-    if (!m) return res.status(400).json({ error: '节点不属于该公司' });
+      .prepare('SELECT id FROM milestones WHERE id = ? AND application_id = ?')
+      .get(milestone_id, a.id);
+    if (!m) return res.status(400).json({ error: '节点不属于该投递' });
   }
   const ts = nowIso();
   const r = db
     .prepare(
-      `INSERT INTO notes (company_id, milestone_id, space_id, title, content, tags, created_at, updated_at)
+      `INSERT INTO notes (application_id, milestone_id, space_id, title, content, tags, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
-      c.id,
+      a.id,
       milestone_id || null,
       req.spaceId,
       String(title || ''),
@@ -101,7 +106,7 @@ router.post('/companies/:id/notes', (req, res) => {
       ts,
       ts
     );
-  touchCompany(c.id);
+  touchApplication(a.id);
   const n = db.prepare('SELECT * FROM notes WHERE id = ?').get(r.lastInsertRowid);
   res.json(noteRow(n));
 });
@@ -114,9 +119,9 @@ router.put('/:id', (req, res) => {
   const { title, content, tags, milestone_id } = req.body || {};
   if (milestone_id !== undefined && milestone_id) {
     const m = db
-      .prepare('SELECT id FROM milestones WHERE id = ? AND company_id = ?')
-      .get(milestone_id, n.company_id);
-    if (!m) return res.status(400).json({ error: '节点不属于该公司' });
+      .prepare('SELECT id FROM milestones WHERE id = ? AND application_id = ?')
+      .get(milestone_id, n.application_id);
+    if (!m) return res.status(400).json({ error: '节点不属于该投递' });
   }
   db.prepare(
     `UPDATE notes SET title = ?, content = ?, tags = ?, milestone_id = ?, updated_at = ? WHERE id = ? AND space_id = ?`
@@ -129,7 +134,7 @@ router.put('/:id', (req, res) => {
     n.id,
     req.spaceId
   );
-  touchCompany(n.company_id);
+  touchApplication(n.application_id);
   res.json(noteRow(db.prepare('SELECT * FROM notes WHERE id = ?').get(n.id)));
 });
 
@@ -139,7 +144,7 @@ router.delete('/:id', (req, res) => {
     .get(req.params.id, req.spaceId);
   if (!n) return res.status(404).json({ error: '笔记不存在' });
   db.prepare('DELETE FROM notes WHERE id = ? AND space_id = ?').run(n.id, req.spaceId);
-  touchCompany(n.company_id);
+  touchApplication(n.application_id);
   res.json({ ok: true });
 });
 

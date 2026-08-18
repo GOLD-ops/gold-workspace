@@ -42,6 +42,7 @@
           <template v-else>
             <div class="nt-note-head">
               <span class="nt-company">{{ n.company_name }}</span>
+              <span v-if="n.company_position" class="nt-position">{{ n.company_position }}</span>
               <span v-if="n.milestone_name" class="nt-milestone">{{ n.milestone_name }}</span>
             </div>
             <div class="nt-note-title">{{ n.title || '无标题' }}</div>
@@ -175,6 +176,13 @@ async function remove(n) {
   font-size: 11px;
   background: #f1f5f9;
   color: #64748b;
+  border-radius: 6px;
+  padding: 1px 8px;
+}
+.nt-position {
+  font-size: 11px;
+  background: var(--tk-blue-soft);
+  color: var(--tk-blue);
   border-radius: 6px;
   padding: 1px 8px;
 }

@@ -68,15 +68,29 @@ export async function api(path, options = {}) {
   return data;
 }
 
-export const STATUSES = ['未投递', '已投递', '笔试', '面试中', 'Offer', '已淘汰'];
+export const STATUSES = ['准备中', '已投递', '笔试', '面试', 'Offer', '已淘汰'];
 
 export const STATUS_COLORS = {
-  未投递: '#94a3b8',
+  准备中: '#94a3b8',
   已投递: '#4a90d9',
   笔试: '#f59e0b',
-  面试中: '#8b5cf6',
+  面试: '#8b5cf6',
   Offer: '#10b981',
   已淘汰: '#64748b',
+};
+
+export const RESULT_OPTIONS = [
+  { value: 'none', label: '无结果' },
+  { value: 'waiting', label: '等待中' },
+  { value: 'pass', label: '通过' },
+  { value: 'fail', label: '未通过' },
+];
+
+export const RESULT_COLORS = {
+  none: { color: '#64748b', bg: '#f1f5f9' },
+  waiting: { color: '#d97706', bg: '#fef3c7' },
+  pass: { color: '#0e9f6e', bg: '#e8f5ee' },
+  fail: { color: '#dc2626', bg: '#fee2e2' },
 };
 
 export const PRIORITY_COLORS = {
