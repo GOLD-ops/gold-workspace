@@ -3,11 +3,13 @@ const db = require('../../db');
 const {
   STATUSES,
   statusFromMilestoneName,
+  isResultlessNode,
   nextStatus,
   milestoneNameForStatus,
   nowIso,
   todayStr,
-  computeRemindAt,
+  nowLocalStr,
+  computeRemindAtGlobal,
   applicationPublic,
   applicationDetail,
   getMilestones,
@@ -18,7 +20,7 @@ const {
 
 const router = express.Router();
 
-const APP_FIELDS = ['position', 'department', 'city', 'salary', 'notes'];
+const APP_FIELDS = ['position', 'department', 'city', 'salary', 'notes', 'requirements'];
 
 function pickApp(body) {
   const out = {};
@@ -28,7 +30,38 @@ function pickApp(body) {
   return out;
 }
 
-function insertMilestone(applicationId, spaceId, name, date, result, remind = null) {
+// 读取用户的全局提醒规则
+function getRemindRule(spaceId) {
+  const space = db.prepare('SELECT user_id FROM spaces WHERE id = ?').get(spaceId);
+  if (!space || !space.user_id) return null;
+  return (
+    db
+      .prepare(
+        'SELECT remind_enabled, remind_value, remind_unit, remind_time FROM users WHERE id = ?'
+      )
+      .get(space.user_id) || null
+  );
+}
+
+// 按全局规则同步阶段提醒：仅「待进行」节点且用户启用提醒时生成，否则清除
+function syncReminderForMilestone(milestoneId, applicationId, spaceId, date, result) {
+  db.prepare('DELETE FROM reminders WHERE milestone_id = ?').run(milestoneId);
+  if (result !== 'waiting') return;
+  // 节点时间已过：不生成提醒记录（也不出现在“最近提醒记录”中）
+  if (milestoneDateExpired(date)) return;
+  const rule = getRemindRule(spaceId);
+  if (!rule) return;
+  const remindAt = computeRemindAtGlobal(date, rule);
+  if (!remindAt) return;
+  const space = db.prepare('SELECT user_id FROM spaces WHERE id = ?').get(spaceId);
+  const userId = space ? space.user_id : null;
+  db.prepare(
+    `INSERT INTO reminders (application_id, milestone_id, user_id, space_id, email, remind_at, remind_value, remind_unit, sent, kind, created_at)
+     VALUES (?, ?, ?, ?, '', ?, '', '', 0, 'milestone', ?)`
+  ).run(applicationId, milestoneId, userId, spaceId, remindAt, nowIso());
+}
+
+function insertMilestone(applicationId, spaceId, name, date, result) {
   const m = db
     .prepare(
       'INSERT INTO milestones (application_id, space_id, name, result, date, created_at) VALUES (?, ?, ?, ?, ?, ?)'
@@ -37,7 +70,7 @@ function insertMilestone(applicationId, spaceId, name, date, result, remind = nu
       applicationId,
       spaceId,
       String(name || '').trim() || '新节点',
-      result || 'none',
+      result || 'waiting',
       date || '',
       nowIso()
     );
@@ -45,51 +78,29 @@ function insertMilestone(applicationId, spaceId, name, date, result, remind = nu
 
   const implied = statusFromMilestoneName(name);
   if (implied) db.prepare('UPDATE applications SET status = ? WHERE id = ?').run(implied, applicationId);
-
-  if (remind && remind.value !== undefined && remind.value !== null && String(remind.value) !== '') {
-    const remindAt = computeRemindAt(date, remind.value, remind.unit);
-    if (remindAt) {
-      const space = db.prepare('SELECT user_id FROM spaces WHERE id = ?').get(spaceId);
-      const userId = space ? space.user_id : null;
-      db.prepare(
-        `INSERT INTO reminders (application_id, milestone_id, user_id, space_id, email, remind_at, remind_value, remind_unit, sent, kind, created_at)
-         VALUES (?, ?, ?, ?, '', ?, ?, ?, 0, 'milestone', ?)`
-      ).run(
-        applicationId,
-        milestoneId,
-        userId,
-        spaceId,
-        remindAt,
-        String(remind.value),
-        remind.unit || 'day',
-        nowIso()
-      );
-    }
-  }
+  const finalResult = isResultlessNode(name) ? '' : result || 'waiting';
+  db.prepare('UPDATE milestones SET result = ? WHERE id = ?').run(finalResult, milestoneId);
+  syncReminderForMilestone(milestoneId, applicationId, spaceId, date, finalResult);
   return milestoneId;
 }
 
-function upsertReminderForMilestone(milestoneId, applicationId, spaceId, date, remind) {
-  db.prepare('DELETE FROM reminders WHERE milestone_id = ?').run(milestoneId);
-  if (remind && remind.value !== undefined && remind.value !== null && String(remind.value) !== '') {
-    const remindAt = computeRemindAt(date, remind.value, remind.unit);
-    if (remindAt) {
-      const space = db.prepare('SELECT user_id FROM spaces WHERE id = ?').get(spaceId);
-      const userId = space ? space.user_id : null;
-      db.prepare(
-        `INSERT INTO reminders (application_id, milestone_id, user_id, space_id, email, remind_at, remind_value, remind_unit, sent, kind, created_at)
-         VALUES (?, ?, ?, ?, '', ?, ?, ?, 0, 'milestone', ?)`
-      ).run(
-        applicationId,
-        milestoneId,
-        userId,
-        spaceId,
-        remindAt,
-        String(remind.value),
-        remind.unit || 'day',
-        nowIso()
-      );
-    }
+// 节点时间是否已过：只有日期的节点按当天 23:59 前仍有效判断
+function milestoneDateExpired(dateStr) {
+  if (!dateStr) return false;
+  const s = String(dateStr);
+  const d = new Date(s.includes('T') ? s : `${s}T23:59:59`);
+  if (Number.isNaN(d.getTime())) return false;
+  return d.getTime() < Date.now();
+}
+
+// 联动通过：新增节点时，把排在其前面的节点自动标记为「通过」
+function autoPassEarlier(applicationId, anchorId) {
+  const ms = getMilestones(applicationId); // 已按日期、创建顺序排序
+  const update = db.prepare("UPDATE milestones SET result = 'pass' WHERE id = ?");
+  for (const m of ms) {
+    if (m.id === anchorId) break;
+    if (isResultlessNode(m.name)) continue; // 无需结果的节点不标通过
+    update.run(m.id);
   }
 }
 
@@ -133,6 +144,9 @@ router.get('/:id', (req, res) => {
 
 router.post('/', (req, res) => {
   const fields = pickApp(req.body || {});
+  if (!String(fields.position || '').trim()) {
+    return res.status(400).json({ error: '请填写应聘岗位' });
+  }
   const companyId = Number(req.body.company_id) || 0;
   const company = db
     .prepare('SELECT id FROM companies WHERE id = ? AND space_id = ?')
@@ -142,8 +156,8 @@ router.post('/', (req, res) => {
   const ts = nowIso();
   const r = db
     .prepare(
-      `INSERT INTO applications (company_id, space_id, position, department, city, salary, notes, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO applications (company_id, space_id, position, department, city, salary, notes, requirements, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       companyId,
@@ -153,13 +167,14 @@ router.post('/', (req, res) => {
       fields.city || '',
       fields.salary || '',
       fields.notes || '',
+      fields.requirements || '',
       status,
       ts,
       ts
     );
   const id = r.lastInsertRowid;
   for (const m of req.body.milestones || []) {
-    insertMilestone(id, req.spaceId, m.name, m.date, m.result, m.remind);
+    insertMilestone(id, req.spaceId, m.name, m.date, m.result);
   }
   recomputeStatus(id);
   touchCompany(companyId);
@@ -217,11 +232,14 @@ router.patch('/:id/status', (req, res) => {
   const ms = getMilestones(row.id);
   const last = ms.length ? ms[ms.length - 1] : null;
   const name = milestoneNameForStatus(status);
-  if (!last || last.name !== name || last.date !== todayStr()) {
-    db.prepare(
+  let newId = null;
+  if (!last || last.name !== name || String(last.date || '').slice(0, 10) !== todayStr()) {
+    const r = db.prepare(
       'INSERT INTO milestones (application_id, space_id, name, result, date, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(row.id, req.spaceId, name, 'none', todayStr(), nowIso());
+    ).run(row.id, req.spaceId, name, isResultlessNode(name) ? '' : 'waiting', nowLocalStr(), nowIso());
+    newId = r.lastInsertRowid;
   }
+  if (newId) autoPassEarlier(row.id, newId);
   touchCompany(row.company_id);
   res.json(applicationDetail(db.prepare('SELECT * FROM applications WHERE id = ?').get(row.id)));
 });
@@ -247,9 +265,11 @@ router.post('/batch-advance', (req, res) => {
       nowIso(),
       id
     );
-    db.prepare(
+    const bName = milestoneNameForStatus(next);
+    const r = db.prepare(
       'INSERT INTO milestones (application_id, space_id, name, result, date, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(id, req.spaceId, milestoneNameForStatus(next), 'none', todayStr(), nowIso());
+    ).run(id, req.spaceId, bName, isResultlessNode(bName) ? '' : 'waiting', nowLocalStr(), nowIso());
+    autoPassEarlier(id, r.lastInsertRowid);
     touchCompany(a.company_id);
     advanced.push({ id, position: a.position, status: next });
   }
@@ -262,9 +282,10 @@ router.post('/:id/milestones', (req, res) => {
     .prepare('SELECT * FROM applications WHERE id = ? AND space_id = ?')
     .get(req.params.id, req.spaceId);
   if (!row) return res.status(404).json({ error: '投递记录不存在' });
-  const { name, date, result, remind } = req.body || {};
+  const { name, date, result } = req.body || {};
   if (!String(name || '').trim()) return res.status(400).json({ error: '节点名称不能为空' });
-  insertMilestone(row.id, req.spaceId, name, date, result, remind);
+  const newId = insertMilestone(row.id, req.spaceId, name, date, result);
+  autoPassEarlier(row.id, newId);
   recomputeStatus(row.id);
   touchApplication(row.id);
   res.json(applicationDetail(db.prepare('SELECT * FROM applications WHERE id = ?').get(row.id)));
@@ -278,20 +299,26 @@ router.put('/milestones/:id', (req, res) => {
     )
     .get(req.params.id, req.spaceId);
   if (!m) return res.status(404).json({ error: '节点不存在' });
-  const { name, date, result, remind } = req.body || {};
+  const { name, date, result } = req.body || {};
+  const finalName = name !== undefined ? String(name).trim() || '新节点' : m.name;
+  const finalDate = date !== undefined ? date || '' : m.date;
+  let finalResult = result !== undefined ? result || 'waiting' : m.result;
+  if (isResultlessNode(finalName)) finalResult = '';
+  // 内容未变化时不重建提醒，避免“保存即重新排队”导致重复发送
+  const changed = finalName !== m.name || finalDate !== m.date || finalResult !== m.result;
   db.prepare('UPDATE milestones SET name = ?, date = ?, result = ? WHERE id = ?').run(
-    name !== undefined ? String(name).trim() || '新节点' : m.name,
-    date !== undefined ? date || '' : m.date,
-    result !== undefined ? result || 'none' : m.result,
+    finalName,
+    finalDate,
+    finalResult,
     m.id
   );
-  if (remind !== undefined) {
-    upsertReminderForMilestone(
+  if (changed) {
+    syncReminderForMilestone(
       m.id,
       m.application_id,
       req.spaceId,
-      date !== undefined ? date || '' : m.date,
-      remind
+      finalDate,
+      finalResult
     );
   }
   recomputeStatus(m.application_id);
@@ -314,3 +341,4 @@ router.delete('/milestones/:id', (req, res) => {
 });
 
 module.exports = router;
+module.exports.syncReminderForMilestone = syncReminderForMilestone;

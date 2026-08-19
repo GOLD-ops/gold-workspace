@@ -107,12 +107,21 @@ function openCompany(company = null) {
   companyModal.value = { open: true, company }
 }
 
-function openApplication(application, companyId = null) {
+async function openApplication(application, companyId = null) {
+  let app = application || null
+  if (app && app.id) {
+    try {
+      // 列表接口不含节点笔记，打开时拉取完整详情（含笔记）
+      app = await api(`/api/recruitment/applications/${app.id}`)
+    } catch {
+      // 拉取失败时退回列表数据
+    }
+  }
   appModal.value = {
     open: true,
-    application: application || null,
+    application: app,
     companyId:
-      companyId || (application && application.company_id) || null,
+      companyId || (app && app.company_id) || null,
   }
 }
 
@@ -129,6 +138,17 @@ async function onSaved() {
 
 async function moveStatus({ id, status }) {
   try {
+    if (typeof id === 'string' && id.startsWith('virtual-')) {
+      const companyId = Number(id.slice(8))
+      const created = await api('/api/recruitment/applications', {
+        method: 'POST',
+        body: { company_id: companyId, status },
+      })
+      await reload()
+      notify(`已创建「${status}」投递记录，请补充岗位信息`)
+      openApplication(created)
+      return
+    }
     await api(`/api/recruitment/applications/${id}/status`, {
       method: 'PATCH',
       body: { status },

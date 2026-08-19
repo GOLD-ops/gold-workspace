@@ -2,12 +2,12 @@ const express = require('express');
 const db = require('../../db');
 const mailer = require('../../mailer');
 const auth = require('../../auth');
+const applications = require('./applications');
 
 const router = express.Router();
 
 const SECRET_KEYS = ['ai_api_key'];
-const USER_KEYS = ['email', 'silence_days'];
-const ADMIN_KEYS = ['ai_provider', 'ai_base_url', 'ai_model', 'ai_api_key', 'invite_required', 'invite_code'];
+const USER_KEYS = ['email', 'silence_days', 'silence_enabled', 'remind_enabled', 'remind_value', 'remind_unit', 'remind_time'];
 
 function mask(value) {
   if (!value) return '';
@@ -35,29 +35,70 @@ function readUserSettings(userId) {
   return {
     email: (u && u.email) || '',
     silence_days: (u && u.silence_days) || '14',
+    silence_enabled: String(
+      u && u.silence_enabled !== undefined && u.silence_enabled !== null ? u.silence_enabled : 1
+    ),
+    remind_enabled: String((u && u.remind_enabled !== undefined && u.remind_enabled !== null ? u.remind_enabled : 1)),
+    remind_value: (u && u.remind_value) || '1',
+    remind_unit: (u && u.remind_unit) || 'day',
+    remind_time: (u && u.remind_time) || '08:00',
   };
+}
+
+function readSpaceAiConfig(spaceId, masked = true) {
+  const row = db
+    .prepare('SELECT * FROM recruitment_ai_config WHERE space_id = ?')
+    .get(spaceId);
+  const out = {
+    ai_provider: (row && row.ai_provider) || 'deepseek',
+    ai_base_url: (row && row.ai_base_url) || '',
+    ai_model: (row && row.ai_model) || '',
+    ai_api_key: (row && row.ai_api_key) || '',
+  };
+  if (masked && out.ai_api_key) out.ai_api_key = mask(out.ai_api_key);
+  return out;
+}
+
+function upsertSpaceAiConfig(spaceId, patch) {
+  const current = readSpaceAiConfig(spaceId, false);
+  const next = { ...current };
+  for (const key of ['ai_provider', 'ai_base_url', 'ai_model', 'ai_api_key']) {
+    if (patch[key] === undefined) continue;
+    let v = String(patch[key]);
+    if (key === 'ai_api_key') {
+    if (v === '' || String(v).includes('****')) v = current.ai_api_key || '';
+    }
+    next[key] = v;
+  }
+  db.prepare(
+    `INSERT INTO recruitment_ai_config (space_id, ai_provider, ai_base_url, ai_model, ai_api_key, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(space_id) DO UPDATE SET
+       ai_provider = excluded.ai_provider,
+       ai_base_url = excluded.ai_base_url,
+       ai_model = excluded.ai_model,
+       ai_api_key = excluded.ai_api_key,
+       updated_at = excluded.updated_at`
+  ).run(
+    spaceId,
+    next.ai_provider,
+    next.ai_base_url,
+    next.ai_model,
+    next.ai_api_key,
+    new Date().toISOString()
+  );
 }
 
 router.get('/', (req, res) => {
   const uid = req.user ? req.user.id : null;
   const out = {
     ...readUserSettings(uid),
-    ai_provider: '',
-    ai_model: '',
-    ai_base_url: '',
+    ...readSpaceAiConfig(req.spaceId, true),
   };
   const g = readGlobalSettings(true);
   if (req.user && req.user.is_admin) {
-    out.ai_provider = g.ai_provider;
-    out.ai_model = g.ai_model;
-    out.ai_base_url = g.ai_base_url;
-    out.ai_api_key = g.ai_api_key;
     out.invite_required = g.invite_required;
     out.invite_code = g.invite_code;
-  } else {
-    // 普通用户可看到 AI 服务商与模型（用于识别提示），但不含密钥与配置项
-    out.ai_provider = g.ai_provider;
-    out.ai_model = g.ai_model;
   }
   res.json(out);
 });
@@ -76,35 +117,67 @@ router.put('/', (req, res) => {
       .join(', ');
     const vals = Object.keys(userPatch).map((k) => userPatch[k]);
     db.prepare(`UPDATE users SET ${sets} WHERE id = ?`).run(...vals, req.user.id);
+    // 提醒规则变化：重新同步该用户所有“待进行”节点的提醒
+    const remindKeys = ['remind_enabled', 'remind_value', 'remind_unit', 'remind_time'];
+    if (remindKeys.some((k) => body[k] !== undefined)) {
+      const spaces = db.prepare('SELECT id FROM spaces WHERE user_id = ?').all(req.user.id);
+      const waiting = db.prepare(
+        `SELECT m.* FROM milestones m JOIN applications a ON a.id = m.application_id
+         WHERE a.space_id = ? AND m.result = 'waiting'`
+      );
+      for (const sp of spaces) {
+        for (const m of waiting.all(sp.id)) {
+          applications.syncReminderForMilestone(
+            m.id,
+            m.application_id,
+            sp.id,
+            m.date,
+            'waiting'
+          );
+        }
+      }
+    }
   }
 
-  // 全局配置：仅管理员
+  // AI 配置：管理员保存全局（供未配置的空间回退），其他用户保存到自己的空间
   const adminPatch = {};
-  for (const key of ADMIN_KEYS) {
+  for (const key of ['ai_provider', 'ai_base_url', 'ai_model', 'ai_api_key']) {
     if (body[key] !== undefined) adminPatch[key] = String(body[key]);
   }
-  if (Object.keys(adminPatch).length && !(req.user && req.user.is_admin)) {
-    return res.status(403).json({ error: '需要管理员权限' });
-  }
-  if (Object.keys(adminPatch).length) {
+  if (Object.keys(adminPatch).length && req.user && req.user.is_admin) {
     const current = readGlobalSettings(false);
     for (const [key, value] of Object.entries(adminPatch)) {
       let v = value;
       if (SECRET_KEYS.includes(key)) {
-        if (v === '' || v.startsWith('****')) v = current[key] || '';
+        if (v === '' || String(v).includes('****')) v = current[key] || '';
       }
       db.prepare(
         `INSERT INTO settings (key, value) VALUES (?, ?)
          ON CONFLICT(key) DO UPDATE SET value = excluded.value`
       ).run(key, v);
     }
+  } else if (Object.keys(adminPatch).length) {
+    upsertSpaceAiConfig(req.spaceId, adminPatch);
+  }
+
+  // 邀请码等全局配置：仅管理员（非管理员提交时静默忽略，避免前端默认值触发权限错误）
+  const invitePatch = {};
+  for (const key of ['invite_required', 'invite_code']) {
+    if (body[key] !== undefined) invitePatch[key] = String(body[key]);
+  }
+  if (Object.keys(invitePatch).length && req.user && req.user.is_admin) {
+    for (const [key, value] of Object.entries(invitePatch)) {
+      db.prepare(
+        `INSERT INTO settings (key, value) VALUES (?, ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value`
+      ).run(key, value);
+    }
   }
 
   const uid = req.user ? req.user.id : null;
   const out = {
     ...readUserSettings(uid),
-    ai_provider: readGlobalSettings(true).ai_provider,
-    ai_model: readGlobalSettings(true).ai_model,
+    ...readSpaceAiConfig(req.spaceId, true),
   };
   if (req.user && req.user.is_admin) {
     Object.assign(out, readGlobalSettings(true));

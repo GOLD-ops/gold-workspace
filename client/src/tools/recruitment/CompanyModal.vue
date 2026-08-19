@@ -45,10 +45,6 @@
               <input v-model="form.name" class="tk-input" placeholder="如：字节跳动" />
             </div>
             <div class="tk-field">
-              <label>投递渠道</label>
-              <input v-model="form.channel" class="tk-input" placeholder="如：牛客内推 / 官网" />
-            </div>
-            <div class="tk-field">
               <label>投递链接</label>
               <input v-model="form.link" class="tk-input" placeholder="https://…" />
             </div>
@@ -67,9 +63,9 @@
         <div v-if="company" class="tk-section">
           <div class="tk-section-title">
             投递记录（{{ applications.length }}）
-            <button class="tk-btn tk-btn-sm" @click="$emit('add-application', company.id)">+ 添加投递</button>
+            <button class="tk-btn tk-btn-sm" @click="$emit('add-application', company.id)">+ 新增记录</button>
           </div>
-          <div v-if="!applications.length" class="cm-no-apps">还没有投递记录，点击「添加投递」记录第一个岗位。</div>
+          <div v-if="!applications.length" class="cm-no-apps">还没有投递记录，点击「新增记录」记录第一个岗位。</div>
           <div class="cm-app-item" v-for="a in applications" :key="a.id">
             <div class="cm-app-info">
               <span class="cm-app-pos">{{ a.position || '未填写岗位' }}</span>
@@ -96,6 +92,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { api, STATUS_COLORS } from '../../api'
+import { confirmDialog } from '../../ui/confirm'
 
 const props = defineProps({
   company: { type: Object, default: null },
@@ -104,7 +101,6 @@ const emit = defineEmits(['close', 'saved', 'open-application', 'add-application
 
 const form = reactive({
   name: props.company ? props.company.name : '',
-  channel: props.company ? props.company.channel || '' : '',
   link: props.company ? props.company.link || '' : '',
   referral_code: props.company ? props.company.referral_code || '' : '',
   notes: props.company ? props.company.notes || '' : '',
@@ -174,7 +170,11 @@ async function save() {
 }
 
 async function removeCompany() {
-  if (!window.confirm(`确定删除「${props.company.name}」吗？其下全部投递、节点、笔记将一并删除，不可恢复。`)) return
+  const ok = await confirmDialog({
+    title: '删除公司',
+    message: `确定删除「${props.company.name}」吗？其下全部投递、节点、笔记将一并删除，不可恢复。`,
+  })
+  if (!ok) return
   await api(`/api/recruitment/companies/${props.company.id}`, { method: 'DELETE' })
   emit('saved')
   emit('close')

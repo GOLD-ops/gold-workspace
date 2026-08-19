@@ -24,14 +24,20 @@ function userById(id) {
   return db.prepare('SELECT * FROM users WHERE id = ?').get(id);
 }
 
-function createUser(username, password, isAdmin = false) {
+function userByEmail(email) {
+  const e = String(email || '').trim().toLowerCase();
+  if (!e) return null;
+  return db.prepare('SELECT * FROM users WHERE lower(email) = ?').get(e);
+}
+
+function createUser(username, password, isAdmin = false, email = '') {
   const salt = crypto.randomBytes(16).toString('hex');
   const hash = hashPassword(password, salt);
   const r = db
     .prepare(
-      'INSERT INTO users (username, password_hash, salt, is_admin, created_at) VALUES (?, ?, ?, ?, ?)'
+      'INSERT INTO users (username, password_hash, salt, is_admin, email, created_at) VALUES (?, ?, ?, ?, ?, ?)'
     )
-    .run(username, hash, salt, isAdmin ? 1 : 0, new Date().toISOString());
+    .run(username, hash, salt, isAdmin ? 1 : 0, String(email || '').trim(), new Date().toISOString());
   return r.lastInsertRowid;
 }
 
@@ -64,7 +70,7 @@ function userByToken(token) {
 }
 
 // 注册：始终创建普通用户（管理员由服务器端 .env 预设）
-function register(username, password, inviteCode) {
+function register(username, password, inviteCode, email = '') {
   const count = db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
 
   if (count > 0) {
@@ -80,10 +86,14 @@ function register(username, password, inviteCode) {
   }
 
   if (db.prepare('SELECT id FROM users WHERE username = ?').get(username)) {
-    return { error: '用户名已被占用，请换一个' };
+    return { error: '昵称已被占用，请换一个' };
+  }
+  const e = String(email || '').trim().toLowerCase();
+  if (e && userByEmail(e)) {
+    return { error: '该邮箱已被注册，请直接登录或更换邮箱' };
   }
 
-  const userId = createUser(username, password, false);
+  const userId = createUser(username, password, false, e);
   return { userId, isAdmin: false };
 }
 
@@ -95,28 +105,30 @@ function ensureAdmin() {
   const existing = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
   if (existing) {
     const hash = hashPassword(password, existing.salt);
-    if (hash !== existing.password_hash || !existing.is_admin) {
+    if (hash !== existing.password_hash || !existing.is_admin || !existing.email) {
       const salt = crypto.randomBytes(16).toString('hex');
-      db.prepare('UPDATE users SET password_hash = ?, salt = ?, is_admin = 1 WHERE id = ?').run(
-        hashPassword(password, salt),
-        salt,
-        existing.id
-      );
+      const adminEmail =
+        process.env.ADMIN_EMAIL || process.env.MAIL_TO || existing.email || '';
+      db.prepare(
+        'UPDATE users SET password_hash = ?, salt = ?, is_admin = 1, email = COALESCE(NULLIF(?, \'\'), email) WHERE id = ?'
+      ).run(hashPassword(password, salt), salt, adminEmail, existing.id);
     }
     return existing.id;
   }
-  const id = createUser(username, password, true);
+  const adminEmail = process.env.ADMIN_EMAIL || process.env.MAIL_TO || '';
+  const id = createUser(username, password, true, adminEmail);
   db.prepare('UPDATE companies SET user_id = ? WHERE user_id IS NULL').run(id);
   const space = spaces.ensureUserSpace(id);
   seedSpace(space.id);
   return id;
 }
 
-function login(username, password) {
-  const u = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
-  if (!u) return { error: '用户名或密码不正确' };
+// 登录：仅支持邮箱 + 密码
+function login(email, password) {
+  const u = userByEmail(email);
+  if (!u) return { error: '邮箱或密码不正确' };
   const hash = hashPassword(password, u.salt);
-  if (hash !== u.password_hash) return { error: '用户名或密码不正确' };
+  if (hash !== u.password_hash) return { error: '邮箱或密码不正确' };
   return { user: u };
 }
 
@@ -163,6 +175,7 @@ module.exports = {
   hashPassword,
   publicUser,
   userById,
+  userByEmail,
   createUser,
   createSession,
   destroySession,

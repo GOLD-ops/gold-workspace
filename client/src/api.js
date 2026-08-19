@@ -80,17 +80,18 @@ export const STATUS_COLORS = {
 };
 
 export const RESULT_OPTIONS = [
-  { value: 'none', label: '无结果' },
-  { value: 'waiting', label: '等待中' },
+  { value: 'waiting', label: '待进行' },
+  { value: 'done', label: '待结果' },
   { value: 'pass', label: '通过' },
   { value: 'fail', label: '未通过' },
 ];
 
 export const RESULT_COLORS = {
-  none: { color: '#64748b', bg: '#f1f5f9' },
   waiting: { color: '#d97706', bg: '#fef3c7' },
+  done: { color: '#1d4ed8', bg: '#e0edfc' },
   pass: { color: '#0e9f6e', bg: '#e8f5ee' },
   fail: { color: '#dc2626', bg: '#fee2e2' },
+  none: { color: '#64748b', bg: '#f1f5f9' }, // 兼容旧数据
 };
 
 export const PRIORITY_COLORS = {
@@ -119,6 +120,12 @@ export function todayStr() {
   const d = new Date();
   const p = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+export function nowStr() {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
 export function parseTagsText(text) {

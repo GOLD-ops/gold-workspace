@@ -8,12 +8,7 @@
             class="tk-input tl-search"
             placeholder="搜索公司 / 岗位 / 城市 / 备注…"
           />
-          <select v-model="sortBy" class="tk-select">
-            <option value="updated">按最近更新</option>
-            <option value="priority">按优先级</option>
-            <option value="company">按公司名</option>
-            <option value="created">按创建时间</option>
-          </select>
+          <SelectPicker v-model="sortBy" :options="sortOptions" class="tl-sort-picker" />
           <span style="flex: 1"></span>
           <button class="tk-btn tk-btn-sm" @click="exportData">导出</button>
           <label class="tk-btn tk-btn-sm" style="cursor: pointer">
@@ -57,7 +52,6 @@
                 <span class="tl-expand-arrow">{{ expanded.has(c.id) ? '▾' : '▸' }}</span>
                 <span class="tl-company">{{ c.name }}</span>
                 <span class="tl-app-count">{{ c.applications.length }} 个投递</span>
-                <span v-if="c.channel" class="tl-meta-chip">{{ c.channel }}</span>
               </div>
               <div v-if="c.notes" class="tl-sub">{{ c.notes }}</div>
             </div>
@@ -65,29 +59,31 @@
               <span v-if="c.referral_code" class="tl-code" @click.stop="copyReferral(c)">{{ c.referral_code }}</span>
               <span v-else class="tl-none">—</span>
             </div>
-            <div class="tl-actions" @click.stop>
+            <div class="tl-actions">
               <button
                 class="tk-btn tk-btn-icon tl-apply-btn"
                 :disabled="!c.link"
-                :title="c.link ? '前往官网投递' : '未填写投递链接'"
-                @click="applyCompany(c)"
+                :title="c.link ? '打开公司招聘官网' : '未填写投递链接'"
+                @click.stop="applyCompany(c)"
               >
-                一键投递
+                官网投递
               </button>
-              <button class="tk-btn tk-btn-icon" @click="$emit('add-application', c.id)">添加投递</button>
-              <button class="tk-btn tk-btn-icon" @click="$emit('open-company', c)">编辑</button>
-              <button class="tk-btn tk-btn-danger tk-btn-icon" @click="removeCompany(c)">删除</button>
+              <button class="tk-btn tk-btn-icon" @click.stop="$emit('add-application', c.id)">新增记录</button>
+              <button class="tk-btn tk-btn-icon" @click.stop="$emit('open-company', c)">编辑</button>
+              <button class="tk-btn tk-btn-danger tk-btn-icon" @click.stop="removeCompany(c)">删除</button>
             </div>
           </div>
 
           <!-- 投递展开区 -->
           <div v-if="expanded.has(c.id)" class="tl-app-area">
             <div v-if="!c.applications.length" class="tl-no-apps">
-              暂无投递记录，点击「添加投递」记录第一个岗位。
+              暂无投递记录，点击
+              <span class="tl-noapps-link" @click="$emit('add-application', c.id)">「新增记录」</span>
+              记录第一个岗位。
             </div>
             <div v-for="a in c.applications" :key="a.id" class="tl-app-row">
-              <div class="tl-app-main">
-                <div class="tl-position-line">
+              <div class="tl-app-head">
+                <div class="tl-app-head-info">
                   <span class="tl-position">{{ a.position || '未填写岗位' }}</span>
                   <span
                     class="tk-badge tl-priority"
@@ -100,13 +96,19 @@
                   <span class="tk-badge tl-status" :style="statusStyle(a.status)">
                     {{ a.status }}
                   </span>
-                </div>
-                <div class="tl-meta">
-                  <span v-if="a.department" class="tl-meta-chip">{{ a.department }}</span>
                   <span v-if="a.city" class="tl-meta-chip">{{ a.city }}</span>
+                  <span v-if="a.department" class="tl-meta-chip">{{ a.department }}</span>
                   <span v-if="a.salary" class="tl-meta-chip">{{ a.salary }}</span>
                 </div>
-                <div v-if="a.notes" class="tl-sub">{{ a.notes }}</div>
+                <div class="tl-app-actions">
+                  <button class="tk-btn tk-btn-icon tl-view-btn" @click="$emit('open-application', a)">
+                    查看进度
+                  </button>
+                  <button class="tk-btn tk-btn-danger tk-btn-icon" @click="removeApplication(a)">删除</button>
+                </div>
+              </div>
+              <div v-if="a.notes" class="tl-app-notes">
+                {{ a.notes }}
               </div>
               <div class="tl-app-timeline">
                 <div v-if="a.milestones.length" class="tl-track">
@@ -116,21 +118,19 @@
                       :class="{ done: i < currentIdx(a), current: m.name === a.current_stage }"
                       :title="`${m.name} ${m.date || ''}`"
                     >
-                      <i class="tl-dot" :style="m.result !== 'none' ? { background: RESULT_COLORS[m.result].color } : {}"></i>
+                      <i class="tl-dot" :style="m.result && m.result !== 'none' ? { background: RESULT_COLORS[m.result].color } : {}"></i>
                       <span class="tl-label">{{ m.name }}</span>
-                      <em v-if="m.result !== 'none'" class="tl-result" :style="resultStyle(m.result)">{{ resultLabel(m.result) }}</em>
-                      <em v-if="m.date" class="tl-date">{{ m.date.slice(5) }}</em>
+                      <em v-if="m.result && m.result !== 'none'" class="tl-result" :style="resultStyle(m.result)">{{ resultLabel(m.result) }}</em>
+                    <em v-if="m.date" class="tl-date">{{ fmtMilestoneDate(m.date) }}</em>
                     </span>
                     <i v-if="i < a.milestones.length - 1" class="tl-link"></i>
                   </template>
                 </div>
                 <span v-else class="tl-none">尚无进展节点</span>
               </div>
-              <div class="tl-app-actions">
-                <button class="tk-btn tk-btn-icon tl-view-btn" @click="$emit('open-application', a)">
-                  查看进度
-                </button>
-                <button class="tk-btn tk-btn-danger tk-btn-icon" @click="removeApplication(a)">删除</button>
+              <div v-if="a.requirements" class="tl-app-req">
+                <div class="tl-app-req-title">职位描述</div>
+                <div class="tl-app-req-body">{{ a.requirements }}</div>
               </div>
             </div>
           </div>
@@ -169,6 +169,8 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { api, STATUSES, STATUS_COLORS, PRIORITY_COLORS, RESULT_COLORS, copyText, todayStr } from '../../api'
+import { confirmDialog } from '../../ui/confirm'
+import SelectPicker from './SelectPicker.vue'
 
 const props = defineProps({ companies: { type: Array, default: () => [] } })
 const emit = defineEmits([
@@ -186,11 +188,20 @@ const statusFilter = ref('')
 const sortBy = ref('updated')
 const pendingImport = ref(null)
 const expanded = ref(new Set())
+const sortOptions = [
+  { value: 'updated', label: '按最近更新' },
+  { value: 'priority', label: '按优先级' },
+  { value: 'company', label: '按公司名' },
+  { value: 'created', label: '按创建时间' },
+]
 
-const totalApps = computed(() => props.companies.reduce((s, c) => s + c.applications.length, 0))
+const totalApps = computed(() =>
+  props.companies.reduce((s, c) => s + (c.applications.length || 1), 0)
+)
 const countBy = computed(() => {
   const m = {}
   for (const c of props.companies) {
+    if (!c.applications.length) m['未投递'] = (m['未投递'] || 0) + 1
     for (const a of c.applications) m[a.status] = (m[a.status] || 0) + 1
   }
   return m
@@ -201,7 +212,7 @@ const filtered = computed(() => {
   if (statusFilter.value) {
     list = list
       .map((c) => ({ ...c, applications: c.applications.filter((a) => a.status === statusFilter.value) }))
-      .filter((c) => c.applications.length)
+      .filter((c) => c.applications.length || (statusFilter.value === '未投递' && !c.applications.length))
   }
   if (q.value.trim()) {
     const k = q.value.trim().toLowerCase()
@@ -209,14 +220,19 @@ const filtered = computed(() => {
       .map((c) => ({
         ...c,
         applications: c.applications.filter((a) =>
-          [a.position, a.department, a.city, a.notes, c.name, c.channel, c.referral_code]
+          [a.position, a.department, a.city, a.notes, a.requirements, c.name, c.notes, c.referral_code]
             .join(' ')
             .toLowerCase()
             .includes(k)
         ),
       }))
       .filter((c) =>
-        statusFilter.value ? c.applications.length : c.applications.length || c.name.toLowerCase().includes(k)
+        statusFilter.value
+          ? c.applications.length ||
+            (statusFilter.value === '未投递' &&
+              !c.applications.length &&
+              [c.name, c.notes].join(' ').toLowerCase().includes(k))
+          : c.applications.length || [c.name, c.notes].join(' ').toLowerCase().includes(k)
       )
   }
   const arr = [...list]
@@ -245,20 +261,36 @@ function statusStyle(s) {
   return { background: STATUS_COLORS[s] + '1a', color: STATUS_COLORS[s] }
 }
 function resultLabel(r) {
-  return { none: '无结果', waiting: '等待中', pass: '通过', fail: '未通过' }[r] || ''
+  return { none: '待进行', waiting: '待进行', pass: '通过', fail: '未通过' }[r] || ''
 }
 function resultStyle(r) {
   const c = RESULT_COLORS[r] || RESULT_COLORS.none
   return { color: c.color, background: c.bg }
 }
+function fmtMilestoneDate(d) {
+  if (!d) return ''
+  const s = String(d)
+  const datePart = s.slice(0, 10)
+  const timePart = s.includes('T') ? s.slice(11, 16) : ''
+  const mm = datePart.slice(5)
+  return timePart ? `${mm} ${timePart}` : mm
+}
 
 async function removeCompany(c) {
-  if (!window.confirm(`确定删除「${c.name}」吗？其下 ${c.applications.length} 个投递、节点与笔记会一并删除。`)) return
+  const ok = await confirmDialog({
+    title: '删除公司',
+    message: `确定删除「${c.name}」吗？其下 ${c.applications.length} 个投递、节点与笔记会一并删除，不可恢复。`,
+  })
+  if (!ok) return
   emit('remove-company', c.id)
 }
 
 async function removeApplication(a) {
-  if (!window.confirm(`确定删除该投递「${a.position || '未填写岗位'}」吗？相关节点与笔记会一并删除。`)) return
+  const ok = await confirmDialog({
+    title: '删除投递',
+    message: `确定删除投递「${a.position || '未填写岗位'}」吗？相关节点与笔记会一并删除，不可恢复。`,
+  })
+  if (!ok) return
   emit('remove-application', a.id)
 }
 
@@ -302,6 +334,14 @@ async function doImport(mode) {
   const info = pendingImport.value
   pendingImport.value = null
   try {
+    if (mode === 'overwrite') {
+      const ok = await confirmDialog({
+        title: '覆盖导入',
+        message: `将以「${info.name}」中的内容替换当前全部记录，现有公司、投递、节点与笔记会被删除且不可恢复。确定继续吗？`,
+        confirmText: '确定覆盖',
+      })
+      if (!ok) return
+    }
     const r = await api('/api/recruitment/companies/import', {
       method: 'POST',
       body: { mode, data: info.data },
@@ -318,16 +358,18 @@ async function doImport(mode) {
 .tl-panel { overflow: hidden; }
 .tl-toolbar-area { padding: 16px 20px; border-bottom: 1px solid #edf0f5; }
 .tl-search { width: 280px; flex: none; }
+.tl-sort-picker { width: 140px; flex: none; }
+.tl-sort-picker :deep(.sp-trigger) { height: 36px; }
 .tl-chips { display: flex; gap: 10px; flex-wrap: wrap; }
 
 .tl-table { overflow-x: auto; }
 .tk-empty { padding: 56px 20px; }
 .tk-row {
   display: grid;
-  grid-template-columns: minmax(140px, 0.8fr) 96px 250px;
+  grid-template-columns: minmax(140px, 1fr) 96px 250px;
   gap: 16px;
   align-items: center;
-  padding: 14px 20px;
+  padding: 14px 14px 14px 20px;
   border-bottom: 1px solid #edf0f5;
   transition: background 0.15s ease;
 }
@@ -337,12 +379,15 @@ async function doImport(mode) {
   font-size: 12px;
   color: var(--tk-faint);
   background: #fafbfd;
-  padding: 11px 20px;
+  padding: 11px 14px 11px 20px;
   position: sticky;
   top: 0;
   z-index: 1;
   letter-spacing: 0.02em;
   font-weight: 600;
+}
+.tl-head > span:nth-child(3) {
+  text-align: center;
 }
 
 /* 公司行 */
@@ -373,34 +418,71 @@ async function doImport(mode) {
   font-size: 12px;
   color: var(--tk-faint);
   margin-top: 5px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 420px;
+  line-height: 1.6;
+  word-break: break-word;
 }
 
 /* 投递展开区 */
 .tl-app-area {
   background: #f8fafd;
   border-bottom: 1px solid #edf0f5;
-  padding: 4px 20px 12px 44px;
+  padding: 10px 20px 14px 44px;
+  display: grid;
+  gap: 10px;
 }
 .tl-no-apps {
   font-size: 12.5px;
   color: var(--tk-faint);
-  padding: 10px 0 6px;
+  padding: 8px 4px;
 }
+.tl-noapps-link {
+  color: var(--tk-blue);
+  font-weight: 600;
+  cursor: pointer;
+}
+.tl-noapps-link:hover { text-decoration: underline; }
 .tl-app-row {
   display: grid;
-  grid-template-columns: minmax(180px, 1.2fr) minmax(240px, 1.8fr) auto;
-  gap: 16px;
-  align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px dashed #e4e9f1;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid #e7ebf2;
+  border-radius: 12px;
+  box-shadow: var(--tk-shadow-sm);
+  transition: box-shadow 0.15s ease;
 }
-.tl-app-row:last-child { border-bottom: none; }
-.tl-app-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-.tl-position-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tl-app-row:hover { box-shadow: var(--tk-shadow-md); }
+.tl-app-notes {
+  grid-column: 1 / -1;
+  font-size: 12.5px;
+  color: var(--tk-muted);
+  line-height: 2;
+  word-break: break-word;
+}
+.tl-app-timeline { grid-column: 1 / -1; }
+.tl-app-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  flex: none;
+}
+.tl-app-head {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.tl-app-head-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
 .tl-position { font-size: 13.5px; font-weight: 600; color: #2a3446; }
 .tl-priority { flex: none; font-size: 11px; padding: 2px 9px; }
 .tl-status { flex: none; font-size: 11px; padding: 2px 9px; }
@@ -412,6 +494,26 @@ async function doImport(mode) {
   padding: 2px 9px;
   font-size: 12px;
   white-space: nowrap;
+}
+.tl-app-req {
+  grid-column: 1 / -1;
+  padding: 10px 12px;
+  background: #f8fafd;
+  border: 1px solid #e5ebf5;
+  border-radius: 8px;
+}
+.tl-app-req-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--tk-blue);
+  margin-bottom: 5px;
+}
+.tl-app-req-body {
+  font-size: 12.5px;
+  color: #4a5568;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* 节点时间线轨道 */
@@ -479,7 +581,7 @@ async function doImport(mode) {
 }
 .tl-code:hover { background: #fff3d6; }
 .tl-none { color: #cbd5e1; font-size: 12px; }
-.tl-actions { display: flex; gap: 6px; flex-wrap: nowrap; }
+.tl-actions { display: flex; gap: 6px; flex-wrap: nowrap; justify-content: flex-end; }
 .tl-apply-btn { color: var(--tk-blue); border-color: #bcd0f2; background: #f7faff; }
 .tl-apply-btn:hover { background: var(--tk-blue); border-color: var(--tk-blue); color: #fff; }
 .tl-view-btn { color: var(--tk-blue); border-color: #bcd0f2; background: #fff; }

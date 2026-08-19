@@ -19,10 +19,11 @@
           class="kb-card"
           v-for="a in columns[s]"
           :key="a.id"
+          :class="{ 'kb-card-virtual': a.virtual }"
           draggable="true"
           @dragstart="dragStart($event, a.id)"
           @dragend="dragEnd"
-          @click="$emit('open-application', a)"
+          @click="openCard(a)"
         >
           <div class="kb-card-top">
             <span class="kb-company">{{ a.company_name }}</span>
@@ -35,11 +36,11 @@
               >{{ a.priority }}</span
             >
           </div>
-          <div class="kb-pos">{{ a.position || '未填写岗位' }}</div>
+          <div class="kb-pos">{{ a.position || (a.virtual ? '未投递' : '未填写岗位') }}</div>
           <div v-if="latestNode(a)" class="kb-node">
             <span class="kb-node-name">{{ latestNode(a).name }}</span>
             <span
-              v-if="latestNode(a).result !== 'none'"
+              v-if="latestNode(a).result && latestNode(a).result !== 'none'"
               class="kb-node-result"
               :style="resultStyle(latestNode(a).result)"
               >{{ resultLabel(latestNode(a).result) }}</span
@@ -65,6 +66,19 @@ let draggingId = null
 const applications = computed(() => {
   const out = []
   for (const c of props.companies) {
+    if (!c.applications.length) {
+      out.push({
+        id: 'virtual-' + c.id,
+        company_id: c.id,
+        company_name: c.name,
+        company_link: c.link,
+        position: '',
+        status: '未投递',
+        priority: '低',
+        virtual: true,
+      })
+      continue
+    }
     for (const a of c.applications) {
       out.push({ ...a, company_name: c.name, company_link: c.link })
     }
@@ -87,7 +101,7 @@ function latestNode(a) {
   return a.milestones[a.milestones.length - 1]
 }
 function resultLabel(r) {
-  return { none: '无结果', waiting: '等待中', pass: '通过', fail: '未通过' }[r] || ''
+  return { none: '待进行', waiting: '待进行', pass: '通过', fail: '未通过' }[r] || ''
 }
 function resultStyle(r) {
   const c = RESULT_COLORS[r] || RESULT_COLORS.none
@@ -110,6 +124,14 @@ function drop(status) {
   if (!draggingId) return
   emit('move', { id: draggingId, status })
   draggingId = null
+}
+
+function openCard(a) {
+  if (a.virtual) {
+    emit('open-application', null, a.company_id)
+  } else {
+    emit('open-application', a)
+  }
 }
 </script>
 
@@ -166,6 +188,12 @@ function drop(status) {
 }
 .kb-card:hover { box-shadow: var(--tk-shadow-md); transform: translateY(-2px); border-color: #cfd9ec; }
 .kb-card:active { cursor: grabbing; }
+.kb-card-virtual {
+  border-style: dashed;
+  border-color: #c8d3e8;
+  background: #fbfcff;
+}
+.kb-card-virtual .kb-pos { color: #9aa6bb; }
 .kb-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
 .kb-company {
   flex: 1;

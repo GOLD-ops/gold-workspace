@@ -209,6 +209,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { api, getToken, getGuestToken } from '../../api'
+import { confirmDialog } from '../../ui/confirm'
 import PaperModal from './PaperModal.vue'
 import LiteratureFields from './LiteratureFields.vue'
 
@@ -449,7 +450,11 @@ async function startAnalysis() {
 }
 
 async function remove(p) {
-  if (!window.confirm(`确定删除「${p.filename}」及其分析结果？`)) return
+  const ok = await confirmDialog({
+    title: '删除文献',
+    message: `确定删除「${p.filename}」及其分析结果吗？删除后不可恢复。`,
+  })
+  if (!ok) return
   await api(`/api/literature/papers/${p.id}`, { method: 'DELETE' })
   selectedIds.value = selectedIds.value.filter((x) => x !== p.id)
   emit('notify', '已删除')
@@ -459,7 +464,11 @@ async function remove(p) {
 async function removeSelected() {
   const ids = selectedIds.value
   if (!ids.length) return
-  if (!window.confirm(`确定删除选中的 ${ids.length} 篇文献及其分析结果？`)) return
+  const ok = await confirmDialog({
+    title: '批量删除',
+    message: `确定删除选中的 ${ids.length} 篇文献及其分析结果吗？删除后不可恢复。`,
+  })
+  if (!ok) return
   try {
     await Promise.all(ids.map((id) => api(`/api/literature/papers/${id}`, { method: 'DELETE' })))
     selectedIds.value = []

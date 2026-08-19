@@ -48,6 +48,9 @@
     <footer class="footer">
       <p>© 2026 GOLD · Built with Vue + Node.js + SQLite</p>
     </footer>
+
+    <!-- 全局确认弹窗 -->
+    <ConfirmDialog />
   </div>
 </template>
 
@@ -55,6 +58,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api, getStoredUser, clearToken, setStoredUser } from './api'
+import ConfirmDialog from './ui/ConfirmDialog.vue'
 
 const route = useRoute()
 const router = useRouter()

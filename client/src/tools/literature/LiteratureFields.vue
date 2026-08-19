@@ -168,6 +168,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { api } from '../../api'
+import { confirmDialog } from '../../ui/confirm'
 
 const emit = defineEmits(['notify'])
 const fields = ref([])
@@ -301,11 +302,16 @@ function confirmField() {
   editing.value = null
 }
 
-function removeField() {
+async function removeField() {
   if (fields.value.length <= 1) {
     emit('notify', '至少保留一个字段', 'error')
     return
   }
+  const ok = await confirmDialog({
+    title: '删除字段',
+    message: `确定删除字段「${editing.value.label}」吗？后续分析将不再提取该字段。`,
+  })
+  if (!ok) return
   fields.value = fields.value.filter((x) => x.field_key !== editing.value.field_key)
   editing.value = null
 }

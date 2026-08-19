@@ -5,16 +5,17 @@ const STATUSES = ['未投递', '已投递', '笔试', '面试', 'Offer', '已淘
 
 // 节点结果：细化每个阶段的状态
 const RESULT_OPTIONS = [
-  { value: 'none', label: '无结果' },
-  { value: 'waiting', label: '等待中' },
+  { value: 'waiting', label: '待进行' },
+  { value: 'done', label: '待结果' },
   { value: 'pass', label: '通过' },
   { value: 'fail', label: '未通过' },
 ];
 const RESULT_META = {
-  none: { label: '无结果', color: '#64748b', bg: '#f1f5f9' },
-  waiting: { label: '等待中', color: '#d97706', bg: '#fef3c7' },
+  waiting: { label: '待进行', color: '#d97706', bg: '#fef3c7' },
+  done: { label: '待结果', color: '#1d4ed8', bg: '#e0edfc' },
   pass: { label: '通过', color: '#0e9f6e', bg: '#e8f5ee' },
   fail: { label: '未通过', color: '#dc2626', bg: '#fee2e2' },
+  none: { label: '待进行', color: '#64748b', bg: '#f1f5f9' }, // 兼容旧数据
 };
 
 // 节点名称 → 流程阶段 的推断规则（按顺序匹配，前面的优先）
@@ -34,6 +35,16 @@ function statusFromMilestoneName(name = '') {
     if (keywords.some((k) => n.includes(k))) return status;
   }
   return null;
+}
+
+// 无需结果状态的节点：投递类、Offer、已淘汰（本身即结果）
+function isResultlessNode(name = '') {
+  const n = String(name || '').toLowerCase();
+  if (!n) return false;
+  if (['投递', '内推', '网申', '申请'].some((k) => n.includes(k))) return true;
+  if (n.includes('offer')) return true;
+  if (['淘汰', '未通过', '拒绝', '拒'].some((k) => n.includes(k))) return true;
+  return false;
 }
 
 function nextStatus(status) {
@@ -56,9 +67,20 @@ function todayStr() {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
+function nowLocalStr() {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 function daysBetween(dateA, dateB) {
-  const a = new Date(dateA);
-  const b = new Date(dateB);
+  const parseLocal = (s) => {
+    const str = String(s || '');
+    if (!str) return null;
+    return str.includes('T') ? new Date(str) : new Date(`${str}T00:00:00`);
+  };
+  const a = parseLocal(dateA);
+  const b = parseLocal(dateB);
   if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return null;
   return Math.round((b - a) / 86400000);
 }
@@ -155,15 +177,28 @@ function computeRemindAt(dateStr, value, unit) {
   return new Date(base.getTime() - ms).toISOString();
 }
 
-function parseTags(raw) {
-  if (Array.isArray(raw)) return raw;
-  if (typeof raw === 'string') {
-    return raw
-      .split(/[,，、\s]+/)
-      .map((s) => s.trim())
-      .filter(Boolean);
+// 按全局提醒规则计算阶段提醒时间
+// 规则：提前 N 天（在该天指定时刻提醒）或提前 N 小时（按节点时间倒推）
+function computeRemindAtGlobal(nodeDate, rule) {
+  if (!nodeDate || !rule) return '';
+  const enabled = String(rule.remind_enabled === undefined ? '1' : rule.remind_enabled) !== '0';
+  if (!enabled) return '';
+  const value = Number(rule.remind_value) || 0;
+  if (value <= 0) return '';
+  const dateStr = String(nodeDate);
+  const datePart = dateStr.slice(0, 10);
+  if (rule.remind_unit === 'hour') {
+    const base = new Date(dateStr.includes('T') ? dateStr : `${datePart}T09:00:00`);
+    if (Number.isNaN(base.getTime())) return '';
+    return new Date(base.getTime() - value * 3600000).toISOString();
   }
-  return [];
+  const day = new Date(`${datePart}T00:00:00`);
+  if (Number.isNaN(day.getTime())) return '';
+  const target = new Date(day.getTime() - value * 86400000);
+  const time = String(rule.remind_time || '08:00');
+  const parts = time.split(':');
+  target.setHours(Number(parts[0]) || 8, Number(parts[1]) || 0, 0, 0);
+  return target.toISOString();
 }
 
 function applicationPublic(row) {
@@ -216,8 +251,9 @@ function applicationDetail(row) {
 
 function companyPublic(row) {
   if (!row) return null;
+  const { channel, ...rest } = row;
   return {
-    ...row,
+    ...rest,
     applications: getApplications(row.id).map(applicationPublic),
   };
 }
@@ -234,10 +270,12 @@ module.exports = {
   RESULT_OPTIONS,
   RESULT_META,
   statusFromMilestoneName,
+  isResultlessNode,
   nextStatus,
   milestoneNameForStatus,
   nowIso,
   todayStr,
+  nowLocalStr,
   daysBetween,
   computePriority,
   currentMilestone,
@@ -247,7 +285,7 @@ module.exports = {
   touchCompany,
   touchApplication,
   computeRemindAt,
-  parseTags,
+  computeRemindAtGlobal,
   applicationPublic,
   applicationDetail,
   companyPublic,

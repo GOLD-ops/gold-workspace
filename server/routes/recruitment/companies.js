@@ -8,7 +8,7 @@ const {
 
 const router = express.Router();
 
-const COMPANY_FIELDS = ['name', 'channel', 'link', 'referral_code', 'notes'];
+const COMPANY_FIELDS = ['name', 'link', 'referral_code', 'notes'];
 
 function pickCompany(body) {
   const out = {};
@@ -29,11 +29,11 @@ router.get('/', (req, res) => {
         `SELECT DISTINCT c.* FROM companies c
          LEFT JOIN applications a ON a.company_id = c.id
          WHERE c.space_id = ?
-           AND (c.name LIKE ? OR c.channel LIKE ? OR c.referral_code LIKE ? OR c.notes LIKE ?
+           AND (c.name LIKE ? OR c.referral_code LIKE ? OR c.notes LIKE ?
                 OR a.position LIKE ? OR a.department LIKE ? OR a.city LIKE ?)
          ORDER BY c.updated_at DESC, c.id DESC`
       )
-      .all(req.spaceId, like, like, like, like, like, like, like);
+      .all(req.spaceId, like, like, like, like, like, like);
   } else {
     rows = db
       .prepare('SELECT * FROM companies WHERE space_id = ? ORDER BY updated_at DESC, id DESC')
@@ -101,12 +101,12 @@ router.post('/import', (req, res) => {
 
     const findCompany = db.prepare('SELECT * FROM companies WHERE space_id = ? AND name = ?');
     const updateCompany = db.prepare(
-      `UPDATE companies SET channel = ?, link = ?, referral_code = ?, notes = ?, updated_at = ?
+      `UPDATE companies SET link = ?, referral_code = ?, notes = ?, updated_at = ?
        WHERE id = ?`
     );
     const insertCompany = db.prepare(
-      `INSERT INTO companies (space_id, name, channel, link, referral_code, notes, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO companies (space_id, name, link, referral_code, notes, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
     );
 
     const companyIdMap = new Map();
@@ -117,7 +117,6 @@ router.post('/import', (req, res) => {
       let target = findCompany.get(uid, name);
       if (target) {
         updateCompany.run(
-          c.channel || target.channel || '',
           c.link || target.link || '',
           c.referral_code || target.referral_code || '',
           c.notes !== undefined ? c.notes || '' : target.notes || '',
@@ -129,7 +128,6 @@ router.post('/import', (req, res) => {
         const r = insertCompany.run(
           uid,
           name,
-          c.channel || '',
           c.link || '',
           c.referral_code || '',
           c.notes || '',
@@ -147,11 +145,11 @@ router.post('/import', (req, res) => {
       'SELECT id FROM applications WHERE company_id = ? AND position = ?'
     );
     const insertApplication = db.prepare(
-      `INSERT INTO applications (company_id, space_id, position, department, city, salary, notes, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO applications (company_id, space_id, position, department, city, salary, notes, requirements, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
     const updateApplication = db.prepare(
-      `UPDATE applications SET department = ?, city = ?, salary = ?, notes = ?, status = ?, updated_at = ?
+      `UPDATE applications SET department = ?, city = ?, salary = ?, notes = ?, requirements = ?, status = ?, updated_at = ?
        WHERE id = ?`
     );
     const appIdMap = new Map();
@@ -169,6 +167,7 @@ router.post('/import', (req, res) => {
           c.department || '',
           c.city || '',
           c.salary || '',
+          '',
           '',
           ['未投递', '已投递', '笔试', '面试', 'Offer', '已淘汰'].includes(c.status)
             ? c.status
@@ -191,6 +190,7 @@ router.post('/import', (req, res) => {
             a.city || '',
             a.salary || '',
             a.notes || '',
+            a.requirements || '',
             a.status || '已投递',
             nowIso(),
             exist.id
@@ -205,6 +205,7 @@ router.post('/import', (req, res) => {
             a.city || '',
             a.salary || '',
             a.notes || '',
+            a.requirements || '',
             a.status || '已投递',
             a.created_at || nowIso(),
             nowIso()
@@ -234,8 +235,8 @@ router.post('/import', (req, res) => {
       }
 
       const insertNote = db.prepare(
-        `INSERT INTO notes (application_id, milestone_id, space_id, title, content, tags, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO notes (application_id, milestone_id, space_id, title, content, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
       );
       for (const n of data.notes || []) {
         const appId = appIdMap.get(n.application_id);
@@ -247,7 +248,6 @@ router.post('/import', (req, res) => {
           uid,
           n.title || '',
           n.content || '',
-          Array.isArray(n.tags) ? JSON.stringify(n.tags) : n.tags || '[]',
           n.created_at || nowIso(),
           n.updated_at || nowIso()
         );
@@ -275,20 +275,20 @@ router.post('/', (req, res) => {
   const ts = nowIso();
   const r = db
     .prepare(
-      `INSERT INTO companies (space_id, name, channel, link, referral_code, notes, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO companies (space_id, name, link, referral_code, notes, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       req.spaceId,
       fields.name,
-      fields.channel || '',
       fields.link || '',
       fields.referral_code || '',
       fields.notes || '',
       ts,
       ts
     );
-  res.json(companyDetail(db.prepare('SELECT * FROM companies WHERE id = ?').get(r.lastInsertRowid)));
+  const companyId = r.lastInsertRowid;
+  res.json(companyDetail(db.prepare('SELECT * FROM companies WHERE id = ?').get(companyId)));
 });
 
 router.put('/:id', (req, res) => {

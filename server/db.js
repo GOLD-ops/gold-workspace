@@ -27,6 +27,7 @@ const BUSINESS_SCHEMA = {
     city TEXT DEFAULT '',
     salary TEXT DEFAULT '',
     notes TEXT DEFAULT '',
+    requirements TEXT DEFAULT '',
     status TEXT DEFAULT '已投递',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
@@ -47,7 +48,6 @@ const BUSINESS_SCHEMA = {
     space_id INTEGER REFERENCES spaces(id) ON DELETE CASCADE,
     title TEXT DEFAULT '',
     content TEXT DEFAULT '',
-    tags TEXT DEFAULT '[]',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   )`,
@@ -91,6 +91,16 @@ CREATE TABLE IF NOT EXISTS sessions (
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   created_at TEXT NOT NULL,
   expires_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS email_codes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email TEXT NOT NULL,
+  purpose TEXT NOT NULL,
+  code TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  used INTEGER DEFAULT 0,
+  created_at TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS spaces (
@@ -149,7 +159,23 @@ CREATE TABLE IF NOT EXISTS literature_ai_config (
   ai_api_key TEXT DEFAULT '',
   updated_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS recruitment_ai_config (
+  space_id INTEGER PRIMARY KEY REFERENCES spaces(id) ON DELETE CASCADE,
+  ai_provider TEXT DEFAULT 'deepseek',
+  ai_base_url TEXT DEFAULT '',
+  ai_model TEXT DEFAULT '',
+  ai_api_key TEXT DEFAULT '',
+  updated_at TEXT NOT NULL
+);
 `);
+
+// 邮箱唯一（空邮箱允许重复，便于管理员账号不设邮箱）
+try {
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email <> ''");
+} catch (e) {
+  console.error('[db] users.email 唯一索引创建失败:', e.message);
+}
 
 function tableCols(table) {
   return db
@@ -257,10 +283,41 @@ if (hasTable('companies') && !tableCols('companies').includes('name')) {
 // applications：全新表，直接创建
 db.exec(BUSINESS_SCHEMA.applications);
 
+// 兼容旧库：applications 补充岗位要求列
+try {
+  const cols = tableCols('applications');
+  if (!cols.includes('requirements')) {
+    db.exec("ALTER TABLE applications ADD COLUMN requirements TEXT DEFAULT ''");
+    console.log('[db] applications 已补充 requirements 列');
+  }
+} catch (e) {
+  console.error('[db] applications.requirements 迁移失败:', e.message);
+}
+
 // milestones / notes / reminders：旧结构（company_id）→ 新结构（application_id）
 if (hasTable('milestones')) rebuildBusinessTable('milestones', BUSINESS_SCHEMA.milestones);
 if (hasTable('notes')) rebuildBusinessTable('notes', BUSINESS_SCHEMA.notes);
 if (hasTable('reminders')) rebuildBusinessTable('reminders', BUSINESS_SCHEMA.reminders);
+
+// 兼容旧库：移除笔记标签字段（标签功能已下线，按用户要求同步清理数据）
+try {
+  if (hasTable('notes') && tableCols('notes').includes('tags')) {
+    db.exec('ALTER TABLE notes DROP COLUMN tags');
+    console.log('[db] notes 已移除 tags 列');
+  }
+} catch (e) {
+  console.error('[db] notes.tags 移除失败:', e.message);
+}
+
+// 兼容旧库：提醒记录补充发送失败原因字段
+try {
+  if (hasTable('reminders') && !tableCols('reminders').includes('last_error')) {
+    db.exec("ALTER TABLE reminders ADD COLUMN last_error TEXT DEFAULT ''");
+    console.log('[db] reminders 已补充 last_error 列');
+  }
+} catch (e) {
+  console.error('[db] reminders.last_error 迁移失败:', e.message);
+}
 
 // 兼容旧库：文献字段补充类型列
 try {
@@ -270,6 +327,28 @@ try {
   if (!cols.includes('options')) db.exec("ALTER TABLE literature_fields ADD COLUMN options TEXT DEFAULT ''");
 } catch (e) {
   console.error('[db] literature_fields.type 迁移失败:', e.message);
+}
+
+// 兼容旧库：users 补充节点提醒规则字段
+try {
+  const cols = tableCols('users');
+  if (!cols.includes('remind_enabled')) {
+    db.exec("ALTER TABLE users ADD COLUMN remind_enabled INTEGER DEFAULT 1");
+  }
+  if (!cols.includes('remind_value')) {
+    db.exec("ALTER TABLE users ADD COLUMN remind_value TEXT DEFAULT '1'");
+  }
+  if (!cols.includes('remind_unit')) {
+    db.exec("ALTER TABLE users ADD COLUMN remind_unit TEXT DEFAULT 'day'");
+  }
+  if (!cols.includes('remind_time')) {
+    db.exec("ALTER TABLE users ADD COLUMN remind_time TEXT DEFAULT '08:00'");
+  }
+  if (!cols.includes('silence_enabled')) {
+    db.exec('ALTER TABLE users ADD COLUMN silence_enabled INTEGER DEFAULT 1');
+  }
+} catch (e) {
+  console.error('[db] users 提醒规则字段迁移失败:', e.message);
 }
 
 // 迁移完成后统一建索引

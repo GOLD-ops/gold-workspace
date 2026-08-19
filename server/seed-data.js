@@ -4,84 +4,286 @@ const db = require('./db');
 // 公司名下不预置任何投递，用户自行投递后产生投递记录
 const SEED_COMPANIES = [
   {
-    name: '字节跳动',
-    channel: '校招交流群 / 官网',
-    link: 'https://jobs.bytedance.com/campus/',
-    notes: '2027届秋招正式开启，覆盖研发、产品、职能、设计、运营、游戏等多条赛道。',
+    "name": "Shopee研发中心",
+    "link": "https://app.mokahr.com/campus_apply/shopee/2962?recommendCode=DSmNj4kr#/jobs",
+    "referral_code": "DSmNj4kr",
+    "notes": "2027届校园招聘；截止2026/11/30；最多可投递1个志愿。"
   },
   {
-    name: '搜狐畅游',
-    channel: '网申（提前批）',
-    link: 'https://app.mokahr.com/campus_apply/cyou-inc/42233?recommendCode=DS9qGDwy#/jobs',
-    referral_code: 'DS9qGDwy',
-    notes: '2027届秋招提前批，面向27届（部分兼收26届）；流程快、直通面试，提前批未被捞起可参与后续统一笔试。',
+    "name": "KUROGAMES库洛",
+    "link": "https://kurogame.jobs.feishu.cn/s/TBZWN1bRUHo",
+    "referral_code": "",
+    "notes": "2027届秋季校园招聘；开放策划、技术、美术、音频、运营、职能等岗位。"
   },
   {
-    name: '汇川技术',
-    channel: '官网投递',
-    link: 'https://recruit.inovance.com/#/jobs?ref=APHZ76D',
-    referral_code: 'APHZ76D',
-    notes: '2027届校园招聘；国产工控领军企业，工作地点覆盖苏州、南京、深圳、上海、西安、北京等地。',
+    "name": "安克创新",
+    "link": "https://anker-in.jobs.feishu.cn/s/OXsOzaLkF_k",
+    "referral_code": "",
+    "notes": "2027届全球校园招聘；9大类1000+关键岗位；工作地点深圳、长沙、北京等。"
   },
   {
-    name: '4399游戏',
-    channel: '内推网申',
-    link: 'https://hr.4399om.com/weixin/?r=job/agent&type=2&isOpen=0&jobTableType=1&code=z9mit',
-    referral_code: 'z9mit',
-    notes: '2027届秋季校园招聘正式启动；选择「内推网申」填写学校专属内推码。',
+    "name": "美团",
+    "link": "https://zhaopin.meituan.com/web/campus?zp-from=hiring-campus-bole-elephant&staffSsolD=26125698",
+    "referral_code": "",
+    "notes": "面向2027届毕业生；10大类岗位，AI方向大扩招，新增AI原生岗位；笔试8.22-9.15。"
   },
   {
-    name: '好未来（学而思）',
-    channel: '网申（提前批）',
-    link: 'https://app.mokahr.com/campus_apply/tal/148080?recommendCode=DSsxXWDY#/jobs',
-    referral_code: 'DSsxXWDY',
-    notes: '27届提前批，25-27届毕业生均可投递；薪资15-35W+年薪起，每年4-6次调薪。',
+    "name": "华宝新能",
+    "link": "career.hello-tech.com/campus/jobs",
+    "referral_code": "EVBMRS",
+    "notes": "2027全球校园招聘；研发/营销/供应链管培生；3年快节奏晋升调薪机制。"
   },
   {
-    name: '科大讯飞',
-    channel: '网申/内推',
-    link: 'https://iflytek.zhiye.com/campus/jobs',
-    referral_code: 'ES3T3V',
-    notes: '2027届秋招；2025年6月-2027年8月毕业的海内外同学均可投递；最多可投两个岗位，招满即关。',
+    "name": "去哪儿旅行",
+    "link": "https://datayi.cn/w/xRxV8QVo",
+    "referral_code": "",
+    "notes": "2027届校招；技术、产品、运营类；“3+2”混合办公，弹性工作制，带薪年假10天起。"
   },
   {
-    name: '联想',
-    channel: '校招官网',
-    link: 'https://talent.lenovo.com.cn/home',
-    referral_code: '2027XZLMWSK（也可用2027XZLMZY）',
-    notes: '2027届校招；网申8月5日-11月13日；投递时选择联想员工推荐并填写推荐ITcode。',
+    "name": "麦吉太文MagicTavern",
+    "link": "https://app.mokahr.com/campus_apply/tavern/39918?recommendCode=DSjv4BgA#/jobs",
+    "referral_code": "DSjv4BgA",
+    "notes": "2027届秋季校园招聘；工作地点北京；岗位涵盖策划、市场、程序、数据分析、美术。"
   },
   {
-    name: '叠纸游戏',
-    channel: '官网投递',
-    link: 'https://career.papegames.com/s/E3xzfVBWDsg',
-    notes: '2027秋季校园招聘正式启动；流程：网申—笔试—面试—offer；校招生专属人才发展计划与带教支持。',
+    "name": "波克",
+    "link": "https://boke.jobs.feishu.cn/s/ZUuTHDQtON0",
+    "referral_code": "",
+    "notes": "2027届秋招；AI全线赋能；岗位覆盖技术、美术、产品、发行、职能等领域。"
   },
   {
-    name: '博西家用电器（BSH）',
-    channel: '专属实习通道',
-    link: 'https://qr61.cn/ohW6Tw/q7Tbo6n',
-    notes: '27届实习招聘专场，理工科优先；西门子/博世家电母公司；优秀实习生可直通27届秋招正式岗位。',
+    "name": "凌云光",
+    "link": "https://app.mokahr.com/m/campus-recruitment/lusterinc/44882?recommendCode=DSXvwe8A#/jobs",
+    "referral_code": "DSXvwe8A",
+    "notes": "2027届校招；科创板上市，机器视觉行业Top1；工作地点苏州、北京、上海、深圳等。"
   },
   {
-    name: '亿联网络（Yealink）',
-    channel: '官网投递（提前批）',
-    link: 'https://yealink.zhiye.com/campus/jobs',
-    referral_code: 'ESKJAB',
-    notes: '2027届校招提前批；云+端AI音视频会议/IP语音通信龙头，与微软等国际品牌深度合作。',
+    "name": "卧安机器人",
+    "link": "https://woanhome.zhiye.com/campus/jobs",
+    "referral_code": "EVKR08",
+    "notes": "2027届秋季校园招聘；AI具身家庭机器人第一股；招聘算法工程师、运营管培生等。"
   },
   {
-    name: '新东方',
-    channel: '网申',
-    link: 'https://mp.weixin.qq.com/s/HZvgUHytofq5VYo4DdSH0A?scene=1',
-    notes: '2027「π 计划」秋季校招；五险一金+带薪年假；流程：初试→复试→线下培训营→发放offer。',
+    "name": "康冠科技",
+    "link": "https://careerktc.zhiye.com/campus/jobs",
+    "referral_code": "EVVPT9",
+    "notes": "2027届秋季校园招聘；平板显示解决方案商；开放技术研发、产品设计、市场运营等。"
   },
   {
-    name: '帆软',
-    channel: '网申（提前批）',
-    link: 'https://t6ixa9nyl6.jiandaoyun.com/f/65e1a1308ce7672fded0f0cf?ext=XDUWSK',
-    referral_code: 'XDUWSK',
-    notes: '2027届秋招提前批；AI+BI赛道，中国BI行业连续8年市占率第一；扁平化管理。',
+    "name": "恒生电子",
+    "link": "https://campus.hundsun.com/campus/jobs",
+    "referral_code": "EZBA8V",
+    "notes": "2027校园招聘；金融科技公司，FinTech百强；AI方向、开发、测试、技术支持等。"
+  },
+  {
+    "name": "欣旺达",
+    "link": "https://sunwodacampus.zhiye.com",
+    "referral_code": "",
+    "notes": "2027届全球校园招聘正式启动；用心做好每一块电池。"
+  },
+  {
+    "name": "安踏集团",
+    "link": "https://app.mokahr.com/su/zbvftx",
+    "referral_code": "",
+    "notes": "2027届全球校园招聘；生力军，向世界前行。"
+  },
+  {
+    "name": "新芯股份",
+    "link": "https://whxmc.zhiye.com/Campus",
+    "referral_code": "",
+    "notes": "2027届全球校园招聘正式启动；遇见新芯，逐梦前行。"
+  },
+  {
+    "name": "ZURU",
+    "link": "https://wecruit.hotjob.cn/SU69fd5a0e1f17c372512fba62/pb/school.html",
+    "referral_code": "",
+    "notes": "2027届校园招聘；全球排名前十玩具外企；开放商科、创意、设计、研发、制造类岗位。"
+  },
+  {
+    "name": "CVTE视源股份",
+    "link": "https://campus.cvte.com/",
+    "referral_code": "CVTEXALBY",
+    "notes": "2027届全球校园招聘；9大类岗位；地点广州、苏州、合肥、西安、重庆、上海、武汉等。"
+  },
+  {
+    "name": "智元机器人AGIBOT",
+    "link": "https://agirobot.jobs.feishu.cn/s/IxspcL4FTyI",
+    "referral_code": "",
+    "notes": "2027届校园招聘；AI+机器人融合创新；工作地点上海、北京、深圳、海外。"
+  },
+  {
+    "name": "联想",
+    "link": "https://talent.lenovo.com.cn",
+    "referral_code": "2027XZLSMSZM",
+    "notes": "2027届秋招；网申8.5-11.13；AI新赛道、六大职位方向；投递后系统自动触发测评。"
+  },
+  {
+    "name": "DJI大疆",
+    "link": "https://app.mokahr.com/campus_apply/dji/143359?recommendCode=DSrP6bY4#/jobs",
+    "referral_code": "DSrP6bY4",
+    "notes": "2027拓疆者校园招聘；算法、软件、产品、嵌入式、芯片、光学等；城市深圳、上海、北京。"
+  },
+  {
+    "name": "毕马威",
+    "link": "https://kpmg.com/cn/zh/services/advisory.html",
+    "referral_code": "",
+    "notes": "2027秋季校园招聘正式启动。"
+  },
+  {
+    "name": "中国平安",
+    "link": "https://campus.pingan.com",
+    "referral_code": "",
+    "notes": "2027全球校园招聘；6000+OFFER，8大类岗位。"
+  },
+  {
+    "name": "搜狐畅游",
+    "link": "https://app.mokahr.com/campus_apply/cyou-inc/42233?recommendCode=DS9qGDwy#/jobs",
+    "referral_code": "DS9qGDwy",
+    "notes": "2027届秋招提前批；面向27届（部分兼收26届）；直通面试机会，流程快。"
+  },
+  {
+    "name": "作业帮",
+    "link": "https://app.mokahr.com/campus-recruitment/zuoyebang/144908?locale=zh-CN#/",
+    "referral_code": "",
+    "notes": "2027届校园招聘正式启动。"
+  },
+  {
+    "name": "沐曦股份",
+    "link": "https://recruitment.metax-tech.com/campus-recruitment/metax-tech/58131#/jobs",
+    "referral_code": "",
+    "notes": "2027届校园招聘正式启动。"
+  },
+  {
+    "name": "中国东方",
+    "link": "https://coamc.zhiye.com/campus",
+    "referral_code": "",
+    "notes": "2027年度校园招聘；智汇东方，才聚未来。"
+  },
+  {
+    "name": "光大证券",
+    "link": "http://ebscn.zhiye.com/campus",
+    "referral_code": "",
+    "notes": "2027校园招聘；青春有光，未来证亮。"
+  },
+  {
+    "name": "中微公司",
+    "link": "https://app.mokahr.com/campus-recruitment/amec/146254#/",
+    "referral_code": "",
+    "notes": "2027「登峰计划」校园招聘博士提前批。"
+  },
+  {
+    "name": "小米",
+    "link": "https://hr.xiaomi.com/campus",
+    "referral_code": "",
+    "notes": "2027届全球校园招聘正式启动。"
+  },
+  {
+    "name": "得物",
+    "link": "https://poizon.jobs.feishu.cn/s/f8v3mQzJYCg",
+    "referral_code": "",
+    "notes": "2027届校园招聘；11座城市，10大职类，2次投递机会；岗位覆盖技术、运营、产品等。"
+  },
+  {
+    "name": "凡岛",
+    "link": "https://job.fandow.com/home?pushCode=PUYBD77",
+    "referral_code": "PUYBD77",
+    "notes": "27校招；内推过筛offer概率高；年薪24w起；研发、产品、市场、运营、供应、IT等。"
+  },
+  {
+    "name": "深蓝互动",
+    "link": "https://app.mokahr.com/campus_apply/blueinteractive/38434?recommendCode=DS4yjqpV#/jobs",
+    "referral_code": "DS4yjqpV",
+    "notes": "2027秋季校园招聘；岗位：美术设计、游戏策划、技术开发、市场发行、产品支持。"
+  },
+  {
+    "name": "帆软",
+    "link": "https://t6ixa9ny16.jiandaoyun.com/f/65e1a1308ce7672fded0f0cf?ext=XDUWSK",
+    "referral_code": "XDUWSK",
+    "notes": "27届秋招提前批；大数据BI供应商；工作地点无锡、南京、杭州等；截止8月31日。"
+  },
+  {
+    "name": "德州仪器",
+    "link": "https://app.mokahr.com/su/yjlqkz",
+    "referral_code": "",
+    "notes": "2027届秋季校园招聘全面开启。"
+  },
+  {
+    "name": "中国航空发动机集团",
+    "link": "aecc.iguopin.com",
+    "referral_code": "",
+    "notes": "2027届校园招聘；中央直接管理的国有军工企业；招聘航空发动机工程、材料学等专业。"
+  },
+  {
+    "name": "虎鲸文娱",
+    "link": "https://campus-talent.alibaba.com/campus/index",
+    "referral_code": "",
+    "notes": "2027届应届生招聘正式启动。"
+  },
+  {
+    "name": "泉峰科技",
+    "link": "https://campus.chervon.com.cn",
+    "referral_code": "",
+    "notes": "2027届校园招聘；全面启航，下一站奔赴泉峰。"
+  },
+  {
+    "name": "影石",
+    "link": "https://arashivision.jobs.feishu.cn/s/SgQcIW_EKcs",
+    "referral_code": "62MW4PZ",
+    "notes": "2027届秋季校园招聘；全景相机全球市占率第一；深圳、上海、珠海；技术/产品/业务等。"
+  },
+  {
+    "name": "普渡机器人",
+    "link": "pudutech1.zhiye.com/campus/jobs",
+    "referral_code": "EVVRTR",
+    "notes": "27届校招；商用服务机器人市占率TOP1；深圳/成都/香港；算法、软件、硬件等。"
+  },
+  {
+    "name": "新东方",
+    "link": "https://zhaopin.xdf.cn/campus/jobs",
+    "referral_code": "",
+    "notes": "2027「π计划」秋季校招；全国50+城市400+岗位；整体薪资12-25w/年。"
+  },
+  {
+    "name": "Yealink亿联网络",
+    "link": "https://yealink.zhiye.com/campus/jobs",
+    "referral_code": "ESKJAB",
+    "notes": "2027届校园招聘提前批；全球领先沟通与协作解决方案商；研发、营销、产品类。"
+  },
+  {
+    "name": "叠纸游戏",
+    "link": "https://career.papegames.com/s/E3xzfVBWDsg",
+    "referral_code": "",
+    "notes": "2027秋季校园招聘；岗位涵盖技术研发、策划、美术、动画、市场运营、职能支持。"
+  },
+  {
+    "name": "科大讯飞",
+    "link": "https://iflytek.zhiye.com/campus/jobs",
+    "referral_code": "ES3T3V",
+    "notes": "2027届秋招；2025.6-2027.8毕业生可投；合肥/北京/上海/武汉/深圳等；最多可投两个岗位。"
+  },
+  {
+    "name": "好未来-学而思",
+    "link": "https://app.mokahr.com/campus_apply/tal/148080?recommendCode=DSsxXWDY#/jobs",
+    "referral_code": "DSsxXWDY",
+    "notes": "27届提前批；25-27届均可投；4000+需求；年薪15-35W+，40+城市可选。"
+  },
+  {
+    "name": "4399游戏",
+    "link": "https://hr.4399om.com/weixin/?r=job/agent&type=2&isOpen=0&jobTableType=1&code=z9mit",
+    "referral_code": "z9mit",
+    "notes": "2027届秋季校园招聘；产品、美术、技术、运营、职能等；选择内推网申填写专属内推码。"
+  },
+  {
+    "name": "汇川技术",
+    "link": "https://recruit.inovance.com/#/jobs?ref=APHZ76D",
+    "referral_code": "APHZ76D",
+    "notes": "2027届校园招聘；国产工控领军企业；技术、营销、质量、技能等；苏州/南京/深圳/上海等。"
+  },
+  {
+    "name": "广电运通",
+    "link": "https://hr.grgbanking.com/campus/",
+    "referral_code": "",
+    "notes": "27届校招；国有上市企业，金融科技龙头；岗位含算法、软件、硬件等；双休、六险一金。"
   },
 ];
 
@@ -91,15 +293,14 @@ function seedSpace(spaceId) {
   if (count > 0) return { seeded: false, count: 0, reason: '已有公司，跳过' };
   const ts = new Date().toISOString();
   const insert = db.prepare(
-    `INSERT INTO companies (space_id, name, channel, link, referral_code, notes, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO companies (space_id, name, link, referral_code, notes, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
   );
   let n = 0;
   for (const c of SEED_COMPANIES) {
     insert.run(
       spaceId,
       c.name,
-      c.channel || '',
       c.link || '',
       c.referral_code || '',
       c.notes || '',
