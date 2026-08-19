@@ -75,7 +75,7 @@
       </div>
     </div>
 
-<div class="tk-settings-section tk-card">
+<div v-if="isAdmin" class="tk-settings-section tk-card">
       <h4>注册邀请</h4>
       <p class="tk-desc">
         默认开放注册；开启邀请码后，新用户必须输入正确邀请码才能注册。开启时会自动生成邀请码，也可以手动修改或一键重新生成。
