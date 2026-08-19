@@ -102,7 +102,16 @@ async function sendMail(to, subject, html) {
 }
 
 // 邮件外壳：统一的页头与内边距，所有模板复用
-const LOGO_URL = 'http://47.98.114.221/logo-preview.png';
+// logo 直接内嵌为 base64，避免 QQ 邮箱默认拦截外链图片导致不显示
+let LOGO_URL = 'http://47.98.114.221/logo-preview.png';
+try {
+  const logoPath = path.join(__dirname, '..', 'client', 'public', 'logo-preview.png');
+  if (fs.existsSync(logoPath)) {
+    LOGO_URL = 'data:image/png;base64,' + fs.readFileSync(logoPath).toString('base64');
+  }
+} catch {
+  // 读取失败时回退到外链
+}
 function mailShell(bodyHtml) {
   return `
     <div style="font-family:-apple-system,'Segoe UI','Microsoft YaHei',sans-serif;background:#f2f4f8;padding:28px 16px">
@@ -121,8 +130,8 @@ function mailTemplate(title, lines) {
     .map(
       (l) =>
         `<tr>
-          <td style="padding:7px 0;width:76px;color:#9aa3b2;font-size:13px;line-height:1.6;vertical-align:top">${l[0]}</td>
-          <td style="padding:7px 0;color:#374151;font-size:14px;line-height:1.6;vertical-align:top;word-break:break-word">${l[1]}</td>
+          <td style="padding:8px 0;width:84px;color:#9aa3b2;font-size:14px;line-height:1.6;vertical-align:top">${l[0]}</td>
+          <td style="padding:8px 0;color:#374151;font-size:16px;line-height:1.6;vertical-align:top;word-break:break-word">${l[1]}</td>
         </tr>`
     )
     .join('');

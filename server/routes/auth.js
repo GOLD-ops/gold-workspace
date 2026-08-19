@@ -80,8 +80,8 @@ router.post('/send-code', async (req, res) => {
   try {
     const r = await mailer.sendMail(
       email,
-      `【GOLD 秋招追踪器】${PURPOSE_TEXT[purpose]}验证码`,
-      mailer.mailTemplate(`${PURPOSE_TEXT[purpose]}验证码`, [
+      `【GOLD 秋招追踪器】${PURPOSE_TEXT[purpose]}`,
+      mailer.mailTemplate(`${PURPOSE_TEXT[purpose]}`, [
         ['邮箱', email],
         ['验证码', code],
         ['有效期', '10 分钟'],
