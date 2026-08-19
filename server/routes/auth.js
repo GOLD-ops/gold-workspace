@@ -13,6 +13,12 @@ const CODE_TTL_MS = 10 * 60 * 1000; // 验证码有效期 10 分钟
 const CODE_COOLDOWN_MS = 60 * 1000; // 重发间隔 60 秒
 const PURPOSE_TEXT = { register: '注册账号', login: '验证码登录', reset: '重置密码' };
 
+// 注册页公开配置：是否开启邀请码（不返回邀请码本身，避免泄露）
+router.get('/invite-config', (req, res) => {
+  const row = db.prepare(`SELECT value FROM settings WHERE key = 'invite_required'`).get();
+  res.json({ invite_required: row && row.value === '1' ? '1' : '0' });
+});
+
 function genCode() {
   return String(Math.floor(100000 + Math.random() * 900000));
 }

@@ -76,6 +76,35 @@
     </div>
 
 <div class="tk-settings-section tk-card">
+      <h4>注册邀请</h4>
+      <p class="tk-desc">
+        默认开放注册；开启邀请码后，新用户必须输入正确邀请码才能注册。开启时会自动生成邀请码，也可以手动修改或一键重新生成。
+      </p>
+      <div class="st-invite-row">
+        <div class="st-invite-field st-invite-toggle">
+          <div class="st-group-title">需要邀请码</div>
+          <SelectPicker
+            v-model="s.invite_required"
+            :options="inviteOptions"
+            class="st-invite-picker"
+            @change="onInviteToggle"
+          />
+        </div>
+        <div class="st-invite-field st-invite-code">
+          <div class="st-group-title">邀请码</div>
+          <div class="st-invite-code-row">
+            <input v-model="s.invite_code" class="tk-input" placeholder="点击「生成」自动创建，或手动输入" />
+            <button class="tk-btn tk-btn-icon" title="自动生成新邀请码" @click="generateInvite">生成</button>
+            <button class="tk-btn tk-btn-icon" title="复制邀请码" :disabled="!s.invite_code" @click="copyInvite">复制</button>
+          </div>
+        </div>
+        <div class="st-invite-btns">
+          <button class="tk-btn tk-btn-primary" @click="saveSettings">保存配置</button>
+        </div>
+      </div>
+    </div>
+
+<div class="tk-settings-section tk-card">
       <h4>邮件提醒</h4>
       <p class="tk-desc">
         提醒邮件将发送到下方接收邮箱；「阶段提醒」会在面试、笔试等节点开始前按你设置的提前时间自动发送提醒；「沉默提醒」会在已投递记录超过设定天数仍无进展时自动提醒你跟进。
@@ -165,29 +194,6 @@
     </div>
     </div>
 
-<div v-if="isAdmin" class="tk-settings-section tk-card">
-      <h4>注册邀请</h4>
-      <p class="tk-desc">
-        默认开放注册；开启邀请码后，新用户必须输入正确邀请码才能注册。开启时会自动生成邀请码，也可以手动修改或一键重新生成。
-      </p>
-      <div class="tk-form-grid">
-        <div class="tk-field">
-          <label>需要邀请码</label>
-          <SelectPicker v-model="s.invite_required" :options="inviteOptions" @change="onInviteToggle" />
-        </div>
-        <div class="tk-field">
-          <label>邀请码</label>
-          <div class="st-invite-row">
-            <input v-model="s.invite_code" class="tk-input" placeholder="点击「生成」自动创建，或手动输入" />
-            <button class="tk-btn tk-btn-icon" title="自动生成新邀请码" @click="generateInvite">生成</button>
-            <button class="tk-btn tk-btn-icon" title="复制邀请码" :disabled="!s.invite_code" @click="copyInvite">复制</button>
-          </div>
-        </div>
-      </div>
-      <div class="tk-toolbar" style="margin-top: 12px">
-        <button class="tk-btn tk-btn-primary" @click="saveSettings">保存邀请设置</button>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -401,7 +407,7 @@ async function generateInvite() {
 function onInviteToggle() {
   if (s.value.invite_required === '1' && !s.value.invite_code) {
     s.value.invite_code = randomCode()
-    emit('notify', '已自动生成邀请码，可手动修改或点「保存邀请设置」生效')
+    emit('notify', '已自动生成邀请码，可手动修改或点「保存配置」生效')
   }
 }
 
@@ -484,8 +490,30 @@ async function copyInvite() {
   width: 100%;
   text-align: left;
 }
-.st-invite-row { display: flex; gap: 8px; align-items: center; }
-.st-invite-row .tk-input { flex: 1; min-width: 0; font-family: Consolas, Monaco, monospace; letter-spacing: 0.04em; }
+.st-invite-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.st-invite-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.st-invite-field .st-group-title { margin-bottom: 0; }
+.st-invite-toggle { flex: none; width: 200px; }
+.st-invite-code { flex: none; width: 320px; }
+.st-invite-code-row { display: flex; gap: 8px; align-items: center; }
+.st-invite-code-row .tk-input {
+  flex: 1;
+  min-width: 0;
+  font-family: Consolas, Monaco, monospace;
+  letter-spacing: 0.04em;
+}
+.st-invite-btns {
+  display: flex;
+  flex: none;
+  margin-left: auto;
+  padding-bottom: 2px;
+  padding-left: 14px;
+}
 .st-group { margin-top: 16px; }
 .st-group:first-of-type { margin-top: 10px; }
 .st-mail-row {
