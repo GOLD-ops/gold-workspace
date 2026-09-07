@@ -317,9 +317,6 @@ function seedSpace(spaceId) {
 function syncPublishedToSpace(spaceId) {
   const published = db.prepare('SELECT * FROM companies WHERE published = 1 ORDER BY id').all();
   const find = db.prepare('SELECT id FROM companies WHERE space_id = ? AND name = ?');
-  const findExclude = db.prepare(
-    'SELECT id FROM companies WHERE space_id = ? AND name = ? AND id <> ?'
-  );
   const update = db.prepare(
     `UPDATE companies SET link = ?, referral_code = ?, notes = ?, published = 0, updated_at = ?
      WHERE id = ?`
@@ -331,11 +328,9 @@ function syncPublishedToSpace(spaceId) {
   let n = 0;
   const ts = new Date().toISOString();
   for (const src of published) {
-    // 源公司所在空间：避免把自己更新为「未发布」，只同步同名的其他副本
-    const exist =
-      spaceId === src.space_id
-        ? findExclude.get(spaceId, src.name, src.id)
-        : find.get(spaceId, src.name);
+    // 源公司所在空间已有该公司，跳过（避免给自己插入重复副本）
+    if (spaceId === src.space_id) continue;
+    const exist = find.get(spaceId, src.name);
     if (exist) {
       update.run(src.link || '', src.referral_code || '', src.notes || '', ts, exist.id);
     } else {
