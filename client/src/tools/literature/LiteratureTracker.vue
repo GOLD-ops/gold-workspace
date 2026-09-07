@@ -51,13 +51,20 @@ onMounted(async () => {
 async function refreshAi() {
   try {
     const s = await api('/api/literature/settings')
-    aiProvider.value = s.ai_provider
+    aiProvider.value = providerDisplay(s.ai_provider)
     aiModel.value = s.ai_model
     aiKey.value = s.ai_api_key
     aiReady.value = !!s.ai_api_key
   } catch {
     // 忽略
   }
+}
+
+function providerDisplay(p) {
+  const names = { deepseek: 'DeepSeek', openai: 'OpenAI', kimi: 'Kimi' }
+  if (names[p]) return names[p]
+  if (p && p !== 'custom') return p
+  return '自定义'
 }
 
 async function onAiSaved() {

@@ -10,7 +10,12 @@
         <div class="st-ai-fields">
           <div class="tk-field">
             <label>服务商</label>
-            <SelectPicker v-model="s.ai_provider" :options="providerOptions" @change="onProviderChange" />
+            <EditableSelect
+              v-model="s.ai_provider"
+              :options="presetProviderOptions"
+              placeholder="选择或输入服务商"
+              @change="onProviderChange"
+            />
           </div>
           <div class="tk-field">
             <label>接口地址</label>
@@ -18,7 +23,12 @@
           </div>
           <div class="tk-field">
             <label>模型</label>
-            <input v-model="s.ai_model" class="tk-input" placeholder="deepseek-v4-flash" />
+            <EditableSelect
+              v-model="s.ai_model"
+              :options="modelSelectOptions"
+              placeholder="选择或输入模型"
+              tip="可直接输入自定义模型名称"
+            />
           </div>
           <div class="tk-field">
             <label>API Key</label>
@@ -201,22 +211,47 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { api, todayStr, formatDateTime, getStoredUser, copyText } from '../../api'
 import { confirmDialog } from '../../ui/confirm'
+import EditableSelect from '../../ui/EditableSelect.vue'
 import SelectPicker from './SelectPicker.vue'
 
 const emit = defineEmits(['reload', 'notify'])
 
 const PRESETS = {
-  deepseek: { base: 'https://api.deepseek.com', model: 'deepseek-v4-flash' },
-  openai: { base: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
-  kimi: { base: 'https://api.moonshot.cn/v1', model: 'moonshot-v1-8k' },
-  custom: { base: '', model: '' },
+  deepseek: {
+    base: 'https://api.deepseek.com',
+    model: 'deepseek-v4-flash',
+    models: ['deepseek-v4-flash', 'deepseek-v4-pro'],
+  },
+  openai: {
+    base: 'https://api.openai.com/v1',
+    model: 'gpt-5.4-mini',
+    models: [
+      'gpt-5.4',
+      'gpt-5.4-mini',
+      'gpt-5.4-nano',
+      'gpt-5.3-chat-latest',
+      'gpt-5.2',
+      'gpt-5.1',
+      'gpt-5-mini',
+    ],
+  },
+  kimi: {
+    base: 'https://api.moonshot.cn/v1',
+    model: 'kimi-k3',
+    models: [
+      'kimi-k3',
+      'kimi-k2.6',
+      'kimi-k2.7-code',
+      'kimi-k2.7-code-highspeed',
+    ],
+  },
+  custom: { base: '', model: '', models: [] },
 }
 
-const providerOptions = [
+const presetProviderOptions = [
   { value: 'deepseek', label: 'DeepSeek' },
   { value: 'openai', label: 'OpenAI' },
   { value: 'kimi', label: 'Kimi（Moonshot）' },
-  { value: 'custom', label: '自定义（OpenAI 兼容）' },
 ]
 const unitOptions = [
   { value: 'day', label: '天' },
@@ -242,6 +277,9 @@ const s = ref({
   invite_required: '0',
   invite_code: '',
 })
+const modelSelectOptions = computed(() =>
+  (PRESETS[s.value.ai_provider]?.models || []).map((m) => ({ value: m, label: m }))
+)
 const reminders = ref([])
 const pendingImport = ref(null)
 let lastProvider = 'deepseek'
@@ -250,7 +288,8 @@ const showKey = ref(false)
 
 onMounted(async () => {
   s.value = { ...s.value, ...(await api('/api/recruitment/settings')) }
-  lastProvider = s.value.ai_provider
+  if (s.value.ai_provider === 'custom') s.value.ai_provider = ''
+  lastProvider = s.value.ai_provider || 'custom'
   // 未配置时自动预填当前服务商的默认接口地址与模型
   const preset = PRESETS[s.value.ai_provider] || {}
   if (!s.value.ai_base_url && preset.base) s.value.ai_base_url = preset.base
@@ -271,12 +310,30 @@ async function loadReminders() {
   }
 }
 
-function onProviderChange() {
-  const prev = PRESETS[lastProvider] || {}
-  const next = PRESETS[s.value.ai_provider] || {}
-  if (!s.value.ai_base_url || s.value.ai_base_url === prev.base) s.value.ai_base_url = next.base
-  if (!s.value.ai_model || s.value.ai_model === prev.model) s.value.ai_model = next.model
-  lastProvider = s.value.ai_provider
+function onProviderChange(provider) {
+  if (provider === lastProvider) return
+  applyProvider(provider)
+}
+
+function applyProvider(provider) {
+  const prevPreset = PRESETS[lastProvider]
+  const nextPreset = PRESETS[provider]
+  const toPreset = !!(nextPreset && (nextPreset.base || nextPreset.model))
+  const fromPreset = !!(prevPreset && (prevPreset.base || prevPreset.model))
+  if (toPreset) {
+    if (!fromPreset) {
+      s.value.ai_base_url = nextPreset.base
+      s.value.ai_model = nextPreset.model
+    } else {
+      if (!s.value.ai_base_url || s.value.ai_base_url === prevPreset.base) s.value.ai_base_url = nextPreset.base
+      if (!s.value.ai_model || s.value.ai_model === prevPreset.model) s.value.ai_model = nextPreset.model
+    }
+  } else if (fromPreset) {
+    // 切换到自定义服务商：若地址/模型仍是上一服务商默认值则清空；用户改过则保留
+    if (!s.value.ai_base_url || s.value.ai_base_url === prevPreset.base) s.value.ai_base_url = ''
+    if (!s.value.ai_model || s.value.ai_model === prevPreset.model) s.value.ai_model = ''
+  }
+  lastProvider = provider
 }
 
 const AI_KEYS = ['ai_provider', 'ai_base_url', 'ai_model', 'ai_api_key']
@@ -292,6 +349,8 @@ async function saveSettings(scope = 'all') {
     let payload = { ...s.value }
     if (scope === 'ai') {
       payload = Object.fromEntries(AI_KEYS.filter((k) => payload[k] !== undefined).map((k) => [k, payload[k]]))
+      const providerName = String(payload.ai_provider || '').trim()
+      payload.ai_provider = providerName || 'custom'
       // 掩码（含 ****）不代表真实 Key，不提交，避免覆盖已保存的真实 Key
       if (String(payload.ai_api_key || '').includes('****')) {
         delete payload.ai_api_key
@@ -305,6 +364,7 @@ async function saveSettings(scope = 'all') {
     }
     const r = await api('/api/recruitment/settings', { method: 'PUT', body: payload })
     s.value = { ...s.value, ...r }
+    if (s.value.ai_provider === 'custom') s.value.ai_provider = ''
     emit('notify', '设置已保存')
   } catch (e) {
     emit('notify', e.message)
@@ -657,6 +717,10 @@ async function copyInvite() {
 }
 .st-password { position: relative; }
 .st-password .tk-input { padding-right: 42px; }
+.st-password input[type='password']::-ms-reveal,
+.st-password input[type='password']::-ms-clear {
+  display: none;
+}
 .st-eye {
   position: absolute;
   right: 10px;

@@ -3,8 +3,8 @@ const db = require('./db');
 
 const PROVIDER_PRESETS = {
   deepseek: { base: 'https://api.deepseek.com', model: 'deepseek-v4-flash' },
-  openai: { base: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
-  kimi: { base: 'https://api.moonshot.cn/v1', model: 'moonshot-v1-8k' },
+  openai: { base: 'https://api.openai.com/v1', model: 'gpt-5.4-mini' },
+  kimi: { base: 'https://api.moonshot.cn/v1', model: 'kimi-k3' },
 };
 
 function getAiConfig(namespace = '', spaceId = null) {

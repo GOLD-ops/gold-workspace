@@ -178,8 +178,8 @@ SMTP_PASS=your-smtp-authorization-code  # 授权码（非登录密码）
 | 服务商 | 接口地址（自动填充） | 预置模型 |
 | --- | --- | --- |
 | DeepSeek | `https://api.deepseek.com` | `deepseek-v4-flash`、`deepseek-v4-pro` |
-| OpenAI | `https://api.openai.com/v1` | `gpt-4o-mini`、`gpt-4o`、`gpt-4.1`、`gpt-4.1-mini`、`o3-mini` |
-| Kimi | `https://api.moonshot.cn/v1` | `moonshot-v1-8k/32k/128k`、`kimi-k2-0711-preview`、`kimi-latest` |
+| OpenAI | `https://api.openai.com/v1` | `gpt-5.4`、`gpt-5.4-mini`、`gpt-5.4-nano`、`gpt-5.3-chat-latest`、`gpt-5.2`、`gpt-5.1`、`gpt-5-mini` |
+| Kimi | `https://api.moonshot.cn/v1` | `kimi-k3`、`kimi-k2.6`、`kimi-k2.7-code`、`kimi-k2.7-code-highspeed` |
 | 自定义 | 任意 OpenAI 兼容接口 | 手动填写 |
 
 ## 数据备份

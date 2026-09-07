@@ -1,16 +1,16 @@
 <template>
   <div class="lt-ai">
-    <p class="lt-ai-desc">选择服务商自动填好接口地址与模型；也可选「自定义」手动输入。配置保存在你自己的账号下。</p>
+    <p class="lt-ai-desc">选择服务商自动填好接口地址与模型；选「自定义」后可自行填写服务商名称、地址与模型。配置保存在你自己的账号下。</p>
 
     <div class="lt-ai-grid">
       <div class="lt-ai-field">
         <label>服务商</label>
-        <select v-model="s.ai_provider" class="lt-select" @change="onProviderChange">
-          <option value="deepseek">DeepSeek</option>
-          <option value="openai">OpenAI</option>
-          <option value="kimi">Kimi（Moonshot）</option>
-          <option value="custom">自定义（OpenAI 兼容）</option>
-        </select>
+        <EditableSelect
+          v-model="s.ai_provider"
+          :options="presetProviderOptions"
+          placeholder="选择或输入服务商"
+          @change="onProviderChange"
+        />
       </div>
       <div class="lt-ai-field">
         <label>接口地址</label>
@@ -18,36 +18,60 @@
       </div>
       <div class="lt-ai-field">
         <label>模型</label>
-        <div class="lt-ai-model">
-          <select
-            v-if="modelOptions.length && !customSelected"
-            v-model="modelValue"
-            class="lt-select"
-          >
-            <option v-for="m in modelOptions" :key="m" :value="m">{{ m }}</option>
-            <option value="__custom__">自定义…</option>
-          </select>
-          <template v-else>
-            <input v-model="s.ai_model" class="lt-input" placeholder="手动输入模型名" />
-            <div v-if="modelOptions.length" class="lt-model-picker">
-              <button class="lt-model-picker-btn" title="选择预置模型" @click="pickerOpen = !pickerOpen">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
-              </button>
-              <div v-if="pickerOpen" class="lt-model-list">
-                <button v-for="m in modelOptions" :key="m" @click="pickModel(m)">{{ m }}</button>
-              </div>
-            </div>
-          </template>
-        </div>
+        <EditableSelect
+          v-model="s.ai_model"
+          :options="modelOptions"
+          placeholder="选择或输入模型"
+          tip="可直接输入自定义模型名称"
+        />
       </div>
       <div class="lt-ai-field">
         <label>API Key</label>
-        <input
-          v-model="s.ai_api_key"
-          type="password"
-          class="lt-input"
-          :placeholder="s.ai_api_key ? '已保存：' + s.ai_api_key + '（留空则不变）' : 'sk-…'"
-        />
+        <div class="lt-ai-key">
+          <input
+            v-model="s.ai_api_key"
+            :type="showKey ? 'text' : 'password'"
+            class="lt-input"
+            :placeholder="s.ai_api_key ? '已保存：' + s.ai_api_key + '（留空则不变）' : 'sk-…'"
+          />
+          <button
+            type="button"
+            class="lt-ai-eye"
+            :title="showKey ? '隐藏' : '显示'"
+            @click="showKey = !showKey"
+          >
+            <svg
+              v-if="!showKey"
+              xmlns="http://www.w3.org/2000/svg"
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            <svg
+              v-else
+              xmlns="http://www.w3.org/2000/svg"
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+              <line x1="1" y1="1" x2="23" y2="23" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -62,6 +86,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { api } from '../../api'
+import EditableSelect from '../../ui/EditableSelect.vue'
 
 const emit = defineEmits(['notify', 'saved'])
 
@@ -73,18 +98,25 @@ const PRESETS = {
   },
   openai: {
     base: 'https://api.openai.com/v1',
-    model: 'gpt-4o-mini',
-    models: ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1', 'gpt-4.1-mini', 'o3-mini'],
+    model: 'gpt-5.4-mini',
+    models: [
+      'gpt-5.4',
+      'gpt-5.4-mini',
+      'gpt-5.4-nano',
+      'gpt-5.3-chat-latest',
+      'gpt-5.2',
+      'gpt-5.1',
+      'gpt-5-mini',
+    ],
   },
   kimi: {
     base: 'https://api.moonshot.cn/v1',
-    model: 'moonshot-v1-8k',
+    model: 'kimi-k3',
     models: [
-      'moonshot-v1-8k',
-      'moonshot-v1-32k',
-      'moonshot-v1-128k',
-      'kimi-k2-0711-preview',
-      'kimi-latest',
+      'kimi-k3',
+      'kimi-k2.6',
+      'kimi-k2.7-code',
+      'kimi-k2.7-code-highspeed',
     ],
   },
   custom: { base: '', model: '', models: [] },
@@ -97,47 +129,55 @@ const s = ref({
   ai_api_key: '',
 })
 const saving = ref(false)
-const customSelected = ref(false)
-const pickerOpen = ref(false)
+const showKey = ref(false)
+const presetProviderOptions = [
+  { value: 'deepseek', label: 'DeepSeek' },
+  { value: 'openai', label: 'OpenAI' },
+  { value: 'kimi', label: 'Kimi（Moonshot）' },
+]
+let lastProvider = 'deepseek'
 
-const modelOptions = computed(() => PRESETS[s.value.ai_provider]?.models || [])
-const modelValue = computed({
-  get: () =>
-    customSelected.value || !modelOptions.value.includes(s.value.ai_model)
-      ? '__custom__'
-      : s.value.ai_model,
-  set: (v) => {
-    customSelected.value = v === '__custom__'
-    if (v !== '__custom__') s.value.ai_model = v
-  },
-})
+const modelOptions = computed(() =>
+  (PRESETS[s.value.ai_provider]?.models || []).map((m) => ({ value: m, label: m }))
+)
 onMounted(async () => {
   s.value = { ...s.value, ...(await api('/api/literature/settings')) }
+  if (s.value.ai_provider === 'custom') s.value.ai_provider = ''
   // 未配置时自动预填当前服务商的默认接口地址与模型（DeepSeek + V4 Flash）
   const preset = PRESETS[s.value.ai_provider] || {}
   if (!s.value.ai_base_url && preset.base) s.value.ai_base_url = preset.base
   if (!s.value.ai_model && preset.model) s.value.ai_model = preset.model
+  lastProvider = s.value.ai_provider || 'custom'
 })
 
-function onProviderChange() {
-  customSelected.value = false
-  pickerOpen.value = false
-  const next = PRESETS[s.value.ai_provider] || {}
-  s.value.ai_base_url = next.base
-  s.value.ai_model = next.model
-}
-
-function pickModel(m) {
-  s.value.ai_model = m
-  customSelected.value = false
-  pickerOpen.value = false
+function onProviderChange(provider) {
+  if (provider === lastProvider) return
+  const prevPreset = PRESETS[lastProvider]
+  const nextPreset = PRESETS[provider]
+  const toPreset = !!(nextPreset && (nextPreset.base || nextPreset.model))
+  const fromPreset = !!(prevPreset && (prevPreset.base || prevPreset.model))
+  if (toPreset) {
+    s.value.ai_base_url = nextPreset.base
+    s.value.ai_model = nextPreset.model
+  } else if (fromPreset) {
+    // 切换到自定义服务商：若地址/模型仍是上一服务商默认值则清空；用户改过则保留
+    if (!s.value.ai_base_url || s.value.ai_base_url === prevPreset.base) s.value.ai_base_url = ''
+    if (!s.value.ai_model || s.value.ai_model === prevPreset.model) s.value.ai_model = ''
+  }
+  lastProvider = provider
 }
 
 async function save() {
   saving.value = true
   try {
-    const r = await api('/api/literature/settings', { method: 'PUT', body: { ...s.value } })
+    const providerName = String(s.value.ai_provider || '').trim()
+    const body = {
+      ...s.value,
+      ai_provider: providerName || 'custom',
+    }
+    const r = await api('/api/literature/settings', { method: 'PUT', body })
     s.value = { ...s.value, ...r }
+    if (s.value.ai_provider === 'custom') s.value.ai_provider = ''
     emit('notify', 'AI 配置已保存')
     emit('saved')
   } catch (e) {
@@ -163,48 +203,29 @@ async function save() {
   margin-bottom: 6px;
 }
 .lt-ai-field .lt-input, .lt-ai-field .lt-select { width: 100%; }
-.lt-ai-model { position: relative; display: flex; gap: 8px; align-items: center; }
-.lt-ai-model .lt-select, .lt-ai-model > input { flex: 1; min-width: 0; }
-.lt-model-picker { position: relative; flex: none; }
-.lt-model-picker-btn {
-  border: 1px solid var(--tk-border);
-  background: #fff;
-  color: var(--tk-muted);
-  width: 34px;
-  height: 36px;
-  border-radius: 9px;
+.lt-ai-key { position: relative; }
+.lt-ai-key .lt-input { padding-right: 40px; }
+.lt-ai-eye {
+  position: absolute;
+  right: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: #98a2b3;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
-}
-.lt-model-picker-btn:hover { border-color: var(--tk-blue); color: var(--tk-blue); }
-.lt-model-list {
-  position: absolute;
-  right: 0;
-  top: 40px;
-  min-width: 180px;
-  background: #fff;
-  border: 1px solid var(--tk-border);
-  border-radius: 10px;
-  box-shadow: var(--tk-shadow-md);
-  z-index: 20;
   padding: 4px;
-  display: grid;
+  border-radius: 6px;
+  transition: color 0.15s ease;
 }
-.lt-model-list button {
-  border: none;
-  background: transparent;
-  text-align: left;
-  padding: 7px 10px;
-  border-radius: 7px;
-  font-size: 12.5px;
-  color: var(--tk-text);
-  cursor: pointer;
-  transition: background 0.12s ease;
+.lt-ai-eye:hover { color: var(--tk-blue); }
+.lt-ai-key input[type='password']::-ms-reveal,
+.lt-ai-key input[type='password']::-ms-clear {
+  display: none;
 }
-.lt-model-list button:hover { background: var(--tk-blue-soft); color: var(--tk-blue); }
 .lt-ai-actions { display: flex; justify-content: center; margin-top: 20px; }
 @media (max-width: 600px) {
   .lt-ai-grid { grid-template-columns: 1fr; }
