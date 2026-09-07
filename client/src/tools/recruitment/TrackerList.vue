@@ -233,10 +233,13 @@ const countBy = computed(() => {
 
 const filtered = computed(() => {
   let list = props.companies
-  if (statusFilter.value) {
+  if (statusFilter.value === '未投递') {
+    // 未投递 = 还没有任何投递记录的公司；已有投递记录的不再进入该分类
+    list = props.companies.filter((c) => !c.applications.length)
+  } else if (statusFilter.value) {
     list = list
       .map((c) => ({ ...c, applications: c.applications.filter((a) => a.status === statusFilter.value) }))
-      .filter((c) => c.applications.length || (statusFilter.value === '未投递' && !c.applications.length))
+      .filter((c) => c.applications.length)
   }
   if (q.value.trim()) {
     const k = q.value.trim().toLowerCase()
