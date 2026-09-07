@@ -292,11 +292,8 @@ function seedSpace(spaceId) {
   const count = db.prepare('SELECT COUNT(*) AS n FROM companies WHERE space_id = ?').get(spaceId).n;
   if (count > 0) return { seeded: false, count: 0, reason: '已有公司，跳过' };
   const ts = new Date().toISOString();
-  const space = db.prepare('SELECT user_id FROM spaces WHERE id = ?').get(spaceId);
-  const user = space && space.user_id
-    ? db.prepare('SELECT is_admin FROM users WHERE id = ?').get(space.user_id)
-    : null;
-  const isAdminSpace = !!(user && user.is_admin);
+  const sourceSpaceId = adminSourceSpaceId();
+  const isAdminSourceSpace = sourceSpaceId !== null && spaceId === sourceSpaceId;
   const insert = db.prepare(
     `INSERT INTO companies (space_id, name, link, referral_code, notes, published, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
@@ -304,7 +301,7 @@ function seedSpace(spaceId) {
   let n = 0;
   // 管理员空间：种子公司作为「公共公司目录」写入（初始已发布）；
   // 普通用户/游客空间：只接收当前处于已发布状态的公共公司，已下架的不再下发。
-  if (isAdminSpace) {
+  if (isAdminSourceSpace) {
     for (const c of SEED_COMPANIES) {
       insert.run(
         spaceId,
@@ -323,9 +320,25 @@ function seedSpace(spaceId) {
   return { seeded: true, count: n };
 }
 
+// 公共公司目录的唯一来源空间：取管理员账号最早创建的空间
+function adminSourceSpaceId() {
+  const admin = db.prepare('SELECT id FROM users WHERE is_admin = 1 ORDER BY id LIMIT 1').get();
+  if (!admin) return null;
+  const space = db
+    .prepare('SELECT id FROM spaces WHERE user_id = ? ORDER BY id LIMIT 1')
+    .get(admin.id);
+  return space ? space.id : null;
+}
+
 // 把管理员「已发布」的公司同步到指定空间：同名公司更新资料，否则插入副本
 function syncPublishedToSpace(spaceId) {
-  const published = db.prepare('SELECT * FROM companies WHERE published = 1 ORDER BY id').all();
+  const sourceSpaceId = adminSourceSpaceId();
+  if (sourceSpaceId === null) return { synced: 0 };
+  const published = db
+    .prepare(
+      'SELECT * FROM companies WHERE published = 1 AND space_id = ? ORDER BY id'
+    )
+    .all(sourceSpaceId);
   const find = db.prepare('SELECT id FROM companies WHERE space_id = ? AND name = ?');
   const update = db.prepare(
     `UPDATE companies SET link = ?, referral_code = ?, notes = ?, published = 0, updated_at = ?
@@ -339,7 +352,7 @@ function syncPublishedToSpace(spaceId) {
   const ts = new Date().toISOString();
   for (const src of published) {
     // 源公司所在空间已有该公司，跳过（避免给自己插入重复副本）
-    if (spaceId === src.space_id) continue;
+    if (spaceId === sourceSpaceId) continue;
     const exist = find.get(spaceId, src.name);
     if (exist) {
       update.run(src.link || '', src.referral_code || '', src.notes || '', ts, exist.id);
@@ -375,21 +388,16 @@ function ensureSeedPublished() {
   if (flag) return { migrated: 0, reason: 'already' };
   const admins = db.prepare('SELECT id FROM users WHERE is_admin = 1').all();
   if (!admins.length) return { migrated: 0, reason: 'no-admin' };
-  const spaceIds = db
-    .prepare(
-      `SELECT id FROM spaces WHERE user_id IN (${admins.map(() => '?').join(',')})`
-    )
-    .all(...admins.map((a) => a.id))
-    .map((s) => s.id);
-  if (!spaceIds.length) return { migrated: 0, reason: 'no-admin-space' };
+  const sourceSpaceId = adminSourceSpaceId();
+  if (sourceSpaceId === null) return { migrated: 0, reason: 'no-admin-space' };
   const names = SEED_COMPANIES.map((c) => c.name);
   const rows = db
     .prepare(
       `SELECT id FROM companies
        WHERE published = 0 AND name IN (${names.map(() => '?').join(',')})
-         AND space_id IN (${spaceIds.map(() => '?').join(',')})`
+         AND space_id = ?`
     )
-    .all(...names, ...spaceIds);
+    .all(...names, sourceSpaceId);
   const mark = db.prepare('UPDATE companies SET published = 1 WHERE id = ?');
   const tx = db.transaction(() => {
     for (const r of rows) mark.run(r.id);
