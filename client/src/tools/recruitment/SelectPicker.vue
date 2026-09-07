@@ -7,32 +7,42 @@
       </svg>
     </button>
     <div v-if="open" class="sp-menu" @click.stop>
-      <button
-        v-if="multiple && selectedValues.length"
-        type="button"
-        class="sp-item sp-clear"
-        @click="clearAll"
-      >
-        <span class="sp-check"></span>
-        <span class="sp-clear-label">清除筛选</span>
-      </button>
-      <button
-        type="button"
-        v-for="opt in options"
-        :key="String(opt.value)"
-        class="sp-item"
-        :class="{ active: isActive(opt) }"
-        @click="pick(opt)"
-      >
-        <span class="sp-check">{{ isActive(opt) ? '✓' : '' }}</span>
-        <span>{{ opt.label }}</span>
-      </button>
+      <input
+        v-if="showSearch"
+        v-model="keyword"
+        type="text"
+        class="sp-search"
+        :placeholder="`搜索${placeholder || '选项'}…`"
+      />
+      <div class="sp-scroll">
+        <button
+          v-if="multiple && selectedValues.length"
+          type="button"
+          class="sp-item sp-clear"
+          @click="clearAll"
+        >
+          <span class="sp-check"></span>
+          <span class="sp-clear-label">清除筛选</span>
+        </button>
+        <button
+          type="button"
+          v-for="opt in filteredOptions"
+          :key="String(opt.value)"
+          class="sp-item"
+          :class="{ active: isActive(opt) }"
+          @click="pick(opt)"
+        >
+          <span class="sp-check">{{ isActive(opt) ? '✓' : '' }}</span>
+          <span>{{ opt.label }}</span>
+        </button>
+        <div v-if="!filteredOptions.length" class="sp-empty">无匹配选项</div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 
 const props = defineProps({
   modelValue: { type: [String, Number, Array], default: '' },
@@ -44,6 +54,23 @@ const emit = defineEmits(['update:modelValue', 'change'])
 
 const root = ref(null)
 const open = ref(false)
+const keyword = ref('')
+
+const showSearch = computed(() => props.options.length >= 8)
+
+const filteredOptions = computed(() => {
+  const k = keyword.value.trim().toLowerCase()
+  if (!k) return props.options
+  return props.options.filter((o) =>
+    String(o.label ?? o.value)
+      .toLowerCase()
+      .includes(k)
+  )
+})
+
+watch(open, (v) => {
+  if (v) keyword.value = ''
+})
 
 const selectedValues = computed(() =>
   Array.isArray(props.modelValue) ? props.modelValue.map(String) : []
@@ -156,7 +183,36 @@ onBeforeUnmount(() => document.removeEventListener('click', onClickOutside))
   border-radius: 10px;
   box-shadow: var(--tk-shadow-lg);
   padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+.sp-scroll {
   display: grid;
+  gap: 1px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.sp-search {
+  margin-bottom: 3px;
+  border: 1px solid #dbe1ea;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  background: #f8fafd;
+  color: var(--tk-text);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.sp-search:focus {
+  border-color: var(--tk-blue);
+  background: #fff;
+}
+.sp-empty {
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--tk-faint);
+  text-align: center;
 }
 .sp-item {
   display: flex;

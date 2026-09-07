@@ -5,6 +5,7 @@ const {
   companyPublic,
   companyDetail,
 } = require('./helpers');
+const { syncPublishedToAllSpaces } = require('../../seed-data');
 
 const router = express.Router();
 
@@ -310,7 +311,32 @@ router.put('/:id', (req, res) => {
     row.id,
     req.spaceId
   );
+  if (row.published) {
+    syncPublishedToAllSpaces();
+  }
   res.json(companyDetail(db.prepare('SELECT * FROM companies WHERE id = ?').get(row.id)));
+});
+
+// 管理员发布/取消发布公司：发布后同步到所有用户空间
+router.patch('/:id/publish', (req, res) => {
+  if (!req.user || !req.user.is_admin) {
+    return res.status(403).json({ error: '需要管理员权限' });
+  }
+  const row = db
+    .prepare('SELECT * FROM companies WHERE id = ? AND space_id = ?')
+    .get(req.params.id, req.spaceId);
+  if (!row) return res.status(404).json({ error: '记录不存在' });
+  const published = Number(req.body && req.body.published) ? 1 : 0;
+  db.prepare('UPDATE companies SET published = ?, updated_at = ? WHERE id = ?').run(
+    published,
+    nowIso(),
+    row.id
+  );
+  if (published) {
+    syncPublishedToAllSpaces();
+  }
+  const fresh = db.prepare('SELECT * FROM companies WHERE id = ?').get(row.id);
+  res.json(companyPublic(fresh));
 });
 
 router.delete('/:id', (req, res) => {

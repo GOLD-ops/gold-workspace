@@ -15,6 +15,7 @@ const BUSINESS_SCHEMA = {
     link TEXT DEFAULT '',
     referral_code TEXT DEFAULT '',
     notes TEXT DEFAULT '',
+    published INTEGER DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   )`,
@@ -349,6 +350,16 @@ try {
   }
 } catch (e) {
   console.error('[db] users 提醒规则字段迁移失败:', e.message);
+}
+
+// 兼容旧库：companies 补充发布标记（管理员发布公司后同步到所有用户空间）
+try {
+  const cols = tableCols('companies');
+  if (!cols.includes('published')) {
+    db.exec('ALTER TABLE companies ADD COLUMN published INTEGER DEFAULT 0');
+  }
+} catch (e) {
+  console.error('[db] companies published 字段迁移失败:', e.message);
 }
 
 // 迁移完成后统一建索引

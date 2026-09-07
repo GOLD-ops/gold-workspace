@@ -252,6 +252,8 @@ onBeforeUnmount(() => {
   padding: 4px;
   display: grid;
   gap: 1px;
+  max-height: 300px;
+  overflow-y: auto;
 }
 .esx-tip {
   padding: 6px 10px 7px;

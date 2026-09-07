@@ -36,10 +36,8 @@
             <div class="auth-row-field">
               <label>密码</label>
               <div class="auth-input-wrap">
-                <input
+                <PasswordField
                   v-model="password"
-                  type="password"
-                  class="tk-input"
                   placeholder="请输入密码"
                   autocomplete="current-password"
                 />
@@ -91,10 +89,8 @@
           <div class="auth-row-field">
             <label>密码</label>
             <div class="auth-input-wrap">
-              <input
+              <PasswordField
                 v-model="password"
-                type="password"
-                class="tk-input"
                 placeholder="至少 4 位"
                 autocomplete="new-password"
               />
@@ -136,10 +132,8 @@
           <div class="auth-row-field">
             <label>新密码</label>
             <div class="auth-input-wrap">
-              <input
+              <PasswordField
                 v-model="password"
-                type="password"
-                class="tk-input"
                 placeholder="至少 4 位"
                 autocomplete="new-password"
               />
@@ -188,6 +182,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { api, setToken, setStoredUser, getGuestToken } from '../api'
+import PasswordField from '../ui/PasswordField.vue'
 
 const router = useRouter()
 const mode = ref('login')

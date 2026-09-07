@@ -51,6 +51,20 @@
               <div class="tl-company-line">
                 <span class="tl-expand-arrow">{{ expanded.has(c.id) ? '▾' : '▸' }}</span>
                 <span class="tl-company">{{ c.name }}</span>
+                <button
+                  v-if="isAdmin"
+                  type="button"
+                  class="tl-pub"
+                  :class="{ on: c.published }"
+                  :title="
+                    c.published
+                      ? '已发布给所有用户；点击取消发布（已同步用户保留该公司）'
+                      : '发布后所有用户首页均可看到该公司'
+                  "
+                  @click.stop="togglePublish(c)"
+                >
+                  {{ c.published ? '已发布' : '发布' }}
+                </button>
                 <span class="tl-app-count">{{ c.applications.length }} 个投递</span>
               </div>
               <div v-if="c.notes" class="tl-sub">{{ c.notes }}</div>
@@ -168,7 +182,16 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { api, STATUSES, STATUS_COLORS, PRIORITY_COLORS, RESULT_COLORS, copyText, todayStr } from '../../api'
+import {
+  api,
+  getStoredUser,
+  STATUSES,
+  STATUS_COLORS,
+  PRIORITY_COLORS,
+  RESULT_COLORS,
+  copyText,
+  todayStr,
+} from '../../api'
 import { confirmDialog } from '../../ui/confirm'
 import SelectPicker from './SelectPicker.vue'
 
@@ -188,6 +211,7 @@ const statusFilter = ref('')
 const sortBy = ref('updated')
 const pendingImport = ref(null)
 const expanded = ref(new Set())
+const isAdmin = computed(() => !!(getStoredUser() && getStoredUser().is_admin))
 const sortOptions = [
   { value: 'updated', label: '按最近更新' },
   { value: 'priority', label: '按优先级' },
@@ -283,6 +307,28 @@ async function removeCompany(c) {
   })
   if (!ok) return
   emit('remove-company', c.id)
+}
+
+async function togglePublish(c) {
+  const target = !c.published
+  const ok = await confirmDialog({
+    title: target ? '发布公司' : '取消发布',
+    message: target
+      ? `确定将「${c.name}」发布给所有用户吗？发布后各用户首页都会看到这家公司，同名公司资料将同步更新。`
+      : `确定取消发布「${c.name}」吗？已同步给用户的记录会保留，仅影响后续新用户。`,
+    confirmText: target ? '确定发布' : '确定取消',
+  })
+  if (!ok) return
+  try {
+    await api(`/api/recruitment/companies/${c.id}/publish`, {
+      method: 'PATCH',
+      body: { published: target ? 1 : 0 },
+    })
+    emit('reload')
+    emit('notify', target ? `已发布「${c.name}」给所有用户` : `已取消发布「${c.name}」`)
+  } catch (e) {
+    emit('notify', e.message, 'error')
+  }
 }
 
 async function removeApplication(a) {
@@ -406,6 +452,32 @@ async function doImport(mode) {
 }
 .tl-company-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .tl-company { font-size: 15px; font-weight: 700; color: var(--tk-text); letter-spacing: -0.2px; }
+.tl-pub {
+  border: 1px solid #cbd7ea;
+  background: #f8fafd;
+  color: #5d6878;
+  font-size: 11px;
+  line-height: 1;
+  padding: 4px 9px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.tl-pub:hover {
+  border-color: var(--tk-blue);
+  color: var(--tk-blue);
+  background: #fff;
+}
+.tl-pub.on {
+  border-color: #bfe3cf;
+  background: #e9f7ef;
+  color: #0e9f6e;
+}
+.tl-pub.on:hover {
+  border-color: #dc2626;
+  color: #dc2626;
+  background: #fef2f2;
+}
 .tl-app-count {
   font-size: 11px;
   color: var(--tk-blue);

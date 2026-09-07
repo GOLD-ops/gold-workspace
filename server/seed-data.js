@@ -309,7 +309,59 @@ function seedSpace(spaceId) {
     );
     n++;
   }
+  syncPublishedToSpace(spaceId);
   return { seeded: true, count: n };
+}
+
+// 把管理员「已发布」的公司同步到指定空间：同名公司更新资料，否则插入副本
+function syncPublishedToSpace(spaceId) {
+  const published = db.prepare('SELECT * FROM companies WHERE published = 1 ORDER BY id').all();
+  const find = db.prepare('SELECT id FROM companies WHERE space_id = ? AND name = ?');
+  const findExclude = db.prepare(
+    'SELECT id FROM companies WHERE space_id = ? AND name = ? AND id <> ?'
+  );
+  const update = db.prepare(
+    `UPDATE companies SET link = ?, referral_code = ?, notes = ?, published = 0, updated_at = ?
+     WHERE id = ?`
+  );
+  const insert = db.prepare(
+    `INSERT INTO companies (space_id, name, link, referral_code, notes, published, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, 0, ?, ?)`
+  );
+  let n = 0;
+  const ts = new Date().toISOString();
+  for (const src of published) {
+    // 源公司所在空间：避免把自己更新为「未发布」，只同步同名的其他副本
+    const exist =
+      spaceId === src.space_id
+        ? findExclude.get(spaceId, src.name, src.id)
+        : find.get(spaceId, src.name);
+    if (exist) {
+      update.run(src.link || '', src.referral_code || '', src.notes || '', ts, exist.id);
+    } else {
+      insert.run(
+        spaceId,
+        src.name,
+        src.link || '',
+        src.referral_code || '',
+        src.notes || '',
+        src.created_at || ts,
+        ts
+      );
+    }
+    n++;
+  }
+  return { synced: n };
+}
+
+// 管理员发布后，把公司同步给所有用户空间（保留各自投递数据）
+function syncPublishedToAllSpaces() {
+  const spaces = db.prepare('SELECT id FROM spaces').all();
+  let total = 0;
+  for (const sp of spaces) {
+    total += syncPublishedToSpace(sp.id).synced;
+  }
+  return { spaces: spaces.length, synced: total };
 }
 
 function seedUser(userId) {
@@ -319,4 +371,10 @@ function seedUser(userId) {
   return space ? seedSpace(space.id) : { seeded: false, count: 0 };
 }
 
-module.exports = { SEED_COMPANIES, seedSpace, seedUser };
+module.exports = {
+  SEED_COMPANIES,
+  seedSpace,
+  seedUser,
+  syncPublishedToSpace,
+  syncPublishedToAllSpaces,
+};
