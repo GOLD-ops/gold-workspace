@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const db = require('./db');
-const { seedSpace } = require('./seed-data');
+const { seedSpace, ensureSeedPublished } = require('./seed-data');
 const spaces = require('./spaces');
 
 const SESSION_DAYS = 30;
@@ -113,6 +113,7 @@ function ensureAdmin() {
         'UPDATE users SET password_hash = ?, salt = ?, is_admin = 1, email = COALESCE(NULLIF(?, \'\'), email) WHERE id = ?'
       ).run(hashPassword(password, salt), salt, adminEmail, existing.id);
     }
+    ensureSeedPublished();
     return existing.id;
   }
   const adminEmail = process.env.ADMIN_EMAIL || process.env.MAIL_TO || '';
@@ -120,6 +121,7 @@ function ensureAdmin() {
   db.prepare('UPDATE companies SET user_id = ? WHERE user_id IS NULL').run(id);
   const space = spaces.ensureUserSpace(id);
   seedSpace(space.id);
+  ensureSeedPublished();
   return id;
 }
 

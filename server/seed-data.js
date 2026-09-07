@@ -292,22 +292,32 @@ function seedSpace(spaceId) {
   const count = db.prepare('SELECT COUNT(*) AS n FROM companies WHERE space_id = ?').get(spaceId).n;
   if (count > 0) return { seeded: false, count: 0, reason: '已有公司，跳过' };
   const ts = new Date().toISOString();
+  const space = db.prepare('SELECT user_id FROM spaces WHERE id = ?').get(spaceId);
+  const user = space && space.user_id
+    ? db.prepare('SELECT is_admin FROM users WHERE id = ?').get(space.user_id)
+    : null;
+  const isAdminSpace = !!(user && user.is_admin);
   const insert = db.prepare(
-    `INSERT INTO companies (space_id, name, link, referral_code, notes, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO companies (space_id, name, link, referral_code, notes, published, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   );
   let n = 0;
-  for (const c of SEED_COMPANIES) {
-    insert.run(
-      spaceId,
-      c.name,
-      c.link || '',
-      c.referral_code || '',
-      c.notes || '',
-      ts,
-      ts
-    );
-    n++;
+  // 管理员空间：种子公司作为「公共公司目录」写入（初始已发布）；
+  // 普通用户/游客空间：只接收当前处于已发布状态的公共公司，已下架的不再下发。
+  if (isAdminSpace) {
+    for (const c of SEED_COMPANIES) {
+      insert.run(
+        spaceId,
+        c.name,
+        c.link || '',
+        c.referral_code || '',
+        c.notes || '',
+        1,
+        ts,
+        ts
+      );
+      n++;
+    }
   }
   syncPublishedToSpace(spaceId);
   return { seeded: true, count: n };
@@ -359,6 +369,36 @@ function syncPublishedToAllSpaces() {
   return { spaces: spaces.length, synced: total };
 }
 
+// 一次性迁移：把旧库中管理员已有的种子公司标记为「已发布」公共公司
+function ensureSeedPublished() {
+  const flag = db.prepare("SELECT value FROM settings WHERE key = 'seed_published_migrated'").get();
+  if (flag) return { migrated: 0, reason: 'already' };
+  const admins = db.prepare('SELECT id FROM users WHERE is_admin = 1').all();
+  if (!admins.length) return { migrated: 0, reason: 'no-admin' };
+  const spaceIds = db
+    .prepare(
+      `SELECT id FROM spaces WHERE user_id IN (${admins.map(() => '?').join(',')})`
+    )
+    .all(...admins.map((a) => a.id))
+    .map((s) => s.id);
+  if (!spaceIds.length) return { migrated: 0, reason: 'no-admin-space' };
+  const names = SEED_COMPANIES.map((c) => c.name);
+  const rows = db
+    .prepare(
+      `SELECT id FROM companies
+       WHERE published = 0 AND name IN (${names.map(() => '?').join(',')})
+         AND space_id IN (${spaceIds.map(() => '?').join(',')})`
+    )
+    .all(...names, ...spaceIds);
+  const mark = db.prepare('UPDATE companies SET published = 1 WHERE id = ?');
+  const tx = db.transaction(() => {
+    for (const r of rows) mark.run(r.id);
+    db.prepare("INSERT INTO settings (key, value) VALUES ('seed_published_migrated', '1')").run();
+  });
+  tx();
+  return { migrated: rows.length };
+}
+
 function seedUser(userId) {
   const space = db
     .prepare('SELECT * FROM spaces WHERE user_id = ? ORDER BY id LIMIT 1')
@@ -372,4 +412,5 @@ module.exports = {
   seedUser,
   syncPublishedToSpace,
   syncPublishedToAllSpaces,
+  ensureSeedPublished,
 };
