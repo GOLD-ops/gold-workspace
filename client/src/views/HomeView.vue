@@ -6,8 +6,8 @@
       <p class="desc">这里是我的个人工作坊，收集了我开发的各种实用小工具和成长经历。</p>
     </header>
 
-    <!-- Tab 切换 -->
-    <div class="tabs">
+    <!-- Tab 切换（过往经历仅管理员可见，避免向工具访客暴露个人经历） -->
+    <div v-if="isAdmin" class="tabs">
       <button :class="{ active: tab === 'tools' }" @click="tab = 'tools'">🧰 我的工具</button>
       <button :class="{ active: tab === 'journey' }" @click="tab = 'journey'">📍 过往经历</button>
     </div>
@@ -34,7 +34,7 @@
     </section>
 
     <!-- 过往经历时间轴 -->
-    <section v-if="tab === 'journey'" class="content">
+    <section v-if="isAdmin && tab === 'journey'" class="content">
       <div class="timeline">
         <div class="timeline-item" v-for="(item, i) in journey" :key="i">
           <div class="timeline-dot"></div>
@@ -50,10 +50,12 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { getStoredUser } from '../api'
 import { builtinTools } from '../tools'
 
 const tab = ref('tools')
+const isAdmin = computed(() => !!(getStoredUser() && getStoredUser().is_admin))
 
 // 过往经历数据（后续可改为从API读取）
 const journey = ref([
