@@ -45,7 +45,7 @@
   </div>
 
   <!-- 字段配置弹窗 -->
-  <div v-if="editing" class="lt-modal-overlay" @click.self="editing = null">
+  <div v-if="editing" class="lt-modal-overlay">
     <div class="lt-modal lt-field-modal">
       <div class="lt-modal-header">
         <h3>配置字段</h3>
@@ -108,7 +108,7 @@
   </div>
 
   <!-- 添加字段弹窗 -->
-  <div v-if="showAdd" class="lt-modal-overlay" @click.self="showAdd = false">
+  <div v-if="showAdd" class="lt-modal-overlay">
     <div class="lt-modal lt-field-modal">
       <div class="lt-modal-header">
         <h3>添加字段</h3>

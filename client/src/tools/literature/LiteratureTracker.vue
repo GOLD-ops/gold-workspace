@@ -13,7 +13,7 @@
     </div>
 
     <!-- AI 配置弹窗 -->
-    <div v-if="showAi" class="lt-modal-overlay" @click.self="showAi = false">
+    <div v-if="showAi" class="lt-modal-overlay">
       <div class="lt-modal lt-modal-ai">
         <div class="lt-modal-header">
           <h3>AI 服务配置</h3>

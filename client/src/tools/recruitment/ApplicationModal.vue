@@ -1,5 +1,5 @@
 <template>
-  <div class="tk-modal-overlay" @click.self="$emit('close')">
+  <div class="tk-modal-overlay">
     <div class="tk-modal am-modal">
       <div class="tk-modal-header">
         <h3>{{ companyName }}{{ application ? ' · 编辑投递' : ' · 新增投递' }}</h3>

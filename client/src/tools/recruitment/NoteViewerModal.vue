@@ -1,5 +1,5 @@
 <template>
-  <div class="tk-modal-overlay nv-overlay" @click.self="$emit('close')">
+  <div class="tk-modal-overlay nv-overlay">
     <div class="tk-modal nv-modal">
       <div class="tk-modal-header nv-head">
         <h3>{{ editing ? '编辑笔记' : (note.title || '无标题') }}</h3>

@@ -1,5 +1,5 @@
 <template>
-  <div class="lt-modal-overlay" @click.self="$emit('close')">
+  <div class="lt-modal-overlay">
     <div class="lt-modal">
       <div class="lt-modal-header">
         <h3 :title="paper.filename">{{ paper.filename }}</h3>

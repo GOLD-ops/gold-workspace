@@ -183,7 +183,7 @@
     <PaperModal v-if="editing" :paper="editing" @close="editing = null" @saved="reload" @notify="notify" />
 
     <!-- 导出格式选择 -->
-    <div v-if="showExport" class="lt-modal-overlay" @click.self="showExport = false">
+    <div v-if="showExport" class="lt-modal-overlay">
       <div class="lt-modal lt-export-modal">
         <div class="lt-modal-header">
           <h3>导出分析结果</h3>

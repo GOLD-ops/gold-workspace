@@ -153,7 +153,7 @@
     </div>
 
     <!-- 导入方式选择 -->
-    <div v-if="pendingImport" class="tk-modal-overlay" @click.self="pendingImport = null">
+    <div v-if="pendingImport" class="tk-modal-overlay">
       <div class="tk-modal tl-import-modal">
         <div class="tk-modal-header">
           <h3>选择导入方式</h3>

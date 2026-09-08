@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <div v-if="confirmState.open" class="cf-overlay" @click.self="cancel">
+    <div v-if="confirmState.open" class="cf-overlay">
       <div class="cf-dialog" role="dialog" aria-modal="true">
         <div class="cf-title">{{ confirmState.title }}</div>
         <div class="cf-message">{{ confirmState.message }}</div>
