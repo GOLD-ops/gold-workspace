@@ -345,7 +345,11 @@ async function removeApplication(a) {
 
 function applyCompany(c) {
   if (!c.link) return
-  window.open(c.link, '_blank', 'noopener')
+  let url = String(c.link).trim()
+  if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(url)) {
+    url = 'https://' + url
+  }
+  window.open(url, '_blank', 'noopener')
 }
 
 async function copyReferral(c) {
