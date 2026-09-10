@@ -1,7 +1,11 @@
 const express = require('express');
+const ExcelJS = require('exceljs');
 const db = require('../../db');
 const {
   nowIso,
+  todayStr,
+  RESULT_META,
+  applicationPublic,
   companyPublic,
   companyDetail,
 } = require('./helpers');
@@ -80,6 +84,111 @@ router.get('/export', (req, res) => {
     notes,
   });
 });
+
+// 导出 Excel：一条投递一行，没有任何投递的公司也会占一行
+router.get('/export/xlsx', async (req, res) => {
+  const companies = db
+    .prepare('SELECT * FROM companies WHERE space_id = ? ORDER BY updated_at DESC, id DESC')
+    .all(req.spaceId);
+  const apps = db
+    .prepare('SELECT * FROM applications WHERE space_id = ? ORDER BY id')
+    .all(req.spaceId)
+    .map((a) => applicationPublic(a));
+  const byCompany = new Map();
+  for (const a of apps) {
+    if (!byCompany.has(a.company_id)) byCompany.set(a.company_id, []);
+    byCompany.get(a.company_id).push(a);
+  }
+
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('投递记录');
+  ws.columns = [
+    { header: '序号', key: 'no', width: 7 },
+    { header: '公司', key: 'company', width: 22 },
+    { header: '内推码', key: 'referral_code', width: 18 },
+    { header: '岗位', key: 'position', width: 24 },
+    { header: '城市', key: 'city', width: 12 },
+    { header: '部门', key: 'department', width: 16 },
+    { header: '薪资', key: 'salary', width: 14 },
+    { header: '优先级', key: 'priority', width: 9 },
+    { header: '当前阶段', key: 'status', width: 12 },
+    { header: '进展节点', key: 'milestones', width: 46 },
+    { header: '投递备注', key: 'notes', width: 32 },
+    { header: '职位描述', key: 'requirements', width: 40 },
+    { header: '创建时间', key: 'created_at', width: 18 },
+    { header: '更新时间', key: 'updated_at', width: 18 },
+  ];
+
+  let no = 0;
+  for (const c of companies) {
+    const list = byCompany.get(c.id) || [];
+    if (!list.length) {
+      ws.addRow({
+        no: ++no,
+        company: c.name,
+        referral_code: c.referral_code || '',
+        status: '未投递',
+        notes: c.notes || '',
+        created_at: fmtTime(c.created_at),
+        updated_at: fmtTime(c.updated_at),
+      });
+      continue;
+    }
+    for (const a of list) {
+      ws.addRow({
+        no: ++no,
+        company: c.name,
+        referral_code: c.referral_code || '',
+        position: a.position || '',
+        city: a.city || '',
+        department: a.department || '',
+        salary: a.salary || '',
+        priority: a.priority || '',
+        status: a.status || '',
+        milestones: milestoneText(a.milestones),
+        notes: a.notes || '',
+        requirements: a.requirements || '',
+        created_at: fmtTime(a.created_at),
+        updated_at: fmtTime(a.updated_at),
+      });
+    }
+  }
+
+  ws.getRow(1).font = { bold: true };
+  ws.getRow(1).alignment = { vertical: 'middle', wrapText: true };
+  ws.eachRow((row) => {
+    row.alignment = { wrapText: true, vertical: 'top' };
+  });
+  ws.getRow(1).alignment = { vertical: 'middle', wrapText: true };
+
+  res.setHeader(
+    'Content-Type',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  );
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename*=UTF-8''${encodeURIComponent(`秋招追踪器-${todayStr()}.xlsx`)}`
+  );
+  await wb.xlsx.write(res);
+  res.end();
+});
+
+function fmtTime(v) {
+  if (!v) return '';
+  const s = String(v);
+  return s.includes('T') ? s.slice(0, 16).replace('T', ' ') : s.slice(0, 10);
+}
+
+function milestoneText(milestones = []) {
+  return milestones
+    .map((m) => {
+      const label =
+        m.result && m.result !== 'none' ? (RESULT_META[m.result] && RESULT_META[m.result].label) || '' : '';
+      const date = String(m.date || '').replace('T', ' ');
+      return [m.name, date, label].filter(Boolean).join(' ');
+    })
+    .join('；');
+}
 
 // 导入（v2 原生格式；兼容 v1：companies 含 position 等投递字段时自动拆成公司+投递）
 router.post('/import', (req, res) => {

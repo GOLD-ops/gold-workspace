@@ -10,7 +10,7 @@
           />
           <SelectPicker v-model="sortBy" :options="sortOptions" class="tl-sort-picker" />
           <span style="flex: 1"></span>
-          <button class="tk-btn tk-btn-sm" @click="exportData">导出</button>
+          <button class="tk-btn tk-btn-sm" @click="showExport = true">导出</button>
           <label class="tk-btn tk-btn-sm" style="cursor: pointer">
             导入
             <input type="file" accept=".json,application/json" style="display: none" @change="importFile" />
@@ -177,6 +177,28 @@
         </div>
       </div>
     </div>
+
+    <!-- 导出方式选择 -->
+    <div v-if="showExport" class="tk-modal-overlay">
+      <div class="tk-modal tl-export-modal">
+        <div class="tk-modal-header">
+          <h3>选择导出方式</h3>
+          <button class="tk-modal-close" @click="showExport = false">✕</button>
+        </div>
+        <div class="tk-modal-body">
+          <div class="tl-export-options">
+            <button class="tk-btn tk-btn-primary" @click="doExport('xlsx')">
+              导出 Excel 表格
+              <span class="tl-export-sub">按投递记录逐行整理，适合查看与分享</span>
+            </button>
+            <button class="tk-btn" @click="doExport('json')">
+              导出 JSON 备份
+              <span class="tl-export-sub">完整备份公司、投递、节点与笔记，可再导入</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -184,6 +206,8 @@
 import { ref, computed } from 'vue'
 import {
   api,
+  getToken,
+  getGuestToken,
   getStoredUser,
   STATUSES,
   STATUS_COLORS,
@@ -210,6 +234,7 @@ const q = ref('')
 const statusFilter = ref('')
 const sortBy = ref('updated')
 const pendingImport = ref(null)
+const showExport = ref(false)
 const expanded = ref(new Set())
 const isAdmin = computed(() => !!(getStoredUser() && getStoredUser().is_admin))
 const sortOptions = [
@@ -357,15 +382,43 @@ async function copyReferral(c) {
   emit('notify', `已复制「${c.name}」的内推码`)
 }
 
-async function exportData() {
-  const data = await api('/api/recruitment/companies/export')
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+async function downloadBlob(path, filename) {
+  const headers = {}
+  const token = getToken()
+  if (token) headers.Authorization = 'Bearer ' + token
+  else headers['X-Space-Token'] = getGuestToken()
+  const res = await fetch(path, { headers })
+  if (!res.ok) throw new Error('导出失败，请稍后重试')
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
-  a.download = `秋招追踪器备份-${todayStr()}.json`
+  a.href = url
+  a.download = filename
   a.click()
-  URL.revokeObjectURL(a.href)
-  emit('notify', '已导出 JSON 备份')
+  URL.revokeObjectURL(url)
+}
+
+async function doExport(format) {
+  showExport.value = false
+  try {
+    const stamp = todayStr()
+    if (format === 'xlsx') {
+      await downloadBlob('/api/recruitment/companies/export/xlsx', `秋招追踪器-${stamp}.xlsx`)
+      emit('notify', 'Excel 已导出')
+      return
+    }
+    const data = await api('/api/recruitment/companies/export')
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `秋招追踪器备份-${stamp}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    emit('notify', '已导出 JSON 备份')
+  } catch (e) {
+    emit('notify', e.message, 'error')
+  }
 }
 
 async function importFile(e) {
@@ -665,17 +718,21 @@ async function doImport(mode) {
 .tl-apply-btn:hover { background: var(--tk-blue); border-color: var(--tk-blue); color: #fff; }
 .tl-view-btn { color: var(--tk-blue); border-color: #bcd0f2; background: #fff; }
 .tl-import-modal { max-width: 520px; }
+.tl-export-modal { max-width: 460px; }
 .tl-import-file { font-size: 13px; color: var(--tk-muted); margin-bottom: 16px; }
 .tl-import-hint { font-size: 12px; color: var(--tk-faint); margin-bottom: 12px; }
-.tl-import-options { display: grid; gap: 10px; }
-.tl-import-options .tk-btn {
+.tl-import-options,
+.tl-export-options { display: grid; gap: 10px; }
+.tl-import-options .tk-btn,
+.tl-export-options .tk-btn {
   justify-content: space-between;
   width: 100%;
   padding: 14px 18px;
   border-radius: 12px;
   flex-wrap: wrap;
 }
-.tl-import-sub {
+.tl-import-sub,
+.tl-export-sub {
   font-size: 11.5px;
   opacity: 0.75;
   font-weight: 400;
