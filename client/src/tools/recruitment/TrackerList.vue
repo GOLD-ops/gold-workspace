@@ -13,7 +13,12 @@
           <button class="tk-btn tk-btn-sm" @click="showExport = true">导出</button>
           <label class="tk-btn tk-btn-sm" style="cursor: pointer">
             导入
-            <input type="file" accept=".json,application/json" style="display: none" @change="importFile" />
+            <input
+              type="file"
+              accept=".json,.xlsx,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              style="display: none"
+              @change="importFile"
+            />
           </label>
           <button class="tk-btn tk-btn-primary" @click="$emit('open-company', null)">新增公司</button>
         </div>
@@ -161,7 +166,12 @@
         </div>
         <div class="tk-modal-body">
           <p class="tl-import-file">
-            文件：<strong>{{ pendingImport.name }}</strong>（{{ pendingImport.count }} 家公司）
+            文件：<strong>{{ pendingImport.name }}</strong>（{{ pendingImport.count }} 家公司{{
+              pendingImport.apps ? `、${pendingImport.apps} 条投递` : ''
+            }}）
+          </p>
+          <p v-if="pendingImport.skipped" class="tl-import-hint">
+            已跳过 {{ pendingImport.skipped }} 行没有公司名称的数据。
           </p>
           <p class="tl-import-hint">请选择导入方式：</p>
           <div class="tl-import-options">
@@ -426,6 +436,17 @@ async function importFile(e) {
   e.target.value = ''
   if (!file) return
   try {
+    if (/\.xlsx$/i.test(file.name)) {
+      const { data, summary } = await uploadXlsx(file)
+      pendingImport.value = {
+        name: file.name,
+        count: summary.companies,
+        apps: summary.applications,
+        skipped: summary.skipped,
+        data,
+      }
+      return
+    }
     const data = JSON.parse(await file.text())
     if (!data || !Array.isArray(data.companies)) {
       throw new Error('文件不是有效的秋招追踪器备份')
@@ -434,6 +455,23 @@ async function importFile(e) {
   } catch (err) {
     emit('notify', `导入失败：${err.message}`)
   }
+}
+
+async function uploadXlsx(file) {
+  const headers = {}
+  const token = getToken()
+  if (token) headers.Authorization = 'Bearer ' + token
+  else headers['X-Space-Token'] = getGuestToken()
+  const fd = new FormData()
+  fd.append('file', file)
+  const res = await fetch('/api/recruitment/companies/import/xlsx', {
+    method: 'POST',
+    headers,
+    body: fd,
+  })
+  const out = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(out.error || 'Excel 解析失败')
+  return out
 }
 
 async function doImport(mode) {

@@ -1,11 +1,13 @@
 const express = require('express');
 const ExcelJS = require('exceljs');
+const multer = require('multer');
 const db = require('../../db');
 const {
   nowIso,
   todayStr,
   RESULT_META,
   applicationPublic,
+  statusFromMilestoneName,
   companyPublic,
   companyDetail,
 } = require('./helpers');
@@ -189,6 +191,206 @@ function milestoneText(milestones = []) {
     })
     .join('；');
 }
+
+// ===== Excel 导入 =====
+const uploadXlsx = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
+
+const XLSX_HEADER_ALIASES = {
+  公司: 'company',
+  公司名称: 'company',
+  企业: 'company',
+  company: 'company',
+  内推码: 'referral_code',
+  推荐码: 'referral_code',
+  referral_code: 'referral_code',
+  投递链接: 'link',
+  官网: 'link',
+  公司链接: 'link',
+  岗位: 'position',
+  职位: 'position',
+  岗位名称: 'position',
+  position: 'position',
+  城市: 'city',
+  地点: 'city',
+  city: 'city',
+  部门: 'department',
+  department: 'department',
+  薪资: 'salary',
+  salary: 'salary',
+  优先级: 'priority',
+  当前阶段: 'status',
+  阶段: 'status',
+  状态: 'status',
+  进展节点: 'milestones',
+  节点: 'milestones',
+  投递备注: 'notes',
+  备注: 'notes',
+  职位描述: 'requirements',
+  岗位要求: 'requirements',
+  职位要求: 'requirements',
+  创建时间: 'created_at',
+};
+
+const XLSX_STATUSES = ['未投递', '已投递', '笔试', '面试', 'Offer', '已淘汰'];
+const RESULT_BY_LABEL = { 待进行: 'waiting', 待结果: 'done', 通过: 'pass', 未通过: 'fail' };
+
+function xlsxCellText(value) {
+  if (value === null || value === undefined) return '';
+  if (value instanceof Date) {
+    const p = (n) => String(n).padStart(2, '0');
+    return `${value.getFullYear()}-${p(value.getMonth() + 1)}-${p(value.getDate())} ${p(
+      value.getHours()
+    )}:${p(value.getMinutes())}`;
+  }
+  if (typeof value === 'object') {
+    if (Array.isArray(value.richText)) return value.richText.map((t) => t.text || '').join('');
+    if (value.text !== undefined) return String(value.text);
+    if (value.result !== undefined) return String(value.result);
+    return '';
+  }
+  return String(value);
+}
+
+// 解析「进展节点」列，例如：投递 2026-09-10 19:49；一面 2026-09-12 14:00 待进行
+function parseMilestoneText(text) {
+  const labels = ['未通过', '待结果', '待进行', '通过'];
+  return String(text || '')
+    .split(/[；;\n]/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((seg) => {
+      let rest = seg;
+      let result = '';
+      for (const label of labels) {
+        if (rest.endsWith(label)) {
+          result = RESULT_BY_LABEL[label];
+          rest = rest.slice(0, -label.length).trim();
+          break;
+        }
+      }
+      let date = '';
+      const dm = rest.match(/(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[ T](\d{1,2}):(\d{2}))?/);
+      if (dm) {
+        const p = (n) => String(n).padStart(2, '0');
+        date = `${dm[1]}-${p(dm[2])}-${p(dm[3])}${dm[4] ? `T${p(dm[4])}:${dm[5]}` : ''}`;
+        rest = (rest.slice(0, dm.index) + rest.slice(dm.index + dm[0].length)).trim();
+      }
+      const name = rest.replace(/[（(]\s*[)）]/g, '').trim() || '新节点';
+      return { name, result: result || 'none', date };
+    });
+}
+
+// Excel → v2 结构（公司 / 投递 / 节点），再复用 /import 的写库逻辑
+router.post('/import/xlsx', uploadXlsx.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: '请选择要导入的 Excel 文件' });
+  const wb = new ExcelJS.Workbook();
+  try {
+    await wb.xlsx.load(req.file.buffer);
+  } catch (e) {
+    return res.status(400).json({ error: 'Excel 解析失败，请确认文件是 .xlsx 格式' });
+  }
+  const ws = wb.worksheets[0];
+  if (!ws) return res.status(400).json({ error: 'Excel 中没有可读取的工作表' });
+
+  const colMap = {};
+  ws.getRow(1).eachCell((cell, colNumber) => {
+    const key = XLSX_HEADER_ALIASES[xlsxCellText(cell.value).trim()];
+    if (key && !colMap[key]) colMap[key] = colNumber;
+  });
+  if (!colMap.company) {
+    return res.status(400).json({ error: 'Excel 缺少「公司」列，请参考导出的表格格式' });
+  }
+
+  const companies = [];
+  const applications = [];
+  const milestones = [];
+  const byName = new Map();
+  let companySeq = 0;
+  let appSeq = 0;
+  let msSeq = 0;
+  let skipped = 0;
+
+  const lastRow = Math.min(ws.rowCount, 2001);
+  for (let r = 2; r <= lastRow; r++) {
+    const row = ws.getRow(r);
+    const get = (key) => (colMap[key] ? xlsxCellText(row.getCell(colMap[key]).value).trim() : '');
+    const name = get('company');
+    if (!name) {
+      skipped++;
+      continue;
+    }
+    let company = byName.get(name);
+    if (!company) {
+      company = {
+        id: ++companySeq,
+        name,
+        link: get('link'),
+        referral_code: get('referral_code'),
+        notes: '',
+      };
+      byName.set(name, company);
+      companies.push(company);
+    } else {
+      if (!company.link) company.link = get('link');
+      if (!company.referral_code) company.referral_code = get('referral_code');
+    }
+
+    const position = get('position');
+    if (!position) {
+      // 没有岗位的行按公司行处理，备注记到公司上
+      if (!company.notes) company.notes = get('notes');
+      continue;
+    }
+
+    const nodes = parseMilestoneText(get('milestones'));
+    const rawStatus = get('status');
+    let status = XLSX_STATUSES.includes(rawStatus) ? rawStatus : '';
+    if (!status) {
+      const lastName = nodes.length ? nodes[nodes.length - 1].name : '';
+      status = statusFromMilestoneName(lastName) || statusFromMilestoneName(position) || '已投递';
+    }
+    const app = {
+      id: ++appSeq,
+      company_id: company.id,
+      position,
+      department: get('department'),
+      city: get('city'),
+      salary: get('salary'),
+      notes: get('notes'),
+      requirements: get('requirements'),
+      status,
+    };
+    applications.push(app);
+    for (const node of nodes) {
+      milestones.push({ id: ++msSeq, application_id: app.id, ...node });
+    }
+  }
+
+  if (!companies.length) {
+    return res.status(400).json({ error: '没有读取到有效数据，请检查「公司」列是否填写' });
+  }
+  res.json({
+    ok: true,
+    summary: {
+      companies: companies.length,
+      applications: applications.length,
+      milestones: milestones.length,
+      skipped,
+    },
+    data: {
+      app: 'autumn-recruitment-tracker',
+      version: 2,
+      exported_at: nowIso(),
+      companies,
+      applications,
+      milestones,
+      notes: [],
+    },
+  });
+});
 
 // 导入（v2 原生格式；兼容 v1：companies 含 position 等投递字段时自动拆成公司+投递）
 router.post('/import', (req, res) => {
