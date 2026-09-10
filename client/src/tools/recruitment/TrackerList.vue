@@ -419,7 +419,7 @@ async function doImport(mode) {
 .tk-empty { padding: 56px 20px; }
 .tk-row {
   display: grid;
-  grid-template-columns: minmax(140px, 1fr) 96px 250px;
+  grid-template-columns: minmax(140px, 1fr) 140px 250px;
   gap: 16px;
   align-items: center;
   padding: 14px 14px 14px 20px;
