@@ -80,9 +80,9 @@
                 :title="c.link ? '打开公司招聘官网' : '未填写投递链接'"
                 @click.stop="applyCompany(c)"
               >
-                官网投递
+                {{ c.applications.length ? '查看进度' : '官网投递' }}
               </button>
-              <button class="tk-btn tk-btn-icon" @click.stop="$emit('add-application', c.id)">新增记录</button>
+              <button class="tk-btn tk-btn-icon" @click.stop="$emit('add-application', c.id)">新增投递</button>
               <button class="tk-btn tk-btn-icon" @click.stop="$emit('open-company', c)">编辑</button>
               <button class="tk-btn tk-btn-danger tk-btn-icon" @click.stop="removeCompany(c)">删除</button>
             </div>
@@ -92,7 +92,7 @@
           <div v-if="expanded.has(c.id)" class="tl-app-area">
             <div v-if="!c.applications.length" class="tl-no-apps">
               暂无投递记录，点击
-              <span class="tl-noapps-link" @click="$emit('add-application', c.id)">「新增记录」</span>
+              <span class="tl-noapps-link" @click="$emit('add-application', c.id)">「新增投递」</span>
               记录第一个岗位。
             </div>
             <div v-for="a in c.applications" :key="a.id" class="tl-app-row">
@@ -116,7 +116,7 @@
                 </div>
                 <div class="tl-app-actions">
                   <button class="tk-btn tk-btn-icon tl-view-btn" @click="$emit('open-application', a)">
-                    查看进度
+                    编辑
                   </button>
                   <button class="tk-btn tk-btn-danger tk-btn-icon" @click="removeApplication(a)">删除</button>
                 </div>

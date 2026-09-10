@@ -63,9 +63,9 @@
         <div v-if="company" class="tk-section">
           <div class="tk-section-title">
             投递记录（{{ applications.length }}）
-            <button class="tk-btn tk-btn-sm" @click="$emit('add-application', company.id)">+ 新增记录</button>
+            <button class="tk-btn tk-btn-sm" @click="$emit('add-application', company.id)">+ 新增投递</button>
           </div>
-          <div v-if="!applications.length" class="cm-no-apps">还没有投递记录，点击「新增记录」记录第一个岗位。</div>
+          <div v-if="!applications.length" class="cm-no-apps">还没有投递记录，点击「新增投递」记录第一个岗位。</div>
           <div class="cm-app-item" v-for="a in applications" :key="a.id">
             <div class="cm-app-info">
               <span class="cm-app-pos">{{ a.position || '未填写岗位' }}</span>
@@ -73,7 +73,7 @@
               <span v-if="a.city" class="cm-app-chip">{{ a.city }}</span>
               <span v-if="a.salary" class="cm-app-chip">{{ a.salary }}</span>
             </div>
-            <button class="tk-btn tk-btn-icon cm-app-view" @click="$emit('open-application', a)">查看进度</button>
+            <button class="tk-btn tk-btn-icon cm-app-view" @click="$emit('open-application', a)">编辑</button>
           </div>
         </div>
       </div>
