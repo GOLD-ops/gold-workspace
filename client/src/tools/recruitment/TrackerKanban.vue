@@ -101,7 +101,7 @@ function latestNode(a) {
   return a.milestones[a.milestones.length - 1]
 }
 function resultLabel(r) {
-  return { none: '待进行', waiting: '待进行', pass: '通过', fail: '未通过' }[r] || ''
+  return { none: '待进行', waiting: '待进行', done: '待结果', pass: '通过', fail: '未通过' }[r] || ''
 }
 function resultStyle(r) {
   const c = RESULT_COLORS[r] || RESULT_COLORS.none
