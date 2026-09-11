@@ -22,7 +22,7 @@ const RESULT_META = {
 const STATUS_KEYWORDS = [
   { status: 'Offer', keywords: ['offer'] },
   { status: '已淘汰', keywords: ['淘汰', '拒', 'fail', 'reject', '不通过', '未通过'] },
-  { status: '面试', keywords: ['一面', '二面', '三面', '四面', 'hr面', '群面', '背调', '面试'] },
+  { status: '面试', keywords: ['一面', '二面', '三面', '四面', 'hr面', 'ai面', '群面', '背调', '面试'] },
   { status: '笔试', keywords: ['笔试', '机试', '测评'] },
   { status: '未投递', keywords: ['准备', '未投递'] },
   { status: '已投递', keywords: ['投递', '内推', '网申', '申请'] },

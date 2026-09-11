@@ -152,6 +152,11 @@ function fmtDateTime(iso) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
+// 面试类节点：一面/二面/三面/群面/AI面/初面/终面/HR面 等
+function isInterviewNode(name) {
+  return String(name || '').toLowerCase().includes('面');
+}
+
 function adviceForMilestone(name = '') {
   const n = String(name || '').toLowerCase();
   if (n.includes('笔试') || n.includes('机试') || n.includes('测评')) {
@@ -161,7 +166,7 @@ function adviceForMilestone(name = '') {
       '复习岗位相关的核心基础知识，保持手感',
     ];
   }
-  if (n.includes('面试') || n.includes('群面')) {
+  if (isInterviewNode(n)) {
     return [
       '重新阅读该岗位的职位描述，梳理与岗位匹配的经历',
       '准备自我介绍与高频问题（项目深挖、优缺点、职业规划等）',
@@ -188,7 +193,7 @@ function buildGreeting(company, position, milestoneName, timeLabel) {
   if (n.includes('笔试') || n.includes('机试') || n.includes('测评')) {
     return `你好，${company}${pos}的${name}将在 ${timeLabel} 开始，请提前做好准备～`;
   }
-  if (n.includes('面试') || n.includes('群面')) {
+  if (isInterviewNode(n)) {
     return `你好，${company}${pos}的${name}即将到来${when}，请提前做好准备～`;
   }
   return `你好，${company}${pos}的「${name}」即将到来${when}，请提前做好准备～`;

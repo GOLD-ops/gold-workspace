@@ -86,7 +86,7 @@
             进展节点
             <button class="tk-btn tk-btn-sm" @click="addMilestone">+ 添加节点</button>
           </div>
-          <p class="am-tip">按时间记录 投递 → 笔试 → 一面 → 二面 → HR面 → Offer 等节点；节点结果会自动更新所处阶段（未通过 → 已淘汰）。</p>
+          <p class="am-tip">按时间记录 投递 → 笔试 → AI面 → 一面 → 二面 → HR面 → Offer 等节点；节点结果会自动更新所处阶段（未通过 → 已淘汰）。</p>
 
           <div class="tk-milestone" v-for="(m, idx) in milestones" :key="idx">
             <div class="tk-milestone-row">
@@ -213,7 +213,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['close', 'saved', 'notify'])
 
-const NAME_SUGGESTIONS = ['投递', '笔试', '群面', '一面', '二面', '三面', 'HR面', '背调', 'Offer', '淘汰']
+const NAME_SUGGESTIONS = ['投递', '笔试', '群面', 'AI面', '一面', '二面', '三面', 'HR面', '背调', 'Offer', '淘汰']
 const statusOptions = STATUSES.map((s) => ({ value: s, label: s }))
 const companyList = ref([])
 let noteSeq = 0
