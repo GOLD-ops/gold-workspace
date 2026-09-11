@@ -213,7 +213,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['close', 'saved', 'notify'])
 
-const NAME_SUGGESTIONS = ['投递', '笔试', '群面', '一面', '二面', '三面', 'HR面', '背调', 'Offer']
+const NAME_SUGGESTIONS = ['投递', '笔试', '群面', '一面', '二面', '三面', 'HR面', '背调', 'Offer', '淘汰']
 const statusOptions = STATUSES.map((s) => ({ value: s, label: s }))
 const companyList = ref([])
 let noteSeq = 0
