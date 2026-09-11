@@ -299,11 +299,7 @@ const filtered = computed(() => {
   }
   const arr = [...list]
   if (sortBy.value === 'priority')
-    arr.sort(
-      (a, b) =>
-        (b.applications.reduce((s, x) => s + x.priority_score, 0) || 0) -
-        (a.applications.reduce((s, x) => s + x.priority_score, 0) || 0)
-    )
+    arr.sort((a, b) => topPriorityScore(b) - topPriorityScore(a))
   else if (sortBy.value === 'company') arr.sort((a, b) => a.name.localeCompare(b.name, 'zh'))
   else if (sortBy.value === 'created') arr.sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
   else arr.sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))
@@ -313,6 +309,12 @@ const filtered = computed(() => {
 function currentIdx(a) {
   return a.milestones.findIndex((m) => m.name === a.current_stage)
 }
+
+// 公司排序用的优先级：取该公司优先级最高的那条投递，而不是所有投递求和
+function topPriorityScore(c) {
+  return c.applications.reduce((max, a) => Math.max(max, a.priority_score || 0), 0)
+}
+
 function toggleExpand(id) {
   const s = new Set(expanded.value)
   if (s.has(id)) s.delete(id)
