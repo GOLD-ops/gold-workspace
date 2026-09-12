@@ -19,8 +19,6 @@
           v-for="tool in builtinTools"
           :key="tool.id"
           :to="tool.path"
-          target="_blank"
-          rel="noopener"
           class="card featured-tool"
         >
           <div class="featured-head">
