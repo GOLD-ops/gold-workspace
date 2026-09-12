@@ -8,6 +8,7 @@ const mailer = require('./mailer');
 const recruitmentRouter = require('./routes/recruitment');
 const authRouter = require('./routes/auth');
 const literatureRouter = require('./routes/literature');
+const roomieRouter = require('./routes/roomie');
 const auth = require('./auth');
 
 // 服务启动时确保预设管理员存在
@@ -39,6 +40,9 @@ app.use('/api/recruitment', recruitmentRouter);
 
 // 文献分析工具接口
 app.use('/api/literature', literatureRouter);
+
+// 合租生活管家接口
+app.use('/api/roomie', auth.requireSpace, roomieRouter);
 
 // 若存在前端构建产物，直接托管（同时兼容 Nginx 反向代理部署）
 const dist = path.join(__dirname, '..', 'client', 'dist');

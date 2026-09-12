@@ -66,6 +66,7 @@ const user = ref(getStoredUser())
 const TOOL_META = {
   '/tools/recruitment': { name: '秋招追踪器', sub: '求职投递进度管理', icon: '🎯' },
   '/tools/literature': { name: '文献分析', sub: '文献阅读与 AI 整理', icon: '📚' },
+  '/tools/roomie': { name: '合租生活管家', sub: '合租日常协同管理', icon: '🏠' },
 }
 const toolMeta = computed(
   () =>

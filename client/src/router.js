@@ -15,6 +15,11 @@ const routes = [
     name: 'literature',
     component: () => import('./tools/literature/LiteratureTracker.vue'),
   },
+  {
+    path: '/tools/roomie',
+    name: 'roomie',
+    component: () => import('./tools/roomie/RoomieApp.vue'),
+  },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 

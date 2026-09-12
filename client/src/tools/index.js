@@ -15,4 +15,11 @@ export const builtinTools = [
     desc: '上传文献，AI 自动提取研究方法、核心结论等，一键导出 Excel',
     path: '/tools/literature',
   },
+  {
+    id: 'roomie',
+    name: '合租生活管家',
+    icon: '🏠',
+    desc: '费用 AA 分摊、值日排班、公共物品登记提醒与室友公约管理',
+    path: '/tools/roomie',
+  },
 ]
