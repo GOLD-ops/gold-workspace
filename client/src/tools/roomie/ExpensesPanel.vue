@@ -3,12 +3,12 @@
     <div class="rm-section-head">
       <div>
         <h2>费用 AA 分摊</h2>
-        <p class="rm-sub">记一笔，自动算清每人该付多少、谁该转给谁</p>
+        <p class="rm-sub">记录一笔费用，自动算清每人该付多少、谁该转给谁</p>
       </div>
-      <button class="rm-btn primary" @click="openAdd">+ 记一笔</button>
+      <button class="rm-btn primary" @click="openAdd">+ 新增费用</button>
     </div>
 
-    <div v-if="!roommates.length" class="rm-empty">请先在「室友」页添加一起合租的人</div>
+    <div v-if="!roommates.length" class="rm-empty">请先在「室友」页新增一起合租的人</div>
 
     <template v-else>
       <div v-if="expenses.length" class="rm-settle-card">
@@ -40,10 +40,10 @@
             <span class="rm-transfer-amt">¥{{ centsToYuan(t.cents) }}</span>
           </div>
         </div>
-        <div v-else class="rm-transfer-clean">✅ 账目已结清，无需互相转账</div>
+        <div v-else class="rm-transfer-clean">账目已结清，无需互相转账</div>
       </div>
 
-      <div v-if="!expenses.length" class="rm-empty">还没有费用记录，点「记一笔」开始吧</div>
+      <div v-if="!expenses.length" class="rm-empty">还没有费用记录，点「新增费用」开始吧</div>
 
       <div v-else class="rm-list">
         <div v-for="e in expenses" :key="e.id" class="rm-row">
@@ -67,76 +67,81 @@
       </div>
     </template>
 
-    <div v-if="modal.open" class="rm-overlay" @click.self="modal.open = false">
+    <div v-if="modal.open" class="rm-overlay">
       <div class="rm-modal">
-        <div class="rm-modal-head">
-          <h3>{{ modal.editing ? '编辑费用' : '记一笔' }}</h3>
-          <button class="rm-close" @click="modal.open = false">×</button>
+        <div class="rm-modal-header">
+          <h3>{{ modal.editing ? '编辑费用' : '新增费用' }}</h3>
+          <button class="rm-modal-close" @click="closeModal">✕</button>
         </div>
-        <form class="rm-form" @submit.prevent="save">
-          <label class="rm-field">
-            <span>费用名称</span>
-            <input v-model="form.title" class="rm-input" placeholder="例如：本月电费" maxlength="40" />
-          </label>
-          <div class="rm-field-row">
-            <label class="rm-field">
-              <span>金额（元）</span>
-              <input
-                v-model="form.amount"
-                class="rm-input"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-              />
-            </label>
-            <label class="rm-field">
-              <span>分类</span>
-              <select v-model="form.category" class="rm-input">
-                <option v-for="c in CATEGORIES" :key="c" :value="c">{{ c }}</option>
-              </select>
-            </label>
-          </div>
-          <div class="rm-field-row">
-            <label class="rm-field">
-              <span>付款人</span>
-              <select v-model="form.payer_id" class="rm-input">
-                <option :value="null">请选择</option>
-                <option v-for="r in roommates" :key="r.id" :value="r.id">{{ r.name }}</option>
-              </select>
-            </label>
-            <label class="rm-field">
-              <span>日期</span>
-              <input v-model="form.spent_at" class="rm-input" type="date" />
-            </label>
-          </div>
-          <div class="rm-field">
-            <span>参与分摊的室友</span>
-            <div class="rm-check-grid">
-              <label v-for="r in roommates" :key="r.id" class="rm-check">
-                <input v-model="form.participants" type="checkbox" :value="r.id" />
-                <span>{{ r.name }}</span>
-              </label>
+        <div class="rm-modal-body">
+          <div class="rm-form">
+            <div class="rm-field">
+              <span>费用名称</span>
+              <input v-model="form.title" class="rm-input" placeholder="例如：本月电费" maxlength="40" />
+            </div>
+            <div class="rm-field-row">
+              <div class="rm-field">
+                <span>金额（元）</span>
+                <input
+                  v-model="form.amount"
+                  class="rm-input"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                />
+              </div>
+              <div class="rm-field">
+                <span>分类</span>
+                <SelectPicker v-model="form.category" :options="categoryOptions" class="rm-picker" />
+              </div>
+            </div>
+            <div class="rm-field-row">
+              <div class="rm-field">
+                <span>付款人</span>
+                <SelectPicker
+                  v-model="form.payer_id"
+                  :options="roommateOptions"
+                  placeholder="请选择"
+                  class="rm-picker"
+                />
+              </div>
+              <div class="rm-field">
+                <span>日期</span>
+                <input v-model="form.spent_at" class="rm-input" type="date" />
+              </div>
+            </div>
+            <div class="rm-field">
+              <span>参与分摊的室友</span>
+              <div class="rm-check-grid">
+                <label v-for="r in roommates" :key="r.id" class="rm-check">
+                  <input v-model="form.participants" type="checkbox" :value="r.id" />
+                  <span>{{ r.name }}</span>
+                </label>
+              </div>
+            </div>
+            <div class="rm-field">
+              <span>备注（可选）</span>
+              <input v-model="form.note" class="rm-input" placeholder="补充说明" maxlength="100" />
             </div>
           </div>
-          <label class="rm-field">
-            <span>备注（可选）</span>
-            <input v-model="form.note" class="rm-input" placeholder="补充说明" maxlength="100" />
-          </label>
-          <div class="rm-modal-actions">
-            <button type="button" class="rm-btn" @click="modal.open = false">取消</button>
-            <button type="submit" class="rm-btn primary">保存</button>
-          </div>
-        </form>
+        </div>
+        <div class="rm-modal-footer">
+          <button class="rm-btn" :disabled="saving" @click="closeModal">取消</button>
+          <button class="rm-btn primary" :disabled="saving" @click="save">
+            {{ saving ? '保存中…' : '保存' }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { api } from '../../api'
 import { confirmDialog } from '../../ui/confirm'
+import SelectPicker from '../recruitment/SelectPicker.vue'
 import { CATEGORIES, roommateColor, centsToYuan, yuanToCents, todayStr } from './roomie'
 
 const props = defineProps({ roommates: { type: Array, default: () => [] } })
@@ -144,6 +149,12 @@ const emit = defineEmits(['notify'])
 
 const expenses = ref([])
 const settlement = ref({ balances: [], transfers: [] })
+const saving = ref(false)
+
+const categoryOptions = CATEGORIES.map((c) => ({ value: c, label: c }))
+const roommateOptions = computed(() =>
+  props.roommates.map((r) => ({ value: r.id, label: r.name }))
+)
 
 const emptyForm = () => ({
   title: '',
@@ -173,6 +184,10 @@ function netText(cents) {
   return '已结清'
 }
 
+function closeModal() {
+  modal.open = false
+}
+
 async function load() {
   try {
     const data = await api('/api/roomie/expenses')
@@ -185,7 +200,7 @@ async function load() {
 
 function openAdd() {
   if (!props.roommates.length) {
-    emit('notify', '请先添加室友', 'error')
+    emit('notify', '请先新增室友', 'error')
     return
   }
   modal.editing = null
@@ -211,6 +226,7 @@ function openEdit(e) {
 }
 
 async function save() {
+  if (saving.value) return
   const title = form.value.title.trim()
   const amountCents = yuanToCents(form.value.amount)
   if (!title) return emit('notify', '请填写费用名称', 'error')
@@ -226,25 +242,28 @@ async function save() {
     note: form.value.note,
     spent_at: form.value.spent_at,
   }
+  saving.value = true
   try {
     if (modal.editing) {
       await api(`/api/roomie/expenses/${modal.editing.id}`, { method: 'PUT', body })
       emit('notify', '费用已更新')
     } else {
       await api('/api/roomie/expenses', { method: 'POST', body })
-      emit('notify', '已记账')
+      emit('notify', '已新增费用')
     }
-    modal.open = false
+    closeModal()
     await load()
   } catch (e) {
     emit('notify', e.message || '保存失败', 'error')
+  } finally {
+    saving.value = false
   }
 }
 
 async function remove(e) {
   const ok = await confirmDialog({
     title: '删除费用',
-    message: `确定删除「${e.title}」这笔费用吗？`,
+    message: `确定删除「${e.title}」这笔费用吗？删除后不可恢复。`,
   })
   if (!ok) return
   try {

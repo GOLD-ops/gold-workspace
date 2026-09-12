@@ -3,7 +3,7 @@
     <div class="rm-section-head">
       <div>
         <h2>一起住的人</h2>
-        <p class="rm-sub">先添加室友，费用分摊和值日排班才能选人</p>
+        <p class="rm-sub">先新增室友，费用分摊和值日排班才能选人</p>
       </div>
     </div>
 
@@ -20,7 +20,7 @@
       </div>
     </div>
 
-    <div v-else class="rm-empty">还没有室友，先添加一起合租的人吧</div>
+    <div v-else class="rm-empty">还没有室友，先新增一起合租的人吧</div>
 
     <form class="rm-add-form" @submit.prevent="save">
       <input
@@ -40,8 +40,12 @@
           @click="form.color = c"
         ></button>
       </div>
-      <button type="submit" class="rm-btn primary">{{ editingId ? '保存' : '添加' }}</button>
-      <button v-if="editingId" type="button" class="rm-btn" @click="resetForm">取消</button>
+      <button type="submit" class="rm-btn primary" :disabled="saving">
+        {{ saving ? '保存中…' : editingId ? '保存' : '新增' }}
+      </button>
+      <button v-if="editingId" type="button" class="rm-btn" :disabled="saving" @click="resetForm">
+        取消
+      </button>
     </form>
   </div>
 </template>
@@ -57,6 +61,7 @@ const emit = defineEmits(['changed', 'notify'])
 
 const form = ref({ name: '', color: '' })
 const editingId = ref(null)
+const saving = ref(false)
 
 function initial(name) {
   return (name || '?').slice(0, 1)
@@ -73,31 +78,35 @@ function startEdit(r) {
 }
 
 async function save() {
+  if (saving.value) return
   const name = form.value.name.trim()
   if (!name) {
     emit('notify', '请填写室友昵称', 'error')
     return
   }
   const body = { name, color: form.value.color }
+  saving.value = true
   try {
     if (editingId.value) {
       await api(`/api/roomie/roommates/${editingId.value}`, { method: 'PUT', body })
       emit('notify', '室友已更新')
     } else {
       await api('/api/roomie/roommates', { method: 'POST', body })
-      emit('notify', '室友已添加')
+      emit('notify', '已新增室友')
     }
     resetForm()
     emit('changed')
   } catch (e) {
     emit('notify', e.message || '操作失败', 'error')
+  } finally {
+    saving.value = false
   }
 }
 
 async function remove(r) {
   const ok = await confirmDialog({
     title: '移除室友',
-    message: `确定移除「${r.name}」吗？其相关的费用与值日记录会保留，但不再关联此人。`,
+    message: `确定移除「${r.name}」吗？其相关的费用与值日记录会保留，但不再关联此人，此操作不可恢复。`,
   })
   if (!ok) return
   try {

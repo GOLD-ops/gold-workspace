@@ -8,18 +8,24 @@
       <button class="rm-btn" @click="autoGenerate">一键生成一周值日</button>
     </div>
 
-    <div v-if="!roommates.length" class="rm-empty">请先在「室友」页添加一起合租的人</div>
+    <div v-if="!roommates.length" class="rm-empty">请先在「室友」页新增一起合租的人</div>
 
     <template v-else>
       <form class="rm-add-form" @submit.prevent="save">
         <input v-model="form.title" class="rm-input" placeholder="值日事项，例如：打扫客厅" maxlength="30" />
-        <select v-model="form.assignee_id" class="rm-input">
-          <option :value="null">负责人</option>
-          <option v-for="r in roommates" :key="r.id" :value="r.id">{{ r.name }}</option>
-        </select>
+        <SelectPicker
+          v-model="form.assignee_id"
+          :options="roommateOptions"
+          placeholder="负责人"
+          class="rm-picker"
+        />
         <input v-model="form.due_date" class="rm-input" type="date" />
-        <button type="submit" class="rm-btn primary">{{ editingId ? '保存' : '添加' }}</button>
-        <button v-if="editingId" type="button" class="rm-btn" @click="resetForm">取消</button>
+        <button type="submit" class="rm-btn primary" :disabled="saving">
+          {{ saving ? '保存中…' : editingId ? '保存' : '新增' }}
+        </button>
+        <button v-if="editingId" type="button" class="rm-btn" :disabled="saving" @click="resetForm">
+          取消
+        </button>
       </form>
 
       <div v-if="chores.length" class="rm-list">
@@ -41,15 +47,16 @@
           </div>
         </div>
       </div>
-      <div v-else class="rm-empty">还没有值日任务，手动添加或一键生成吧</div>
+      <div v-else class="rm-empty">还没有值日任务，手动新增或一键生成吧</div>
     </template>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { api } from '../../api'
 import { confirmDialog } from '../../ui/confirm'
+import SelectPicker from '../recruitment/SelectPicker.vue'
 import { roommateColor, todayStr } from './roomie'
 
 const props = defineProps({ roommates: { type: Array, default: () => [] } })
@@ -57,7 +64,12 @@ const emit = defineEmits(['notify'])
 
 const chores = ref([])
 const editingId = ref(null)
+const saving = ref(false)
 const form = ref({ title: '', assignee_id: null, due_date: todayStr() })
+
+const roommateOptions = computed(() =>
+  props.roommates.map((r) => ({ value: r.id, label: r.name }))
+)
 
 function initial(name) {
   return (name || '?').slice(0, 1)
@@ -100,6 +112,7 @@ function startEdit(c) {
 }
 
 async function save() {
+  if (saving.value) return
   const title = form.value.title.trim()
   if (!title) return emit('notify', '请填写值日事项', 'error')
   const body = {
@@ -107,18 +120,21 @@ async function save() {
     assignee_id: form.value.assignee_id,
     due_date: form.value.due_date,
   }
+  saving.value = true
   try {
     if (editingId.value) {
       await api(`/api/roomie/chores/${editingId.value}`, { method: 'PUT', body })
       emit('notify', '值日已更新')
     } else {
       await api('/api/roomie/chores', { method: 'POST', body })
-      emit('notify', '已添加值日')
+      emit('notify', '已新增值日')
     }
     resetForm()
     await load()
   } catch (e) {
     emit('notify', e.message || '保存失败', 'error')
+  } finally {
+    saving.value = false
   }
 }
 
@@ -142,7 +158,7 @@ async function toggle(c) {
 async function remove(c) {
   const ok = await confirmDialog({
     title: '删除值日',
-    message: `确定删除「${c.title}」吗？`,
+    message: `确定删除「${c.title}」吗？删除后不可恢复。`,
   })
   if (!ok) return
   try {
@@ -156,7 +172,7 @@ async function remove(c) {
 
 async function autoGenerate() {
   if (!props.roommates.length) {
-    emit('notify', '请先添加室友', 'error')
+    emit('notify', '请先新增室友', 'error')
     return
   }
   const ok = await confirmDialog({
