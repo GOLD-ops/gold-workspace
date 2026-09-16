@@ -8,38 +8,51 @@
           <p>每位室友使用自己的账号，通过房间编号加入同一个房间</p>
         </div>
 
-        <section class="rm-onboard-section">
-          <h3>创建房间</h3>
-          <form class="rm-onboard-form" @submit.prevent="createRoom">
-            <input
-              v-model="createName"
-              class="rm-input"
-              placeholder="房间名称，例如：温馨小家"
-              maxlength="20"
-            />
-            <button type="submit" class="rm-btn primary" :disabled="creating">
-              {{ creating ? '创建中…' : '创建房间' }}
-            </button>
-          </form>
-        </section>
+        <div class="rm-segmented rm-onboard-segmented" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            :aria-selected="boardMode === 'join'"
+            :class="{ active: boardMode === 'join' }"
+            @click="boardMode = 'join'"
+          >
+            加入房间
+          </button>
+          <button
+            type="button"
+            role="tab"
+            :aria-selected="boardMode === 'create'"
+            :class="{ active: boardMode === 'create' }"
+            @click="boardMode = 'create'"
+          >
+            创建房间
+          </button>
+        </div>
 
-        <div class="rm-onboard-divider">或</div>
+        <form v-if="boardMode === 'join'" class="rm-onboard-form" @submit.prevent="joinRoom">
+          <input
+            v-model="joinCode"
+            class="rm-input"
+            placeholder="输入 6 位房间编号"
+            maxlength="6"
+            autocomplete="off"
+          />
+          <button type="submit" class="rm-btn primary" :disabled="joining">
+            {{ joining ? '加入中…' : '加入房间' }}
+          </button>
+        </form>
 
-        <section class="rm-onboard-section">
-          <h3>通过房间编号加入</h3>
-          <form class="rm-onboard-form" @submit.prevent="joinRoom">
-            <input
-              v-model="joinCode"
-              class="rm-input"
-              placeholder="输入 6 位房间编号"
-              maxlength="6"
-              autocomplete="off"
-            />
-            <button type="submit" class="rm-btn primary" :disabled="joining">
-              {{ joining ? '加入中…' : '加入房间' }}
-            </button>
-          </form>
-        </section>
+        <form v-else class="rm-onboard-form" @submit.prevent="createRoom">
+          <input
+            v-model="createName"
+            class="rm-input"
+            placeholder="房间名称，例如：温馨小家"
+            maxlength="20"
+          />
+          <button type="submit" class="rm-btn primary" :disabled="creating">
+            {{ creating ? '创建中…' : '创建房间' }}
+          </button>
+        </form>
       </div>
     </div>
 
@@ -146,6 +159,7 @@ const toast = ref('')
 const toastType = ref('ok')
 const createName = ref('')
 const joinCode = ref('')
+const boardMode = ref('join')
 const creating = ref(false)
 const joining = ref(false)
 let toastTimer = null

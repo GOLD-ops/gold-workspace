@@ -494,18 +494,13 @@
   box-shadow: var(--tk-shadow-sm);
   padding: 26px;
 }
-.rm-onboard-head { margin-bottom: 20px; }
+.rm-onboard-head { margin-bottom: 16px; }
 .rm-onboard-head h2 { font-size: 18px; margin: 0 0 6px; }
 .rm-onboard-head p { font-size: 13px; color: var(--tk-muted); margin: 0; line-height: 1.6; }
-.rm-onboard-section h3 { font-size: 14px; margin: 0 0 10px; }
 .rm-onboard-form { display: flex; gap: 10px; }
 .rm-onboard-form .rm-input { flex: 1; }
-.rm-onboard-divider {
-  text-align: center;
-  color: var(--tk-faint);
-  font-size: 12px;
-  margin: 18px 0;
-}
+.rm-onboard-segmented { display: flex; width: 100%; margin-bottom: 16px; }
+.rm-onboard-segmented button { flex: 1; }
 
 /* 房间信息 */
 .rm-room-info { padding: 16px; }
