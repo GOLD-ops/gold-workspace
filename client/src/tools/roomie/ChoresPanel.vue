@@ -1,6 +1,6 @@
 <template>
   <div class="rm-panel rm-chores">
-    <div v-if="!roommates.length" class="rm-empty">房间暂时没有可排班的成员</div>
+    <div v-if="!roommates.length && !guest" class="rm-empty">房间暂时没有可排班的成员</div>
 
     <template v-else>
       <div class="rm-toolbar rm-chore-toolbar">
@@ -324,6 +324,7 @@ const props = defineProps({
   roommates: { type: Array, default: () => [] },
   currentMemberId: { type: [Number, String], default: null },
   settings: { type: Object, default: () => ({}) },
+  guest: { type: Boolean, default: false },
 })
 const emit = defineEmits(['notify', 'alerts-changed', 'settings-changed'])
 
@@ -652,6 +653,7 @@ function resetForm(date = defaultDueDate()) {
 }
 
 function openAdd(date) {
+  if (props.guest) return emit('notify', '请先登录后再新增任务', 'error')
   taskModal.editing = null
   resetForm(date)
   taskModal.open = true
@@ -685,6 +687,10 @@ function onAssignmentModeChange(mode) {
 }
 
 async function load() {
+  if (props.guest) {
+    loading.value = false
+    return
+  }
   const sequence = ++loadSequence
   loading.value = true
   try {

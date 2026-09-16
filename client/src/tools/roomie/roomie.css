@@ -482,20 +482,21 @@
 .rm-picker .sp-trigger { height: 38px; }
 .rm-add-form .rm-picker { flex: 1; min-width: 140px; }
 
-/* 未登录引导（保留页面框架，仅提示登录） */
-.rm-auth-gate { display: flex; justify-content: center; padding: 40px 0 24px; }
-.rm-auth-gate-card {
-  width: 100%;
-  max-width: 460px;
-  background: #fff;
-  border: 1px solid var(--tk-border);
+/* 未登录提示条（下方按页面正常展示结构骨架） */
+.rm-guest-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 18px;
+  margin-bottom: 18px;
+  border: 1px solid #dbe6f7;
+  background: var(--tk-blue-soft);
   border-radius: var(--tk-radius);
-  box-shadow: var(--tk-shadow-sm);
-  padding: 30px 26px;
-  text-align: center;
+  font-size: 13px;
+  color: var(--tk-muted);
 }
-.rm-auth-gate-card h3 { font-size: 17px; margin: 0 0 8px; }
-.rm-auth-gate-card p { font-size: 13px; color: var(--tk-muted); line-height: 1.7; margin: 0 0 20px; }
 
 /* 房间引导页 */
 .rm-onboard {
@@ -1130,6 +1131,7 @@
 .rm-settings-head h4 { font-size: 15px; margin: 0 0 4px; }
 .rm-settings-block .rm-setting-row { padding-left: 0; padding-right: 0; }
 .rm-setting-list { overflow: hidden; }
+.rm-setting-list.is-locked { pointer-events: none; opacity: 0.6; }
 .rm-setting-row {
   display: flex;
   align-items: center;

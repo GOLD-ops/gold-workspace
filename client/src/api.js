@@ -54,10 +54,11 @@ export async function api(path, options = {}) {
   if (res.status === 401) {
     clearToken()
     setStoredUser(null)
-    if (window.location.pathname !== '/login') {
+    // 携带过 token 才是登录失效，需要重新登录；未登录访客只提示，不强制跳转
+    if (token && window.location.pathname !== '/login') {
       window.location.reload()
     }
-    throw new Error('登录已过期，请重新登录')
+    throw new Error(token ? '登录已过期，请重新登录' : '请先登录')
   }
   const ct = res.headers.get('content-type') || '';
   const data = ct.includes('application/json') ? await res.json() : await res.text();

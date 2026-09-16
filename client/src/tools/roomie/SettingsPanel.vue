@@ -63,7 +63,9 @@
           </div>
         </div>
       </div>
-      <div v-else class="rm-empty">还没有成员，请把房间编号分享给室友</div>
+      <div v-else class="rm-empty">
+        {{ guest ? '登录后可查看房间与成员信息' : '还没有成员，请把房间编号分享给室友' }}
+      </div>
     </div>
 
     <div class="rm-card rm-settings-block">
@@ -95,7 +97,7 @@
       <h4>提醒设置</h4>
       <p class="rm-settings-desc">切换开关即时生效，顶部导航会显示对应红点</p>
 
-      <div class="rm-setting-list">
+      <div class="rm-setting-list" :class="{ 'is-locked': guest }">
         <label class="rm-setting-row clickable">
           <span class="rm-setting-copy"><strong>公约待确认</strong><small>有新提案或提案重新发起时提醒</small></span>
           <input v-model="reminderForm.rule_reminder" class="rm-native-check" type="checkbox" @change="saveReminders" />
@@ -194,6 +196,7 @@ const props = defineProps({
   splitSchemes: { type: Array, default: () => [] },
   settings: { type: Object, default: () => ({}) },
   room: { type: Object, default: null },
+  guest: { type: Boolean, default: false },
 })
 const emit = defineEmits(['notify', 'changed'])
 
@@ -370,6 +373,7 @@ async function transferOwner(member) {
 }
 
 function openScheme(scheme = null) {
+  if (props.guest) return emit('notify', '请先登录后再配置分摊方式', 'error')
   schemeModal.editing = scheme
   schemeForm.name = scheme?.name || ''
   schemeForm.split_method = scheme?.split_method || 'ratio'
@@ -434,6 +438,10 @@ async function removeScheme(scheme) {
 // 开关即改即存，连续切换时合并为一次请求
 let reminderTimer = null
 function saveReminders() {
+  if (props.guest) {
+    emit('notify', '请先登录后再修改提醒设置', 'error')
+    return
+  }
   clearTimeout(reminderTimer)
   reminderTimer = setTimeout(async () => {
     try {

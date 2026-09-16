@@ -151,6 +151,7 @@ import { addDays, memberInitial as initial, todayStr } from './roomie'
 const props = defineProps({
   roommates: { type: Array, default: () => [] },
   currentMemberId: { type: [Number, String], default: null },
+  guest: { type: Boolean, default: false },
 })
 const emit = defineEmits(['notify', 'alerts-changed'])
 
@@ -224,6 +225,7 @@ function myVoteText(proposal) {
 function historyStatus(status) { return ({ superseded: '已被新版本替代', repealed: '已废止', withdrawn: '已撤回', expired: '已到期' })[status] || '历史记录' }
 
 async function load() {
+  if (props.guest) return
   try {
     const query = props.currentMemberId ? `?actor_id=${props.currentMemberId}` : ''
     const data = await api(`/api/roomie/rules${query}`)
@@ -242,6 +244,7 @@ async function load() {
 }
 
 function openProposal(type = 'create', parentId = null, editing = null) {
+  if (props.guest) return emit('notify', '请先登录后再发起公约提案', 'error')
   if (!props.currentMemberId) return emit('notify', '你尚未加入房间', 'error')
   const parent = active.value.find((rule) => Number(rule.id) === Number(parentId))
   proposalModal.type = type

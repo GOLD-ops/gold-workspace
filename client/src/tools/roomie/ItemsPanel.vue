@@ -73,7 +73,7 @@ import { confirmDialog } from '../../ui/confirm'
 import EditableSelect from '../../ui/EditableSelect.vue'
 import { memberInitial as initial, todayStr, yuanToCents } from './roomie'
 
-const props = defineProps({ roommates: { type: Array, default: () => [] }, currentMemberId: { type: [Number, String], default: null }, splitSchemes: { type: Array, default: () => [] } })
+const props = defineProps({ roommates: { type: Array, default: () => [] }, currentMemberId: { type: [Number, String], default: null }, splitSchemes: { type: Array, default: () => [] }, guest: { type: Boolean, default: false } })
 const emit = defineEmits(['notify', 'alerts-changed'])
 const items = ref([])
 const serverCategories = ref([])
@@ -124,6 +124,10 @@ function canRestock(item) {
 }
 
 async function load() {
+  if (props.guest) {
+    loading.value = false
+    return
+  }
   loading.value = true
   try {
     const query = props.currentMemberId ? `?actor_id=${props.currentMemberId}` : ''
@@ -135,6 +139,7 @@ async function load() {
 }
 
 function openItem(item = null) {
+  if (props.guest) return emit('notify', '请先登录后再登记物品', 'error')
   itemModal.editing = item
   Object.assign(itemForm, { name: item?.name || '', category: item?.category || '清洁用品', quantity: Number(item?.quantity || 0), target_quantity: Number(item?.target_quantity || 1), low_threshold: Number(item?.low_threshold || 0), unit: item?.unit || '个', purchase_mode: item?.purchase_mode || 'rotation', fixed_purchaser_id: item?.fixed_purchaser_id || null, note: item?.note || '' })
   itemModal.open = true

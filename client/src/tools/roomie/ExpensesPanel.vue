@@ -1,7 +1,7 @@
 <template>
   <div class="rm-panel rm-expenses">
-    <div v-if="!roommates.length" class="rm-empty">
-      请先在「设置」中新增一起合租的成员，再开始记账。
+    <div v-if="!roommates.length && !guest" class="rm-empty">
+      房间暂无成员，把房间编号分享给室友后即可开始记账。
     </div>
 
     <template v-else>
@@ -431,6 +431,7 @@ const props = defineProps({
   roommates: { type: Array, default: () => [] },
   currentMemberId: { type: [Number, String], default: null },
   splitSchemes: { type: Array, default: () => [] },
+  guest: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['notify', 'alerts-changed'])
@@ -791,6 +792,10 @@ function shiftMonth(offset) {
 }
 
 async function load() {
+  if (props.guest) {
+    loading.value = false
+    return
+  }
   const sequence = ++loadSequence.value
   loading.value = true
   try {
@@ -845,6 +850,7 @@ function resetForm(values = {}) {
 }
 
 function openAdd() {
+  if (props.guest) return emit('notify', '请先登录后再记账', 'error')
   if (!props.roommates.length) return emit('notify', '房间暂无成员，请分享房间编号邀请室友加入', 'error')
   modal.editing = null
   const participantIds = props.roommates.map((roommate) => Number(roommate.id))

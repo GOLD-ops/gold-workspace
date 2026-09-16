@@ -49,19 +49,19 @@
         </button>
     </nav>
 
-    <!-- 未登录：展示页面框架与登录引导 -->
-    <div v-if="needLogin" class="rm-auth-gate">
-      <div class="rm-auth-gate-card">
-        <h3>登录后即可使用合租生活管家</h3>
-        <p>登录后可创建或加入房间，与室友一起管理费用 AA、值日排班、公共物品和室友公约。</p>
-        <RouterLink :to="{ path: '/login', query: { redirect: '/tools/roomie' } }" class="rm-btn primary">
-          去登录
-        </RouterLink>
-      </div>
+    <!-- 未登录提示条：下方按页面正常展示结构骨架 -->
+    <div v-if="needLogin" class="rm-guest-bar">
+      <span>当前未登录，登录后可创建或加入房间并使用全部功能</span>
+      <RouterLink
+        :to="{ path: '/login', query: { redirect: '/tools/roomie' } }"
+        class="rm-btn primary sm"
+      >
+        去登录
+      </RouterLink>
     </div>
 
     <!-- 未加入房间：创建 / 加入 -->
-    <div v-else-if="noRoom" class="rm-onboard">
+    <div v-if="noRoom" class="rm-onboard">
       <div class="rm-onboard-card">
         <div class="rm-onboard-head">
           <h2>加入或创建合租房间</h2>
@@ -129,6 +129,7 @@
           v-if="view === 'rules'"
           :roommates="activeRoommates"
           :current-member-id="currentMemberId"
+          :guest="needLogin"
           @notify="notify"
           @alerts-changed="loadAlerts"
         />
@@ -137,6 +138,7 @@
           :roommates="activeRoommates"
           :current-member-id="currentMemberId"
           :split-schemes="splitSchemes"
+          :guest="needLogin"
           @notify="notify"
           @alerts-changed="loadAlerts"
         />
@@ -145,6 +147,7 @@
           :roommates="activeRoommates"
           :current-member-id="currentMemberId"
           :settings="settings"
+          :guest="needLogin"
           @notify="notify"
           @alerts-changed="loadAlerts"
           @settings-changed="loadContext"
@@ -154,6 +157,7 @@
           :roommates="activeRoommates"
           :current-member-id="currentMemberId"
           :split-schemes="splitSchemes"
+          :guest="needLogin"
           @notify="notify"
           @alerts-changed="loadAlerts"
         />
@@ -164,6 +168,7 @@
           :split-schemes="splitSchemes"
           :settings="settings"
           :room="room"
+          :guest="needLogin"
           @notify="notify"
           @changed="loadContext"
         />
