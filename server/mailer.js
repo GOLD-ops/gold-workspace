@@ -93,7 +93,7 @@ async function sendMail(to, subject, html) {
     return { ok: false, skipped: true, reason: '未配置邮箱或 SMTP' };
   }
   await transport.sendMail({
-    from: `"秋招追踪器" <${s.smtp_user}>`,
+    from: `"GOLD Workspace" <${s.smtp_user}>`,
     to,
     subject,
     html,
@@ -118,7 +118,7 @@ function mailShell(bodyHtml) {
       <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e6eaf0">
         <div style="padding:18px 28px 14px;border-bottom:1px solid #eef1f6">
           <img src="${LOGO_URL}" width="26" height="26" alt="GOLD" style="border:0;vertical-align:middle;border-radius:6px" />
-          <span style="vertical-align:middle;margin-left:8px;font-size:13px;font-weight:600;color:#6b7280;letter-spacing:0.5px">GOLD 秋招追踪器</span>
+          <span style="vertical-align:middle;margin-left:8px;font-size:13px;font-weight:600;color:#6b7280;letter-spacing:0.5px">GOLD Workspace</span>
         </div>
         <div style="padding:24px 28px 22px">${bodyHtml}</div>
       </div>
@@ -138,7 +138,7 @@ function mailTemplate(title, lines) {
   return mailShell(
     `<div style="font-size:16px;font-weight:700;color:#1b2333;margin-bottom:14px">${title}</div>
      <table cellpadding="0" cellspacing="0" style="border-collapse:collapse">${items}</table>
-     <p style="color:#a8b0bd;font-size:12px;margin:20px 0 0;border-top:1px solid #eef1f6;padding-top:14px">本邮件由「秋招追踪器」自动发送，请勿直接回复。</p>`
+     <p style="color:#a8b0bd;font-size:12px;margin:20px 0 0;border-top:1px solid #eef1f6;padding-top:14px">本邮件由「GOLD Workspace」自动发送，请勿直接回复。</p>`
   );
 }
 
@@ -246,7 +246,7 @@ function richMailTemplate({ headline = '', rows = [], advice = [], requirements 
      ${reqHtml}
      ${progHtml}
      ${btnHtml}
-     <p style="color:#a8b0bd;font-size:12px;margin:22px 0 0;border-top:1px solid #eef1f6;padding-top:14px;text-align:center">本邮件由「GOLD 秋招追踪器」自动发送；提醒规则可在追踪器的设置页中调整。</p>`
+     <p style="color:#a8b0bd;font-size:12px;margin:22px 0 0;border-top:1px solid #eef1f6;padding-top:14px;text-align:center">本邮件由「GOLD Workspace」自动发送。</p>`
   );
 }
 

@@ -12,38 +12,31 @@
       <template v-if="pending.length">
         <article v-for="proposal in pending" :key="proposal.id" class="rm-card rm-proposal">
           <div class="rm-proposal-main">
+            <div class="rm-proposal-head">
+              <h3>{{ proposalTitle(proposal) }}</h3>
+              <button
+                v-if="canEditProposal(proposal)"
+                class="rm-text-btn"
+                @click="openProposal(proposal.proposal_type || 'create', proposal.parent_rule_id, proposal)"
+              >
+                编辑本次提案
+              </button>
+            </div>
+            <p class="rm-proposal-content">{{ proposal.content || '暂未填写详细约定' }}</p>
             <div class="rm-proposal-meta">
               <span class="rm-badge blue">{{ proposalStatus(proposal) }}</span>
               <span>{{ memberName(proposal.proposer_id) || '成员' }}发起</span>
               <span>{{ shortDate(proposal.created_at) }}</span>
               <span v-if="proposal.deadline">截止至 {{ shortDate(proposal.deadline) }}</span>
             </div>
-            <h3>{{ proposalTitle(proposal) }}</h3>
-            <p>{{ proposal.content || '暂未填写详细约定' }}</p>
-            <button
-              v-if="canEditProposal(proposal)"
-              class="rm-text-btn"
-              @click="openProposal(proposal.proposal_type || 'create', proposal.parent_rule_id, proposal)"
-            >
-              编辑本次提案
-            </button>
           </div>
 
           <div class="rm-vote-panel">
-            <div class="rm-vote-overview">
-              <div class="rm-vote-title">
-                <span>确认情况</span>
-                <strong>{{ agreeCount(proposal) }} / {{ voterCount(proposal) }}<small>人已确认</small></strong>
-              </div>
-              <div class="rm-progress"><span :style="{ width: voteProgress(proposal) }"></span></div>
+            <div class="rm-vote-title">
+              <span>确认情况</span>
+              <span class="rm-vote-hint">{{ myVoteText(proposal) }}</span>
             </div>
-            <div v-if="revisionComments(proposal).length" class="rm-revision-list">
-              <p v-for="vote in revisionComments(proposal)" :key="vote.roommate_id">
-                <b>{{ memberName(vote.roommate_id) }}</b>
-                <span>{{ vote.comment }}</span>
-              </p>
-            </div>
-            <div class="rm-vote-bottom">
+            <div class="rm-vote-body">
               <div class="rm-voters">
                 <div
                   v-for="vote in proposal.votes || []"
@@ -60,15 +53,28 @@
                   </span>
                 </div>
               </div>
+              <div class="rm-vote-stat">
+                <div class="rm-vote-ring" :style="{ '--progress': voteProgress(proposal) }">
+                  <span>{{ agreeCount(proposal) }}/{{ voterCount(proposal) }}</span>
+                </div>
+                <small>人已确认</small>
+              </div>
+            </div>
+            <div v-if="revisionComments(proposal).length" class="rm-revision-list">
+              <p v-for="vote in revisionComments(proposal)" :key="vote.roommate_id">
+                <b>{{ memberName(vote.roommate_id) }}</b>
+                <span>{{ vote.comment }}</span>
+              </p>
+            </div>
+            <div v-if="canVote(proposal) || isFullyAgreed(proposal)" class="rm-vote-actions">
               <div v-if="canVote(proposal)" class="rm-proposal-actions">
                 <button class="rm-btn primary sm" :disabled="busyId === proposal.id" @click="agree(proposal)">确认同意</button>
                 <button class="rm-btn sm" :disabled="busyId === proposal.id" @click="openFeedback(proposal)">提出修改</button>
               </div>
-              <div v-else-if="isFullyAgreed(proposal)" class="rm-vote-success">
+              <div v-else class="rm-vote-success">
                 <span class="rm-vote-success-icon">✓</span>
                 <span><b>全员已确认</b><small>公约已自动生效</small></span>
               </div>
-              <div v-else class="rm-vote-waiting">{{ myVoteText(proposal) }}</div>
             </div>
           </div>
         </article>
