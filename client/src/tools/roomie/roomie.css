@@ -639,11 +639,34 @@
 .rm-search-field,
 .rm-search { width: 190px; min-width: 140px; }
 .rm-search-field .rm-input { width: 100%; }
-.rm-toolbar-picker,
-.rm-filter-picker { width: 112px; min-width: 102px; }
+.rm .sp.rm-toolbar-picker,
+.rm .sp.rm-filter-picker,
+.rm .rm-filter-group > select.rm-input,
+.rm .rm-toolbar-filters > select.rm-input {
+  flex: 0 0 auto;
+  width: 128px;
+  min-width: 0;
+}
 .rm-toolbar-picker .sp-trigger,
 .rm-filter-picker .sp-trigger,
 .rm-picker .sp-trigger { height: 38px; min-height: 38px; border-radius: 10px; }
+
+/* 下拉箭头与右边框保持舒适间距 */
+.rm .sp .sp-trigger { padding-right: 13px; }
+
+/* 原生下拉统一使用自定义箭头，外观与选择器组件保持一致 */
+.rm select.rm-input {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 34px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2398a2b3' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 13px;
+  cursor: pointer;
+}
+.rm select.rm-input:disabled { cursor: not-allowed; opacity: 0.55; }
 .rm-result-count { color: var(--tk-faint); font-size: 11.5px; white-space: nowrap; }
 
 .rm-month-picker {

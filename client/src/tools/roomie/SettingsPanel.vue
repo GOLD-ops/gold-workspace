@@ -106,6 +106,13 @@
             </button>
             <button
               v-if="isOwner && !isMovedOut(member) && Number(member.id) !== Number(currentMemberId)"
+              class="rm-mini"
+              @click="transferOwner(member)"
+            >
+              设为房主
+            </button>
+            <button
+              v-if="isOwner && !isMovedOut(member) && Number(member.id) !== Number(currentMemberId)"
               class="rm-mini danger"
               @click="moveOut(member)"
             >
@@ -394,6 +401,23 @@ async function dissolveRoom() {
     emit('changed')
   } catch (error) {
     emit('notify', error.message || '解散失败', 'error')
+  }
+}
+
+async function transferOwner(member) {
+  const ok = await confirmDialog({
+    title: '转移房主',
+    message: `确定将房主转让给「${member.name}」吗？转让后你将变为普通成员，可以退出房间。`,
+    confirmText: '确认转让',
+    danger: false,
+  })
+  if (!ok) return
+  try {
+    await api('/api/roomie/rooms/transfer', { method: 'POST', body: { member_id: member.id } })
+    emit('notify', `已将房主转让给 ${member.name}`)
+    emit('changed')
+  } catch (error) {
+    emit('notify', error.message || '转让失败', 'error')
   }
 }
 

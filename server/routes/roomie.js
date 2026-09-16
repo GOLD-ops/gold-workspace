@@ -1047,6 +1047,28 @@ router.post('/rooms/dissolve', route((req, res) => {
   res.json({ ok: true });
 }));
 
+// 转移房主：房主把房主身份交给另一位成员
+router.post('/rooms/transfer', route((req, res) => {
+  if (req.room.owner_user_id !== req.userId) {
+    return res.status(403).json({ error: '只有房主可以转移房主' });
+  }
+  const target = member(req.spaceId, asId(req.body && req.body.member_id));
+  if (!target || target.moved_out_at) {
+    return res.status(404).json({ error: '成员不存在或已退出' });
+  }
+  if (target.user_id === req.userId) {
+    return res.status(400).json({ error: '不能转移给自己' });
+  }
+  if (!target.user_id) {
+    return res.status(400).json({ error: '该成员未关联账号，无法成为房主' });
+  }
+  db.prepare('UPDATE roomie_rooms SET owner_user_id = ? WHERE id = ?').run(
+    target.user_id,
+    req.roomId
+  );
+  res.json({ ok: true, room: roomJson(req.roomId) });
+}));
+
 router.delete('/rooms/members/:memberId', route((req, res) => {
   if (req.room.owner_user_id !== req.userId) {
     return res.status(403).json({ error: '只有房主可以移除成员' });
