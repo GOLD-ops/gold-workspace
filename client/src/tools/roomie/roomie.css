@@ -1128,7 +1128,7 @@
 .rm-settings-block { padding: 18px; margin-bottom: 16px; }
 .rm-settings-block > h4 { font-size: 15px; margin: 0 0 4px; }
 .rm-settings-desc { font-size: 12px; color: var(--tk-muted); margin: 0 0 14px; }
-.rm-email-target { margin: -6px 0 12px; font-size: 12px; color: var(--tk-faint); }
+.rm-email-target { margin: 4px 0 14px; font-size: 12px; color: var(--tk-faint); }
 .rm-settings-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .rm-settings-head > div { min-width: 0; }
 .rm-settings-head h4 { font-size: 15px; margin: 0 0 4px; }

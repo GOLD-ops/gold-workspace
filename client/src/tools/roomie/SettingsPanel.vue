@@ -78,9 +78,6 @@
 
     <div class="rm-card rm-settings-block">
       <h4>邮件提醒</h4>
-      <p class="rm-settings-desc">
-        站内待办红点默认开启。打开下面的开关后，出现对应待办时每天最多向你发送一封汇总邮件。
-      </p>
       <p class="rm-email-target">
         <template v-if="emailPrefs.email">提醒邮件发送至：{{ emailPrefs.email }}</template>
         <template v-else>当前账号未绑定邮箱，无法接收提醒邮件</template>
