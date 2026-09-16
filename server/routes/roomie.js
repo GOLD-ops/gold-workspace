@@ -651,9 +651,13 @@ const migrateLegacyShares = db.transaction(() => {
        WHERE NOT EXISTS (SELECT 1 FROM roomie_expense_shares s WHERE s.expense_id = e.id)`
     )
     .all();
+  const validMemberIds = new Set(
+    db.prepare('SELECT id FROM roomie_roommates').all().map((row) => row.id)
+  );
   for (const row of rows) {
     let ids = uniqueIds(parseJson(row.participants, []));
     if (!ids.length && row.payer_id) ids = [row.payer_id];
+    ids = ids.filter((id) => validMemberIds.has(id));
     if (!ids.length) continue;
     replaceExpenseShares(row.id, splitEqual(Math.max(0, Math.round(row.amount || 0)), ids));
     db.prepare(
