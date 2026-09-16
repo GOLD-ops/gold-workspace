@@ -1185,6 +1185,9 @@
 .rm-fieldset > legend { margin-bottom: 7px; color: var(--tk-muted); font-size: 12.5px; font-weight: 600; }
 .rm-split-tabs { align-self: flex-start; flex-wrap: wrap; }
 .rm-split-panel { margin-top: 4px; padding: 10px 13px; border: 1px solid var(--rm-line); border-radius: 11px; background: #fafbfd; }
+.rm-scheme-row { display: flex; align-items: center; gap: 8px; }
+.rm-scheme-row > .sp { flex: 1; min-width: 0; }
+.rm-scheme-row > .rm-btn { flex: none; }
 .rm-split-row { display: grid; grid-template-columns: minmax(100px, 1fr) 105px 110px; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px dashed var(--rm-line); }
 .rm-split-row:last-of-type { border-bottom: 0; }
 .rm-split-row > strong { text-align: right; }

@@ -244,7 +244,8 @@ onBeforeUnmount(() => {
 }
 .esx-menu {
   position: fixed;
-  z-index: 500;
+  /* 需高于弹窗遮罩（rm-overlay 为 1000），否则在弹窗内会被遮挡 */
+  z-index: 1200;
   background: #fff;
   border: 1px solid var(--tk-border);
   border-radius: 10px;

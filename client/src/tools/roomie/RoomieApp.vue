@@ -130,6 +130,7 @@
           :guest="needLogin"
           @notify="notify"
           @alerts-changed="loadAlerts"
+          @schemes-changed="loadContext"
         />
         <ChoresPanel
           v-else-if="view === 'chores'"
@@ -154,7 +155,6 @@
           v-else
           :roommates="roommates"
           :current-member-id="currentMemberId"
-          :split-schemes="splitSchemes"
           :settings="settings"
           :room="room"
           :guest="needLogin"

@@ -59,31 +59,6 @@
     </div>
 
     <div class="rm-card rm-settings-block">
-      <div class="rm-settings-head">
-        <div>
-          <h4>分摊方式</h4>
-          <p class="rm-settings-desc">记账时可直接选用，也可以在单笔费用中临时调整</p>
-        </div>
-        <button class="rm-btn" @click="openScheme()">+ 新建方案</button>
-      </div>
-
-      <div v-if="splitSchemes.length" class="rm-setting-list">
-        <div v-for="scheme in splitSchemes" :key="scheme.id" class="rm-setting-row">
-          <div class="rm-setting-copy">
-            <strong>{{ scheme.name }}</strong>
-            <small>{{ schemeDescription(scheme) }}</small>
-          </div>
-          <div class="rm-setting-value">{{ schemeRatio(scheme) }}</div>
-          <button class="rm-mini" @click="openScheme(scheme)">编辑</button>
-          <button class="rm-mini danger" @click="removeScheme(scheme)">停用</button>
-        </div>
-      </div>
-      <button v-else class="rm-empty-card" type="button" @click="openScheme()">
-        还没有分摊方案，创建一个常用比例
-      </button>
-    </div>
-
-    <div class="rm-card rm-settings-block">
       <h4>提醒设置</h4>
       <p class="rm-settings-desc">切换开关即时生效，顶部导航会显示对应红点</p>
 
@@ -132,45 +107,6 @@
       </div>
     </div>
 
-    <div v-if="schemeModal.open" class="rm-overlay" @mousedown.self="schemeModal.open = false">
-      <div class="rm-modal rm-modal-wide">
-        <div class="rm-modal-header">
-          <h3>{{ schemeModal.editing ? '编辑分摊方案' : '新建分摊方案' }}</h3>
-          <button class="rm-modal-close" aria-label="关闭" @click="schemeModal.open = false">✕</button>
-        </div>
-        <div class="rm-modal-body">
-          <div class="rm-form">
-            <div class="rm-field-row">
-              <label class="rm-field"><span>方案名称</span><input v-model.trim="schemeForm.name" class="rm-input" placeholder="例如：房租方案" /></label>
-              <label class="rm-field"><span>分摊方式</span><select v-model="schemeForm.split_method" class="rm-input"><option value="equal">平均分摊</option><option value="ratio">按比例</option></select></label>
-            </div>
-            <div class="rm-field">
-              <span>成员比例</span>
-              <div class="rm-ratio-editor">
-                <label v-for="member in activeRoommates" :key="member.id" class="rm-ratio-row">
-                  <span>{{ member.name }}</span>
-                  <input
-                    v-model.number="schemeForm.weights[member.id]"
-                    class="rm-input"
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    :disabled="schemeForm.split_method === 'equal'"
-                  />
-                </label>
-              </div>
-              <small class="rm-help">平均分摊会忽略输入值；按比例时至少一人的比例需大于 0。</small>
-            </div>
-          </div>
-        </div>
-        <div class="rm-modal-footer">
-          <button class="rm-btn" @click="schemeModal.open = false">取消</button>
-          <button class="rm-btn primary" :disabled="savingScheme" @click="saveScheme">
-            {{ savingScheme ? '保存中…' : '保存方案' }}
-          </button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -183,7 +119,6 @@ import { memberInitial as initial, roommateColor } from './roomie'
 const props = defineProps({
   roommates: { type: Array, default: () => [] },
   currentMemberId: { type: [Number, String], default: null },
-  splitSchemes: { type: Array, default: () => [] },
   settings: { type: Object, default: () => ({}) },
   room: { type: Object, default: null },
   guest: { type: Boolean, default: false },
@@ -199,8 +134,6 @@ const isOwner = computed(
 )
 const memberModal = reactive({ open: false, editing: null })
 const memberForm = reactive({ name: '' })
-const schemeModal = reactive({ open: false, editing: null })
-const schemeForm = reactive({ name: '', split_method: 'ratio', weights: {} })
 const reminderForm = reactive({
   rule_reminder: true,
   chore_reminder: true,
@@ -210,7 +143,6 @@ const reminderForm = reactive({
   default_assignment_mode: 'fair',
 })
 const savingMember = ref(false)
-const savingScheme = ref(false)
 
 watch(
   () => props.settings,
@@ -230,33 +162,6 @@ watch(
 
 function isMovedOut(member) {
   return member?.status === 'moved_out' || Boolean(member?.moved_out_at)
-}
-
-function schemeWeights(scheme) {
-  if (scheme && typeof scheme.weights === 'object' && scheme.weights) return scheme.weights
-  if (Array.isArray(scheme?.members)) {
-    return Object.fromEntries(
-      scheme.members.map((entry) => [
-        Number(entry.member_id ?? entry.roommate_id ?? entry.id),
-        Number(entry.value ?? entry.weight ?? 0),
-      ])
-    )
-  }
-  try {
-    return JSON.parse(scheme?.weights || '{}')
-  } catch {
-    return {}
-  }
-}
-
-function schemeRatio(scheme) {
-  if (scheme.split_method === 'equal') return '平均分摊'
-  const weights = schemeWeights(scheme)
-  return activeRoommates.value.map((member) => Number(weights[member.id]) || 0).join(' : ')
-}
-
-function schemeDescription(scheme) {
-  return scheme.split_method === 'equal' ? '由参与成员平均承担' : '按成员权重自动计算金额'
 }
 
 function openMember(member = null) {
@@ -359,69 +264,6 @@ async function transferOwner(member) {
     emit('changed')
   } catch (error) {
     emit('notify', error.message || '转让失败', 'error')
-  }
-}
-
-function openScheme(scheme = null) {
-  if (props.guest) return emit('notify', '请先登录后再配置分摊方式', 'error')
-  schemeModal.editing = scheme
-  schemeForm.name = scheme?.name || ''
-  schemeForm.split_method = scheme?.split_method || 'ratio'
-  const source = schemeWeights(scheme)
-  schemeForm.weights = Object.fromEntries(
-    activeRoommates.value.map((member) => [
-      member.id,
-      source[member.id] === undefined ? 1 : Number(source[member.id]),
-    ])
-  )
-  schemeModal.open = true
-}
-
-async function saveScheme() {
-  if (!schemeForm.name) return emit('notify', '请填写方案名称', 'error')
-  if (schemeForm.split_method === 'ratio' && !Object.values(schemeForm.weights).some((value) => Number(value) > 0)) {
-    return emit('notify', '至少设置一个大于 0 的比例', 'error')
-  }
-  savingScheme.value = true
-  try {
-    const body = {
-      name: schemeForm.name,
-      split_method: schemeForm.split_method,
-      weights: schemeForm.weights,
-      members: activeRoommates.value.map((member) => ({
-        member_id: Number(member.id),
-        value: schemeForm.split_method === 'equal' ? 1 : Number(schemeForm.weights[member.id]) || 0,
-      })),
-    }
-    if (schemeModal.editing) {
-      await api(`/api/roomie/split-schemes/${schemeModal.editing.id}`, { method: 'PUT', body })
-      emit('notify', '分摊方案已更新')
-    } else {
-      await api('/api/roomie/split-schemes', { method: 'POST', body })
-      emit('notify', '分摊方案已创建')
-    }
-    schemeModal.open = false
-    emit('changed')
-  } catch (error) {
-    emit('notify', error.message || '方案保存失败', 'error')
-  } finally {
-    savingScheme.value = false
-  }
-}
-
-async function removeScheme(scheme) {
-  const ok = await confirmDialog({
-    title: '停用分摊方案',
-    message: `停用「${scheme.name}」后不能再用于新费用，历史账单不会改变。`,
-    confirmText: '停用',
-  })
-  if (!ok) return
-  try {
-    await api(`/api/roomie/split-schemes/${scheme.id}`, { method: 'DELETE' })
-    emit('notify', '分摊方案已停用')
-    emit('changed')
-  } catch (error) {
-    emit('notify', error.message || '方案停用失败', 'error')
   }
 }
 
