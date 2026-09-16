@@ -2,7 +2,25 @@
   <div class="rm-panel rm-settings">
     <div class="rm-card rm-settings-block">
       <div v-if="room" class="rm-room-bar">
-        <strong class="rm-room-name">{{ room.name }}</strong>
+        <input
+          v-if="roomNameEditing"
+          ref="roomNameInput"
+          v-model.trim="roomNameDraft"
+          class="rm-input rm-room-name-input"
+          maxlength="20"
+          @keyup.enter="saveRoomName"
+          @keyup.esc="cancelRoomName"
+          @blur="saveRoomName"
+        />
+        <strong
+          v-else
+          class="rm-room-name"
+          :class="{ editable: isOwner }"
+          :title="isOwner ? '点击修改房间名称' : ''"
+          @click="openRoomName"
+        >
+          {{ room.name }}
+        </strong>
         <span class="rm-room-label">房间编号</span>
         <button
           type="button"
@@ -13,7 +31,6 @@
           {{ room.invite_code }}
         </button>
         <div class="rm-room-actions">
-          <button v-if="isOwner" class="rm-mini" @click="openRoomName">修改名称</button>
           <button v-if="isOwner" class="rm-mini danger" @click="dissolveRoom">解散房间</button>
           <button v-else class="rm-mini danger" @click="leaveRoom">退出房间</button>
         </div>
@@ -61,7 +78,9 @@
 
     <div class="rm-card rm-settings-block">
       <h4>提醒设置</h4>
-      <p class="rm-settings-desc">切换开关即时生效，顶部导航会显示对应红点</p>
+      <p class="rm-settings-desc">
+        开关即时生效：满足条件时在顶部导航显示红点。仅站内提示，不会发送邮件或短信。
+      </p>
 
       <div class="rm-setting-list" :class="{ 'is-locked': guest }">
         <label class="rm-setting-row clickable">
@@ -84,32 +103,6 @@
           <input v-model="reminderForm.settlement_reminder" class="rm-native-check" type="checkbox" @change="saveReminders" />
           <span class="rm-switch" aria-hidden="true"></span>
         </label>
-      </div>
-    </div>
-
-    <div v-if="roomNameModal.open" class="rm-overlay" @mousedown.self="roomNameModal.open = false">
-      <div class="rm-modal">
-        <div class="rm-modal-header">
-          <h3>修改房间名称</h3>
-          <button class="rm-modal-close" aria-label="关闭" @click="roomNameModal.open = false">✕</button>
-        </div>
-        <div class="rm-modal-body">
-          <div class="rm-field">
-            <span>房间名称</span>
-            <input
-              v-model.trim="roomNameForm.name"
-              class="rm-input"
-              maxlength="20"
-              placeholder="例如：温馨小家"
-            />
-          </div>
-        </div>
-        <div class="rm-modal-footer">
-          <button class="rm-btn" @click="roomNameModal.open = false">取消</button>
-          <button class="rm-btn primary" :disabled="savingRoomName" @click="saveRoomName">
-            {{ savingRoomName ? '保存中…' : '保存' }}
-          </button>
-        </div>
       </div>
     </div>
 
@@ -138,7 +131,7 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { api, copyText } from '../../api'
 import { confirmDialog } from '../../ui/confirm'
 import { memberInitial as initial, roommateColor } from './roomie'
@@ -161,8 +154,9 @@ const isOwner = computed(
 )
 const memberModal = reactive({ open: false, editing: null })
 const memberForm = reactive({ name: '' })
-const roomNameModal = reactive({ open: false })
-const roomNameForm = reactive({ name: '' })
+const roomNameEditing = ref(false)
+const roomNameDraft = ref('')
+const roomNameInput = ref(null)
 const reminderForm = reactive({
   rule_reminder: true,
   chore_reminder: true,
@@ -195,19 +189,29 @@ function isMovedOut(member) {
 }
 
 function openRoomName() {
-  if (!isOwner.value) return
-  roomNameForm.name = props.room?.name || ''
-  roomNameModal.open = true
+  if (!isOwner.value || props.guest) return
+  roomNameDraft.value = props.room?.name || ''
+  roomNameEditing.value = true
+  nextTick(() => roomNameInput.value?.focus())
+}
+
+function cancelRoomName() {
+  roomNameEditing.value = false
+  roomNameDraft.value = ''
 }
 
 async function saveRoomName() {
-  const name = roomNameForm.name.trim()
-  if (!name) return emit('notify', '请填写房间名称', 'error')
+  if (!roomNameEditing.value || savingRoomName.value) return
+  const name = roomNameDraft.value.trim()
+  if (!name || name === String(props.room?.name || '')) {
+    cancelRoomName()
+    return
+  }
   savingRoomName.value = true
   try {
     await api('/api/roomie/rooms', { method: 'PUT', body: { name } })
+    roomNameEditing.value = false
     emit('notify', '房间名称已更新')
-    roomNameModal.open = false
     emit('changed')
   } catch (error) {
     emit('notify', error.message || '修改失败', 'error')
