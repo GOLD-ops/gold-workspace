@@ -34,7 +34,7 @@
           <div class="rm-vote-panel">
             <div class="rm-vote-title">
               <span>确认情况</span>
-              <span class="rm-vote-hint">{{ myVoteText(proposal) }}</span>
+              <small class="rm-vote-count">{{ agreeCount(proposal) }}/{{ voterCount(proposal) }} 人已确认</small>
             </div>
             <div class="rm-vote-body">
               <div class="rm-voters">
@@ -53,11 +53,13 @@
                   </span>
                 </div>
               </div>
-              <div class="rm-vote-stat">
-                <div class="rm-vote-ring" :style="{ '--progress': voteProgress(proposal) }">
-                  <span>{{ agreeCount(proposal) }}/{{ voterCount(proposal) }}</span>
-                </div>
-                <small>人已确认</small>
+              <div v-if="canVote(proposal)" class="rm-proposal-actions">
+                <button class="rm-btn primary sm" :disabled="busyId === proposal.id" @click="agree(proposal)">确认同意</button>
+                <button class="rm-btn sm" :disabled="busyId === proposal.id" @click="openFeedback(proposal)">提出修改</button>
+              </div>
+              <div v-else-if="isFullyAgreed(proposal)" class="rm-vote-success">
+                <span class="rm-vote-success-icon">✓</span>
+                <span><b>全员已确认</b><small>公约已自动生效</small></span>
               </div>
             </div>
             <div v-if="revisionComments(proposal).length" class="rm-revision-list">
@@ -65,16 +67,6 @@
                 <b>{{ memberName(vote.roommate_id) }}</b>
                 <span>{{ vote.comment }}</span>
               </p>
-            </div>
-            <div v-if="canVote(proposal) || isFullyAgreed(proposal)" class="rm-vote-actions">
-              <div v-if="canVote(proposal)" class="rm-proposal-actions">
-                <button class="rm-btn primary sm" :disabled="busyId === proposal.id" @click="agree(proposal)">确认同意</button>
-                <button class="rm-btn sm" :disabled="busyId === proposal.id" @click="openFeedback(proposal)">提出修改</button>
-              </div>
-              <div v-else class="rm-vote-success">
-                <span class="rm-vote-success-icon">✓</span>
-                <span><b>全员已确认</b><small>公约已自动生效</small></span>
-              </div>
             </div>
           </div>
         </article>
