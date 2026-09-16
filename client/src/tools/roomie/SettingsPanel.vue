@@ -1,15 +1,15 @@
 <template>
   <div class="rm-panel rm-settings">
-    <section class="rm-settings-section">
-      <div class="rm-block-head">
+    <div class="rm-card rm-settings-block">
+      <div class="rm-settings-head">
         <div>
-          <h2>默认分摊方案</h2>
-          <p>记账时可直接选用，也可以在单笔费用中临时调整</p>
+          <h4>默认分摊方案</h4>
+          <p class="rm-settings-desc">记账时可直接选用，也可以在单笔费用中临时调整</p>
         </div>
         <button class="rm-btn" @click="openScheme()">+ 新建方案</button>
       </div>
 
-      <div v-if="splitSchemes.length" class="rm-card rm-setting-list">
+      <div v-if="splitSchemes.length" class="rm-setting-list">
         <div v-for="scheme in splitSchemes" :key="scheme.id" class="rm-setting-row">
           <div class="rm-setting-copy">
             <strong>{{ scheme.name }}</strong>
@@ -23,40 +23,36 @@
       <button v-else class="rm-empty-card" type="button" @click="openScheme()">
         还没有分摊方案，创建一个常用比例
       </button>
-    </section>
+    </div>
 
-    <section class="rm-settings-section">
-      <div class="rm-block-head">
-        <div>
-          <h2>房间</h2>
-          <p>每位室友使用自己的账号，通过房间编号加入</p>
-        </div>
-      </div>
+    <div class="rm-card rm-settings-block">
+      <h4>房间</h4>
+      <p class="rm-settings-desc">每位室友使用自己的账号，通过房间编号加入</p>
 
-      <div v-if="room" class="rm-card rm-room-info">
-        <div class="rm-room-info-head">
-          <strong>{{ room.name }}</strong>
-          <span class="rm-badge blue">{{ isOwner ? '房主' : '成员' }}</span>
+      <div v-if="room" class="rm-room-panel">
+        <div class="rm-room-head">
+          <div class="rm-room-title">
+            <strong>{{ room.name }}</strong>
+            <span class="rm-badge blue">{{ isOwner ? '房主' : '成员' }}</span>
+          </div>
+          <button v-if="isOwner" class="rm-mini danger" @click="dissolveRoom">解散房间</button>
+          <button v-else class="rm-mini danger" @click="leaveRoom">退出房间</button>
         </div>
-        <div class="rm-room-code">
+        <div class="rm-room-invite">
           <span>房间编号</span>
           <code>{{ room.invite_code }}</code>
           <button class="rm-mini" @click="copyInviteCode">复制</button>
         </div>
-        <div class="rm-room-actions">
-          <button v-if="isOwner" class="rm-mini danger" @click="dissolveRoom">解散房间</button>
-          <button v-else class="rm-mini danger" @click="leaveRoom">退出房间</button>
-        </div>
       </div>
 
-      <div v-if="roommates.length" class="rm-member-grid">
-        <article
+      <div v-if="roommates.length" class="rm-member-list">
+        <div
           v-for="member in roommates"
           :key="member.id"
-          class="rm-member-card"
+          class="rm-member-row"
           :class="{ inactive: isMovedOut(member) }"
         >
-          <span class="rm-avatar">{{ initial(member.name) }}</span>
+          <span class="rm-avatar sm" :style="{ background: roommateColor(member) }">{{ initial(member.name) }}</span>
           <div class="rm-member-info">
             <div class="rm-member-name">
               {{ member.name }}
@@ -92,47 +88,38 @@
               移除
             </button>
           </div>
-        </article>
+        </div>
       </div>
       <div v-else class="rm-empty">还没有成员，请把房间编号分享给室友</div>
-    </section>
+    </div>
 
-    <section class="rm-settings-section">
-      <div class="rm-block-head">
-        <div>
-          <h2>提醒设置</h2>
-          <p>选择需要在顶部导航显示红点的生活协作待办</p>
-        </div>
-      </div>
+    <div class="rm-card rm-settings-block">
+      <h4>提醒设置</h4>
+      <p class="rm-settings-desc">切换开关即时生效，顶部导航会显示对应红点</p>
 
-      <div class="rm-card rm-setting-inline">
-        <div class="rm-setting-list">
-          <label class="rm-setting-row clickable">
-            <span class="rm-setting-copy"><strong>公约待确认</strong><small>有新提案或提案重新发起时提醒</small></span>
-            <input v-model="reminderForm.rule_reminder" class="rm-native-check" type="checkbox" />
-            <span class="rm-switch" aria-hidden="true"></span>
-          </label>
-          <label class="rm-setting-row clickable">
-            <span class="rm-setting-copy"><strong>值日到期</strong><small>任务到期前一天及逾期后提醒</small></span>
-            <input v-model="reminderForm.chore_reminder" class="rm-native-check" type="checkbox" />
-            <span class="rm-switch" aria-hidden="true"></span>
-          </label>
-          <label class="rm-setting-row clickable">
-            <span class="rm-setting-copy"><strong>低库存采购</strong><small>物品触及提醒阈值且分配给我时提醒</small></span>
-            <input v-model="reminderForm.item_reminder" class="rm-native-check" type="checkbox" />
-            <span class="rm-switch" aria-hidden="true"></span>
-          </label>
-          <label class="rm-setting-row clickable">
-            <span class="rm-setting-copy"><strong>费用结算</strong><small>需要登记转账或确认收款时提醒</small></span>
-            <input v-model="reminderForm.settlement_reminder" class="rm-native-check" type="checkbox" />
-            <span class="rm-switch" aria-hidden="true"></span>
-          </label>
-        </div>
-        <button class="rm-btn primary" :disabled="savingSettings" @click="saveSettings">
-          {{ savingSettings ? '保存中…' : '保存提醒设置' }}
-        </button>
+      <div class="rm-setting-list">
+        <label class="rm-setting-row clickable">
+          <span class="rm-setting-copy"><strong>公约待确认</strong><small>有新提案或提案重新发起时提醒</small></span>
+          <input v-model="reminderForm.rule_reminder" class="rm-native-check" type="checkbox" @change="saveReminders" />
+          <span class="rm-switch" aria-hidden="true"></span>
+        </label>
+        <label class="rm-setting-row clickable">
+          <span class="rm-setting-copy"><strong>值日到期</strong><small>任务到期前一天及逾期后提醒</small></span>
+          <input v-model="reminderForm.chore_reminder" class="rm-native-check" type="checkbox" @change="saveReminders" />
+          <span class="rm-switch" aria-hidden="true"></span>
+        </label>
+        <label class="rm-setting-row clickable">
+          <span class="rm-setting-copy"><strong>低库存采购</strong><small>物品触及提醒阈值且分配给我时提醒</small></span>
+          <input v-model="reminderForm.item_reminder" class="rm-native-check" type="checkbox" @change="saveReminders" />
+          <span class="rm-switch" aria-hidden="true"></span>
+        </label>
+        <label class="rm-setting-row clickable">
+          <span class="rm-setting-copy"><strong>费用结算</strong><small>需要登记转账或确认收款时提醒</small></span>
+          <input v-model="reminderForm.settlement_reminder" class="rm-native-check" type="checkbox" @change="saveReminders" />
+          <span class="rm-switch" aria-hidden="true"></span>
+        </label>
       </div>
-    </section>
+    </div>
 
     <div v-if="memberModal.open" class="rm-overlay" @mousedown.self="memberModal.open = false">
       <div class="rm-modal">
@@ -201,6 +188,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { api, copyText } from '../../api'
 import { confirmDialog } from '../../ui/confirm'
+import { roommateColor } from './roomie'
 
 const props = defineProps({
   roommates: { type: Array, default: () => [] },
@@ -232,7 +220,6 @@ const reminderForm = reactive({
 })
 const savingMember = ref(false)
 const savingScheme = ref(false)
-const savingSettings = ref(false)
 
 watch(
   () => props.settings,
@@ -450,16 +437,18 @@ async function removeScheme(scheme) {
   }
 }
 
-async function saveSettings() {
-  savingSettings.value = true
-  try {
-    await api('/api/roomie/settings', { method: 'PUT', body: { ...reminderForm } })
-    emit('notify', '提醒设置已保存')
-    emit('changed')
-  } catch (error) {
-    emit('notify', error.message || '提醒设置保存失败', 'error')
-  } finally {
-    savingSettings.value = false
-  }
+// 开关即改即存，连续切换时合并为一次请求
+let reminderTimer = null
+function saveReminders() {
+  clearTimeout(reminderTimer)
+  reminderTimer = setTimeout(async () => {
+    try {
+      await api('/api/roomie/settings', { method: 'PUT', body: { ...reminderForm } })
+      emit('notify', '提醒设置已更新')
+      emit('changed')
+    } catch (error) {
+      emit('notify', error.message || '提醒设置保存失败', 'error')
+    }
+  }, 350)
 }
 </script>
