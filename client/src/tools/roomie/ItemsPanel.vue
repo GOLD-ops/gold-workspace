@@ -71,7 +71,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { api } from '../../api'
 import { confirmDialog } from '../../ui/confirm'
 import EditableSelect from '../../ui/EditableSelect.vue'
-import { todayStr, yuanToCents } from './roomie'
+import { memberInitial as initial, todayStr, yuanToCents } from './roomie'
 
 const props = defineProps({ roommates: { type: Array, default: () => [] }, currentMemberId: { type: [Number, String], default: null }, splitSchemes: { type: Array, default: () => [] } })
 const emit = defineEmits(['notify', 'alerts-changed'])
@@ -111,7 +111,6 @@ const filteredItems = computed(() => items.value.filter((item) => {
   return true
 }))
 
-function initial(name) { return String(name || '?').slice(0, 1) }
 function memberName(id) { return props.roommates.find((member) => Number(member.id) === Number(id))?.name || '' }
 function displayQuantity(value) { const number = Number(value || 0); return Number.isInteger(number) ? String(number) : number.toFixed(1).replace(/\.0$/, '') }
 function isLow(item) { return item.status === 'low' || (Number(item.low_threshold) > 0 && Number(item.quantity) <= Number(item.low_threshold)) }

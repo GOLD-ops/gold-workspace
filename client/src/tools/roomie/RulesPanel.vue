@@ -146,7 +146,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { api } from '../../api'
-import { addDays, todayStr } from './roomie'
+import { addDays, memberInitial as initial, todayStr } from './roomie'
 
 const props = defineProps({
   roommates: { type: Array, default: () => [] },
@@ -184,7 +184,6 @@ const proposalModalTitle = computed(() => {
   return '发起公约提案'
 })
 
-function initial(name) { return String(name || '?').slice(0, 1) }
 function memberName(id) { return props.roommates.find((member) => Number(member.id) === Number(id))?.name || `成员 ${id || ''}` }
 function shortDate(value, full = false) {
   if (!value) return ''

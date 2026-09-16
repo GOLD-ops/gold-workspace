@@ -418,7 +418,14 @@ import { api } from '../../api'
 import { confirmDialog } from '../../ui/confirm'
 import EditableSelect from '../../ui/EditableSelect.vue'
 import SelectPicker from '../recruitment/SelectPicker.vue'
-import { CATEGORIES, centsToYuan, roommateColor, todayStr, yuanToCents } from './roomie'
+import {
+  CATEGORIES,
+  centsToYuan,
+  memberInitial as initial,
+  roommateColor,
+  todayStr,
+  yuanToCents,
+} from './roomie'
 
 const props = defineProps({
   roommates: { type: Array, default: () => [] },
@@ -598,10 +605,6 @@ function emptyForm() {
     ratioWeights: {},
     fixedAmounts: {},
   }
-}
-
-function initial(name) {
-  return String(name || '?').slice(0, 1)
 }
 
 function memberColor(member, fallbackId = 0) {

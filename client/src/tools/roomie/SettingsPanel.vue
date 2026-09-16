@@ -1,48 +1,21 @@
 <template>
   <div class="rm-panel rm-settings">
     <div class="rm-card rm-settings-block">
-      <div class="rm-settings-head">
-        <div>
-          <h4>默认分摊方案</h4>
-          <p class="rm-settings-desc">记账时可直接选用，也可以在单笔费用中临时调整</p>
-        </div>
-        <button class="rm-btn" @click="openScheme()">+ 新建方案</button>
-      </div>
-
-      <div v-if="splitSchemes.length" class="rm-setting-list">
-        <div v-for="scheme in splitSchemes" :key="scheme.id" class="rm-setting-row">
-          <div class="rm-setting-copy">
-            <strong>{{ scheme.name }}</strong>
-            <small>{{ schemeDescription(scheme) }}</small>
-          </div>
-          <div class="rm-setting-value">{{ schemeRatio(scheme) }}</div>
-          <button class="rm-mini" @click="openScheme(scheme)">编辑</button>
-          <button class="rm-mini danger" @click="removeScheme(scheme)">停用</button>
-        </div>
-      </div>
-      <button v-else class="rm-empty-card" type="button" @click="openScheme()">
-        还没有分摊方案，创建一个常用比例
-      </button>
-    </div>
-
-    <div class="rm-card rm-settings-block">
-      <h4>房间</h4>
-      <p class="rm-settings-desc">每位室友使用自己的账号，通过房间编号加入</p>
-
-      <div v-if="room" class="rm-room-panel">
-        <div class="rm-room-head">
-          <div class="rm-room-title">
-            <strong>{{ room.name }}</strong>
-            <span class="rm-badge blue">{{ isOwner ? '房主' : '成员' }}</span>
-          </div>
-          <button v-if="isOwner" class="rm-mini danger" @click="dissolveRoom">解散房间</button>
-          <button v-else class="rm-mini danger" @click="leaveRoom">退出房间</button>
-        </div>
-        <div class="rm-room-invite">
-          <span>房间编号</span>
-          <code>{{ room.invite_code }}</code>
-          <button class="rm-mini" @click="copyInviteCode">复制</button>
-        </div>
+      <div v-if="room" class="rm-room-bar">
+        <strong class="rm-room-name">{{ room.name }}</strong>
+        <span class="rm-room-label">房间编号</span>
+        <button
+          type="button"
+          class="rm-room-code"
+          title="点击复制房间编号"
+          @click="copyInviteCode"
+        >
+          {{ room.invite_code }}
+        </button>
+        <button v-if="isOwner" class="rm-mini danger rm-room-action" @click="dissolveRoom">
+          解散房间
+        </button>
+        <button v-else class="rm-mini danger rm-room-action" @click="leaveRoom">退出房间</button>
       </div>
 
       <div v-if="roommates.length" class="rm-member-list">
@@ -91,6 +64,31 @@
         </div>
       </div>
       <div v-else class="rm-empty">还没有成员，请把房间编号分享给室友</div>
+    </div>
+
+    <div class="rm-card rm-settings-block">
+      <div class="rm-settings-head">
+        <div>
+          <h4>分摊方式</h4>
+          <p class="rm-settings-desc">记账时可直接选用，也可以在单笔费用中临时调整</p>
+        </div>
+        <button class="rm-btn" @click="openScheme()">+ 新建方案</button>
+      </div>
+
+      <div v-if="splitSchemes.length" class="rm-setting-list">
+        <div v-for="scheme in splitSchemes" :key="scheme.id" class="rm-setting-row">
+          <div class="rm-setting-copy">
+            <strong>{{ scheme.name }}</strong>
+            <small>{{ schemeDescription(scheme) }}</small>
+          </div>
+          <div class="rm-setting-value">{{ schemeRatio(scheme) }}</div>
+          <button class="rm-mini" @click="openScheme(scheme)">编辑</button>
+          <button class="rm-mini danger" @click="removeScheme(scheme)">停用</button>
+        </div>
+      </div>
+      <button v-else class="rm-empty-card" type="button" @click="openScheme()">
+        还没有分摊方案，创建一个常用比例
+      </button>
     </div>
 
     <div class="rm-card rm-settings-block">
@@ -188,7 +186,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { api, copyText } from '../../api'
 import { confirmDialog } from '../../ui/confirm'
-import { roommateColor } from './roomie'
+import { memberInitial as initial, roommateColor } from './roomie'
 
 const props = defineProps({
   roommates: { type: Array, default: () => [] },
@@ -236,10 +234,6 @@ watch(
   },
   { immediate: true, deep: true }
 )
-
-function initial(name) {
-  return String(name || '?').slice(0, 1)
-}
 
 function isMovedOut(member) {
   return member?.status === 'moved_out' || Boolean(member?.moved_out_at)
@@ -316,7 +310,7 @@ async function copyInviteCode() {
   if (!props.room?.invite_code) return
   try {
     await copyText(props.room.invite_code)
-    emit('notify', '房间编号已复制')
+    emit('notify', '复制成功')
   } catch {
     emit('notify', '复制失败，请手动复制', 'error')
   }

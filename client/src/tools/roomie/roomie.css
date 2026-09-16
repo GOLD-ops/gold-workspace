@@ -503,21 +503,24 @@
 .rm-onboard-segmented button { flex: 1; }
 
 /* 房间信息 */
-.rm-room-panel { margin-bottom: 4px; }
-.rm-room-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.rm-room-title { display: flex; align-items: center; gap: 8px; }
-.rm-room-title strong { font-size: 16px; }
-.rm-room-invite { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
-.rm-room-invite > span { font-size: 12.5px; color: var(--tk-muted); }
-.rm-room-invite code {
+.rm-room-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rm-room-name { font-size: 16px; }
+.rm-room-label { font-size: 12.5px; color: var(--tk-muted); }
+.rm-room-code {
   font-size: 14px;
   font-weight: 700;
   letter-spacing: 1px;
   background: var(--tk-blue-soft);
   color: var(--tk-blue);
-  padding: 4px 10px;
+  font-family: inherit;
+  padding: 5px 11px;
+  border: 1px solid transparent;
   border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
+.rm-room-code:hover { background: #dfe9fb; border-color: #bcd0f2; }
+.rm-room-action { margin-left: auto; }
 
 /* ===== 完整版：统一信息密度与视觉语言 ===== */
 .rm {

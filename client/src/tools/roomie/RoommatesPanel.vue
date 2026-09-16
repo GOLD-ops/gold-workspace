@@ -54,7 +54,7 @@
 import { ref } from 'vue'
 import { api } from '../../api'
 import { confirmDialog } from '../../ui/confirm'
-import { COLORS, roommateColor } from './roomie'
+import { COLORS, memberInitial as initial, roommateColor } from './roomie'
 
 defineProps({ roommates: { type: Array, default: () => [] } })
 const emit = defineEmits(['changed', 'notify'])
@@ -62,10 +62,6 @@ const emit = defineEmits(['changed', 'notify'])
 const form = ref({ name: '', color: '' })
 const editingId = ref(null)
 const saving = ref(false)
-
-function initial(name) {
-  return (name || '?').slice(0, 1)
-}
 
 function resetForm() {
   form.value = { name: '', color: '' }

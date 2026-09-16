@@ -32,6 +32,12 @@ export function roommateColor(roommate) {
   return roommate && roommate.color ? roommate.color : colorFor(roommate.id)
 }
 
+// 头像文字：取昵称最后一个字，比首字更有区分度
+export function memberInitial(name) {
+  const text = String(name || '').trim()
+  return text ? text.slice(-1) : '?'
+}
+
 // 分 → 元字符串
 export function centsToYuan(cents) {
   return (Math.round(Number(cents) || 0) / 100).toFixed(2)

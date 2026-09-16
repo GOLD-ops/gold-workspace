@@ -318,7 +318,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { api } from '../../api'
 import { confirmDialog } from '../../ui/confirm'
 import SelectPicker from '../recruitment/SelectPicker.vue'
-import { roommateColor, todayStr } from './roomie'
+import { memberInitial as initial, roommateColor, todayStr } from './roomie'
 
 const props = defineProps({
   roommates: { type: Array, default: () => [] },
@@ -499,10 +499,6 @@ const assignmentSummary = computed(() => {
 function localDateKey(date) {
   const pad = (value) => String(value).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
-}
-
-function initial(name) {
-  return String(name || '?').slice(0, 1)
 }
 
 function roommateOf(task) {
