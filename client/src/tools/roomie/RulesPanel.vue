@@ -5,7 +5,7 @@
       <div class="rm-block-head compact">
         <div>
           <h2><span v-if="needsMyVote" class="rm-inline-alert" aria-hidden="true"></span>待确认公约</h2>
-          <p>{{ pendingSummary }}</p>
+          <p>所有在住成员同意后提案才会生效；若内容有修改，需要大家重新确认。</p>
         </div>
       </div>
 
@@ -79,7 +79,6 @@
             </div>
           </div>
         </article>
-        <div class="rm-rule-note"><span>i</span>所有在住成员同意后提案才会生效；若内容有修改，需要大家重新确认。</div>
     </section>
 
     <section class="rm-rule-section">
@@ -91,21 +90,17 @@
       </div>
       <div v-if="active.length" class="rm-rule-list">
         <article v-for="(rule, index) in active" :key="rule.id" class="rm-card rm-active-rule">
-          <div class="rm-active-rule-head">
-            <span class="rm-rule-index">{{ index + 1 }}</span>
-            <div class="rm-active-rule-title">
+          <span class="rm-rule-index">{{ index + 1 }}</span>
+          <div class="rm-active-rule-body">
+            <div class="rm-active-rule-head">
               <h3>{{ rule.title }}</h3>
               <span class="rm-badge">{{ rule.category || '其他' }}</span>
             </div>
-            <div class="rm-active-rule-actions">
-              <button class="rm-mini" @click="openProposal('revise', rule.id)">发起修订</button>
-              <button class="rm-mini danger" @click="openProposal('repeal', rule.id)">申请废止</button>
-            </div>
+            <p>{{ rule.content }}</p>
           </div>
-          <p>{{ rule.content }}</p>
-          <div class="rm-active-rule-meta">
-            <span class="rm-rule-version">v{{ rule.version || 1 }}</span>
-            <span>{{ shortDate(rule.effective_at || rule.updated_at) }} 生效</span>
+          <div class="rm-active-rule-actions">
+            <button class="rm-mini" @click="openProposal('revise', rule.id)">发起修订</button>
+            <button class="rm-mini danger" @click="openProposal('repeal', rule.id)">申请废止</button>
           </div>
         </article>
       </div>
@@ -184,18 +179,6 @@ const feedbackModal = reactive({ open: false, proposal: null })
 const feedbackForm = reactive({ comment: '' })
 
 const needsMyVote = computed(() => pending.value.some((proposal) => canVote(proposal)))
-const pendingSummary = computed(() => {
-  if (!pending.value.length) return '目前没有需要处理的提案'
-  const revisionForMe = pending.value.filter(
-    (proposal) => proposal.status === 'changes_requested' && Number(proposal.proposer_id) === Number(props.currentMemberId)
-  ).length
-  if (revisionForMe) return `${revisionForMe} 项提案收到修改意见，等待你更新内容`
-  if (pending.value.some((proposal) => proposal.status === 'changes_requested')) {
-    return '有提案正在等待发起人根据意见修改'
-  }
-  const mine = pending.value.filter((proposal) => canVote(proposal)).length
-  return mine ? `${mine} 项提案正在等待你的决定` : `${pending.value.length} 项提案正在等待其他成员确认`
-})
 const proposalModalTitle = computed(() => {
   if (proposalModal.editing) return '编辑公约提案'
   if (proposalModal.type === 'revise') return '发起公约修订'

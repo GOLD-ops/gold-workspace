@@ -932,13 +932,16 @@ function syncSettlementCore(spaceId, month) {
   return {
     month,
     status,
-    balances: residual.map((row) => ({
-      ...row,
-      roommate_id: row.member_id,
-      paid_cents: row.paid,
-      share_cents: row.share,
-      net_cents: row.net,
-    })),
+    balances: residual
+      // 已退出房间且账目已结清的成员不再展示，避免残留历史成员
+      .filter((row) => !row.member.moved_out_at || row.net !== 0)
+      .map((row) => ({
+        ...row,
+        roommate_id: row.member_id,
+        paid_cents: row.paid,
+        share_cents: row.share,
+        net_cents: row.net,
+      })),
     transfers: transfers.map(transferJson),
     remaining_count: transfers.filter((row) => row.status !== 'confirmed').length,
     total_transfer_amount: total,

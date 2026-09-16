@@ -50,7 +50,6 @@
               列表
             </button>
           </div>
-          <button type="button" class="rm-btn sm" @click="openSchedule">排班规则</button>
           <button type="button" class="rm-btn primary" @click="openAdd()">+ 新增任务</button>
         </div>
       </div>
@@ -103,12 +102,6 @@
             </div>
           </div>
 
-          <div class="rm-card rm-assignment-note">
-            <div>
-              <strong>本月分配依据</strong>
-              <span>{{ assignmentSummary }}</span>
-            </div>
-          </div>
         </div>
 
         <div v-else class="rm-chore-view rm-list-view">
@@ -265,51 +258,6 @@
       </div>
     </div>
 
-    <div v-if="scheduleOpen" class="rm-overlay" @mousedown.self="scheduleOpen = false">
-      <div class="rm-modal">
-        <div class="rm-modal-header">
-          <h3>排班规则</h3>
-          <button class="rm-modal-close" type="button" aria-label="关闭" @click="scheduleOpen = false">✕</button>
-        </div>
-        <div class="rm-modal-body">
-          <p class="rm-form-note">选择新增任务默认采用的分配方式，创建单个任务时仍可单独调整。</p>
-          <div class="rm-schedule-rules">
-            <button
-              v-for="mode in assignmentOptions"
-              :key="mode.value"
-              type="button"
-              class="rm-schedule-rule"
-              :class="{ active: mode.value === assignmentDraft }"
-              @click="assignmentDraft = mode.value"
-            >
-              <div>
-                <strong>{{ mode.label }}</strong>
-                <span v-if="mode.value === assignmentDraft" class="rm-badge blue">已选</span>
-              </div>
-              <p>{{ assignmentModeDescription(mode.value) }}</p>
-            </button>
-          </div>
-          <div class="rm-schedule-members">
-            <strong>参与排班</strong>
-            <div class="rm-schedule-member-list">
-              <span v-for="member in scheduleRoommates" :key="member.id" class="rm-schedule-member">
-                <span class="rm-avatar sm" :style="{ background: roommateColor(member) }">{{ initial(member.name) }}</span>
-                <span>{{ member.name }} · 本月 {{ workloadFor(member.id) }} 分</span>
-              </span>
-            </div>
-          </div>
-          <p class="rm-form-note">
-            公平轮换优先安排本月累计工作量较少的成员，并尽量避免同一成员连续承担同类任务。已搬走成员不会参与新任务，历史记录仍会保留。
-          </p>
-        </div>
-        <div class="rm-modal-footer">
-          <button type="button" class="rm-btn" @click="scheduleOpen = false">取消</button>
-          <button type="button" class="rm-btn primary" :disabled="savingRule" @click="saveAssignmentMode">
-            {{ savingRule ? '保存中…' : '保存' }}
-          </button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -326,7 +274,7 @@ const props = defineProps({
   settings: { type: Object, default: () => ({}) },
   guest: { type: Boolean, default: false },
 })
-const emit = defineEmits(['notify', 'alerts-changed', 'settings-changed'])
+const emit = defineEmits(['notify', 'alerts-changed'])
 
 const WEEKDAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 const TASK_TYPES = ['客厅清洁', '厨房清洁', '卫生间清洁', '垃圾清运', '公共区域整理', '其他']
@@ -366,9 +314,6 @@ const viewMode = ref('calendar')
 const memberFilter = ref('all')
 const typeFilter = ref('all')
 const statusFilter = ref('all')
-const scheduleOpen = ref(false)
-const assignmentDraft = ref('fair')
-const savingRule = ref(false)
 const taskModal = reactive({ open: false, editing: null })
 const form = reactive({
   title: '',
@@ -412,20 +357,6 @@ const defaultAssignmentMode = computed(() => {
     props.settings?.default_chore_assignment_mode ||
     props.settings?.default_assignment_mode
   return ASSIGNMENT_MODES.has(candidate) ? candidate : 'fair'
-})
-
-const scheduleRoommates = computed(() => {
-  let configured = props.settings?.chore_participant_ids
-  if (typeof configured === 'string') {
-    try {
-      configured = JSON.parse(configured)
-    } catch {
-      configured = []
-    }
-  }
-  if (!Array.isArray(configured) || !configured.length) return props.roommates
-  const ids = new Set(configured.map(Number))
-  return props.roommates.filter((member) => ids.has(Number(member.id)))
 })
 
 const monthLabel = computed(() => {
@@ -489,13 +420,6 @@ const calendarDays = computed(() => {
 const needsAssignee = computed(() => ['fixed', 'manual'].includes(form.assignment_mode))
 
 const assignmentHelp = computed(() => assignmentModeDescription(form.assignment_mode))
-
-const assignmentSummary = computed(() => {
-  if (defaultAssignmentMode.value === 'fair') {
-    return '按本月累计工作量优先分给负担较少的室友，并尽量避免连续承担同类任务。'
-  }
-  return `默认采用“${assignmentModeLabel(defaultAssignmentMode.value)}”，单个任务仍可在创建时调整。`
-})
 
 function localDateKey(date) {
   const pad = (value) => String(value).padStart(2, '0')
@@ -570,10 +494,6 @@ function repeatLabel(rule) {
   return repeatOptions.find((option) => option.value === (rule || 'none'))?.label || '不重复'
 }
 
-function assignmentModeLabel(mode) {
-  return assignmentOptions.find((option) => option.value === mode)?.label || '公平轮换'
-}
-
 function assignmentModeDescription(mode) {
   const descriptions = {
     fair: '保存后自动分给本月累计工作量较少的成员；重复任务会在每次生成时重新平衡。',
@@ -582,29 +502,6 @@ function assignmentModeDescription(mode) {
     claim: '先不指定负责人，任一在住成员都可以主动认领。',
   }
   return descriptions[mode] || descriptions.fair
-}
-
-function openSchedule() {
-  assignmentDraft.value = defaultAssignmentMode.value
-  scheduleOpen.value = true
-}
-
-async function saveAssignmentMode() {
-  if (savingRule.value) return
-  savingRule.value = true
-  try {
-    await api('/api/roomie/settings', {
-      method: 'PUT',
-      body: { default_assignment_mode: assignmentDraft.value },
-    })
-    emit('notify', '排班规则已更新')
-    emit('settings-changed')
-    scheduleOpen.value = false
-  } catch (error) {
-    emit('notify', error.message || '保存失败', 'error')
-  } finally {
-    savingRule.value = false
-  }
 }
 
 function dateDay(date) {
@@ -618,12 +515,6 @@ function dateWeekday(date) {
   const [year, month, day] = value.split('-').map(Number)
   const nativeDay = new Date(year, month - 1, day).getDay()
   return ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][nativeDay]
-}
-
-function workloadFor(memberId) {
-  return chores.value
-    .filter((task) => Number(task.assignee_id) === Number(memberId))
-    .reduce((total, task) => total + taskPoints(task), 0)
 }
 
 function moveMonth(direction) {

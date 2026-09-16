@@ -42,34 +42,13 @@
             <strong>{{ monthLabel }}</strong>
             <button type="button" aria-label="下个月" @click="shiftMonth(1)">›</button>
           </div>
-          <div class="rm-segmented" aria-label="费用视图">
-            <button
-              type="button"
-              :class="{ active: view === 'ledger' }"
-              :aria-pressed="view === 'ledger'"
-              @click="view = 'ledger'"
-            >
-              账本
-            </button>
-            <button
-              type="button"
-              :class="{ active: view === 'settlement', 'has-alert': needsMySettlementAction }"
-              :aria-pressed="view === 'settlement'"
-              :aria-label="needsMySettlementAction ? '结算，有一项需要处理' : '结算'"
-              :title="needsMySettlementAction ? '有转账或收款待你处理' : ''"
-              @click="view = 'settlement'"
-            >
-              结算
-              <span v-if="needsMySettlementAction" class="rm-notice-dot" aria-hidden="true"></span>
-            </button>
-          </div>
           <button class="rm-btn primary" type="button" @click="openAdd">+ 记一笔</button>
         </div>
       </div>
 
       <div v-if="loading" class="rm-empty">正在读取 {{ monthLabel }} 的费用…</div>
 
-      <template v-else-if="view === 'ledger'">
+      <template v-else>
         <section class="rm-card rm-expense-summary" aria-label="本月费用汇总">
           <div class="rm-summary-metric">
             <span>本月总支出</span>
@@ -109,151 +88,126 @@
             <span>操作</span>
           </div>
 
-          <template v-for="expense in filteredExpenses" :key="expense.id">
-            <article
-              class="rm-expense-row"
-              :class="{ expanded: isExpanded(expense.id) }"
-              role="button"
-              tabindex="0"
-              :aria-expanded="isExpanded(expense.id)"
-              @click="toggleExpanded(expense.id)"
-              @keydown.enter.prevent="toggleExpanded(expense.id)"
-              @keydown.space.prevent="toggleExpanded(expense.id)"
-            >
-              <span class="rm-cat">{{ expense.category || '其他' }}</span>
-              <div class="rm-expense-main">
-                <strong>{{ expense.title }}</strong>
-                <small>
-                  {{ expensePayerName(expense) || '未填写付款人' }}垫付 ·
-                  {{ expense.spent_at || '未填写日期' }}
-                  <template v-if="expense.note"> · {{ expense.note }}</template>
-                </small>
-              </div>
-              <div class="rm-expense-amount">
-                <strong>¥{{ centsToYuan(expenseAmount(expense)) }}</strong>
-                <small>{{ expenseParticipantIds(expense).length }} 人</small>
-              </div>
-              <div class="rm-expense-split">{{ splitLabel(expense) }}</div>
-              <div class="rm-expense-actions" @click.stop @keydown.stop>
-                <template v-if="expenseStatus(expense) === 'unsettled'">
-                  <button class="rm-mini" type="button" @click="openEdit(expense)">编辑</button>
-                  <button class="rm-mini danger" type="button" @click="remove(expense)">删除</button>
-                </template>
-                <span v-else class="rm-badge">{{ expenseStatusText(expense) }}</span>
-                <span class="rm-row-chevron" aria-hidden="true">⌄</span>
-              </div>
-            </article>
-
-            <div v-if="isExpanded(expense.id)" class="rm-expense-detail">
+          <article v-for="expense in filteredExpenses" :key="expense.id" class="rm-expense-row">
+            <span class="rm-cat">{{ expense.category || '其他' }}</span>
+            <div class="rm-expense-main">
+              <strong>{{ expense.title }}</strong>
+              <small>
+                {{ expensePayerName(expense) || '未填写付款人' }}垫付 ·
+                {{ expense.spent_at || '未填写日期' }}
+                <template v-if="expense.note"> · {{ expense.note }}</template>
+              </small>
               <div class="rm-share-list">
-                <div v-for="share in expenseShares(expense)" :key="share.roommate_id" class="rm-share-item">
+                <span
+                  v-for="share in expenseShares(expense)"
+                  :key="share.roommate_id"
+                  class="rm-share-chip"
+                >
                   <span
                     class="rm-avatar sm"
                     :style="{ background: memberColor(roommateById(share.roommate_id), share.roommate_id) }"
                   >
                     {{ initial(roommateName(share.roommate_id)) }}
                   </span>
-                  <span>{{ roommateName(share.roommate_id) || '已搬走成员' }}</span>
+                  <span class="rm-share-name">{{ roommateName(share.roommate_id) || '已搬走成员' }}</span>
                   <strong>¥{{ centsToYuan(share.share_cents) }}</strong>
-                </div>
+                </span>
               </div>
-              <p>
-                {{ splitDetail(expense) }} · 由{{ expensePayerName(expense) || '付款人' }}统一垫付
-              </p>
             </div>
-          </template>
+            <div class="rm-expense-amount">
+              <strong>¥{{ centsToYuan(expenseAmount(expense)) }}</strong>
+              <small>{{ expenseParticipantIds(expense).length }} 人</small>
+            </div>
+            <div class="rm-expense-split">{{ splitLabel(expense) }}</div>
+            <div class="rm-expense-actions">
+              <template v-if="expenseStatus(expense) === 'unsettled'">
+                <button class="rm-mini" type="button" @click="openEdit(expense)">编辑</button>
+                <button class="rm-mini danger" type="button" @click="remove(expense)">删除</button>
+              </template>
+              <span v-else class="rm-badge">{{ expenseStatusText(expense) }}</span>
+            </div>
+          </article>
         </section>
-      </template>
 
-      <template v-else>
-        <div v-if="!settlement.balances.length && !settlement.transfers.length" class="rm-empty">
-          <template v-if="expenses.length">本期没有需要互相转账的款项。</template>
-          <template v-else>这个月还没有可结算的费用。</template>
+        <div class="rm-section-head">
+          <h3>本期结算</h3>
+          <span v-if="settlementSummary">{{ settlementSummary }}</span>
         </div>
 
-        <template v-else>
-          <section v-if="settlement.balances.length" class="rm-balance-grid" aria-label="成员收支净额">
-            <article v-for="balance in settlement.balances" :key="balanceMemberId(balance)" class="rm-balance-card">
-              <span
-                class="rm-avatar"
-                :style="{ background: memberColor(balanceRoommate(balance), balanceMemberId(balance)) }"
-              >
-                {{ initial(balanceRoommate(balance)?.name) }}
-              </span>
-              <div class="rm-balance-copy">
-                <strong>
-                  {{ balanceRoommate(balance)?.name || '已搬走成员' }}
-                  <template v-if="Number(balanceMemberId(balance)) === Number(currentMemberId)">（我）</template>
-                </strong>
-                <small>已垫付 ¥{{ centsToYuan(balancePaid(balance)) }}</small>
-              </div>
-              <strong
-                class="rm-balance-net"
-                :class="balanceNet(balance) > 0 ? 'in' : balanceNet(balance) < 0 ? 'out' : 'zero'"
-              >
-                {{ netText(balanceNet(balance)) }}
+        <div v-if="!settlement.balances.length && !settlement.transfers.length" class="rm-empty">
+          {{ monthLabel }}还没有需要结算的费用。
+        </div>
+
+        <section v-if="settlement.balances.length" class="rm-balance-grid" aria-label="成员收支净额">
+          <article v-for="balance in settlement.balances" :key="balanceMemberId(balance)" class="rm-balance-card">
+            <span
+              class="rm-avatar"
+              :style="{ background: memberColor(balanceRoommate(balance), balanceMemberId(balance)) }"
+            >
+              {{ initial(balanceRoommate(balance)?.name) }}
+            </span>
+            <div class="rm-balance-copy">
+              <strong>
+                {{ balanceRoommate(balance)?.name || '已搬走成员' }}
+                <template v-if="Number(balanceMemberId(balance)) === Number(currentMemberId)">（我）</template>
               </strong>
-            </article>
-          </section>
-
-          <section class="rm-card rm-settlement-intro">
-            <strong>本期结算清单</strong>
-            <span v-if="settlement.status === 'settled'">
-              所有转账均已由收款人确认，{{ monthLabel }}账单已经结清。
-            </span>
-            <span v-else-if="settlement.transfers.length">
-              系统已抵消相互欠款；完成以下 {{ settlement.transfers.length }} 笔转账后，{{ monthLabel }}账单将自动结清。
-            </span>
-            <span v-else>所有成员当前收支相抵，本期账单已经结清。</span>
-          </section>
-
-          <section v-if="settlement.transfers.length" class="rm-card rm-settlement-table" aria-label="本期转账清单">
-            <div class="rm-settlement-head" aria-hidden="true">
-              <span>转账关系</span>
-              <span>金额</span>
-              <span>状态</span>
-              <span>操作</span>
+              <small>已垫付 ¥{{ centsToYuan(balancePaid(balance)) }}</small>
             </div>
-            <div v-for="transfer in settlement.transfers" :key="transfer.id" class="rm-settlement-row">
-              <div class="rm-transfer-people">
-                <span class="rm-avatar sm" :style="{ background: memberColor(transferFrom(transfer), transferFromId(transfer)) }">
-                  {{ initial(transferFrom(transfer)?.name) }}
-                </span>
-                <strong>{{ transferFrom(transfer)?.name || '已搬走成员' }}</strong>
-                <span aria-hidden="true">→</span>
-                <span class="rm-avatar sm" :style="{ background: memberColor(transferTo(transfer), transferToId(transfer)) }">
-                  {{ initial(transferTo(transfer)?.name) }}
-                </span>
-                <strong>{{ transferTo(transfer)?.name || '已搬走成员' }}</strong>
-              </div>
-              <strong>¥{{ centsToYuan(transferAmount(transfer)) }}</strong>
-              <span class="rm-transfer-state" :class="transferStatus(transfer)">
-                {{ transferStatusText(transfer) }}
+            <strong
+              class="rm-balance-net"
+              :class="balanceNet(balance) > 0 ? 'in' : balanceNet(balance) < 0 ? 'out' : 'zero'"
+            >
+              {{ netText(balanceNet(balance)) }}
+            </strong>
+          </article>
+        </section>
+
+        <section v-if="settlement.transfers.length" class="rm-card rm-settlement-table" aria-label="本期转账清单">
+          <div class="rm-settlement-head" aria-hidden="true">
+            <span>转账关系</span>
+            <span>金额</span>
+            <span>状态</span>
+            <span>操作</span>
+          </div>
+          <div v-for="transfer in settlement.transfers" :key="transfer.id" class="rm-settlement-row">
+            <div class="rm-transfer-people">
+              <span class="rm-avatar sm" :style="{ background: memberColor(transferFrom(transfer), transferFromId(transfer)) }">
+                {{ initial(transferFrom(transfer)?.name) }}
               </span>
-              <div class="rm-transfer-action">
-                <button
-                  v-if="canMarkPaid(transfer)"
-                  class="rm-mini"
-                  type="button"
-                  :disabled="actingTransferId === transfer.id"
-                  @click="markPaid(transfer)"
-                >
-                  {{ actingTransferId === transfer.id ? '登记中…' : '登记已转账' }}
-                </button>
-                <button
-                  v-else-if="canConfirm(transfer)"
-                  class="rm-mini"
-                  type="button"
-                  :disabled="actingTransferId === transfer.id"
-                  @click="confirmReceipt(transfer)"
-                >
-                  {{ actingTransferId === transfer.id ? '确认中…' : '确认收款' }}
-                </button>
-                <span v-else class="rm-transfer-wait">{{ transferActionHint(transfer) }}</span>
-              </div>
+              <strong>{{ transferFrom(transfer)?.name || '已搬走成员' }}</strong>
+              <span aria-hidden="true">→</span>
+              <span class="rm-avatar sm" :style="{ background: memberColor(transferTo(transfer), transferToId(transfer)) }">
+                {{ initial(transferTo(transfer)?.name) }}
+              </span>
+              <strong>{{ transferTo(transfer)?.name || '已搬走成员' }}</strong>
             </div>
-          </section>
-        </template>
+            <strong>¥{{ centsToYuan(transferAmount(transfer)) }}</strong>
+            <span class="rm-transfer-state" :class="transferStatus(transfer)">
+              {{ transferStatusText(transfer) }}
+            </span>
+            <div class="rm-transfer-action">
+              <button
+                v-if="canMarkPaid(transfer)"
+                class="rm-mini"
+                type="button"
+                :disabled="actingTransferId === transfer.id"
+                @click="markPaid(transfer)"
+              >
+                {{ actingTransferId === transfer.id ? '登记中…' : '登记已转账' }}
+              </button>
+              <button
+                v-else-if="canConfirm(transfer)"
+                class="rm-mini"
+                type="button"
+                :disabled="actingTransferId === transfer.id"
+                @click="confirmReceipt(transfer)"
+              >
+                {{ actingTransferId === transfer.id ? '确认中…' : '确认收款' }}
+              </button>
+              <span v-else class="rm-transfer-wait">{{ transferActionHint(transfer) }}</span>
+            </div>
+          </div>
+        </section>
       </template>
     </template>
 
@@ -410,7 +364,6 @@ const props = defineProps({
 
 const emit = defineEmits(['notify', 'alerts-changed'])
 
-const view = ref('ledger')
 const month = ref(currentMonth())
 const expenses = ref([])
 const summary = ref({})
@@ -419,7 +372,6 @@ const settlement = ref({ balances: [], transfers: [], status: 'empty' })
 const loading = ref(false)
 const saving = ref(false)
 const actingTransferId = ref(null)
-const expandedIds = ref([])
 const loadSequence = ref(0)
 
 const filters = reactive({ keyword: '', category: 'all', member: 'all', status: 'all' })
@@ -534,9 +486,13 @@ const monthLabel = computed(() => {
   return `${year} 年 ${Number(monthNumber)} 月`
 })
 
-const needsMySettlementAction = computed(() =>
-  settlement.value.transfers.some((transfer) => canMarkPaid(transfer) || canConfirm(transfer))
-)
+const settlementSummary = computed(() => {
+  if (!settlement.value.balances.length && !settlement.value.transfers.length) return ''
+  if (!settlement.value.transfers.length) return '所有成员收支相抵，本期账单已结清'
+  const pending = settlement.value.transfers.filter((transfer) => transferStatus(transfer) !== 'confirmed')
+  if (!pending.length) return '转账已全部确认，本期账单已结清'
+  return `待完成 ${pending.length} 笔转账后结清`
+})
 
 watch(
   [month, () => props.currentMemberId],
@@ -649,10 +605,6 @@ function splitLabel(expense) {
   return weights.length ? `按比例 ${weights.join(':')}` : '按比例'
 }
 
-function splitDetail(expense) {
-  return splitLabel(expense)
-}
-
 function netText(cents) {
   if (cents > 0) return `应收 ¥${centsToYuan(cents)}`
   if (cents < 0) return `应付 ¥${centsToYuan(-cents)}`
@@ -701,7 +653,6 @@ function shiftMonth(offset) {
   const [year, monthNumber] = month.value.split('-').map(Number)
   const date = new Date(year, monthNumber - 1 + offset, 1)
   month.value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-  expandedIds.value = []
 }
 
 async function load() {
@@ -744,17 +695,6 @@ async function load() {
   } finally {
     if (sequence === loadSequence.value) loading.value = false
   }
-}
-
-function isExpanded(id) {
-  return expandedIds.value.includes(String(id))
-}
-
-function toggleExpanded(id) {
-  const key = String(id)
-  expandedIds.value = isExpanded(key)
-    ? expandedIds.value.filter((value) => value !== key)
-    : [...expandedIds.value, key]
 }
 
 function resetForm(values = {}) {

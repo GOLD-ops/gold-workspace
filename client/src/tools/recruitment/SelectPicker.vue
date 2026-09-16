@@ -1,48 +1,51 @@
 <template>
   <div class="sp" ref="root">
-    <button type="button" class="sp-trigger" :class="{ open }" @click="toggle">
+    <button ref="triggerEl" type="button" class="sp-trigger" :class="{ open }" @click="toggle">
       <span class="sp-label">{{ label }}</span>
       <svg class="sp-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="6 9 12 15 18 9" />
       </svg>
     </button>
-    <div v-if="open" class="sp-menu" @click.stop>
-      <input
-        v-if="showSearch"
-        v-model="keyword"
-        type="text"
-        class="sp-search"
-        :placeholder="`搜索${placeholder || '选项'}…`"
-      />
-      <div class="sp-scroll">
-        <button
-          v-if="multiple && selectedValues.length"
-          type="button"
-          class="sp-item sp-clear"
-          @click="clearAll"
-        >
-          <span class="sp-check"></span>
-          <span class="sp-clear-label">清除筛选</span>
-        </button>
-        <button
-          type="button"
-          v-for="opt in filteredOptions"
-          :key="String(opt.value)"
-          class="sp-item"
-          :class="{ active: isActive(opt) }"
-          @click="pick(opt)"
-        >
-          <span class="sp-check">{{ isActive(opt) ? '✓' : '' }}</span>
-          <span>{{ opt.label }}</span>
-        </button>
-        <div v-if="!filteredOptions.length" class="sp-empty">无匹配选项</div>
+    <!-- 菜单挂到 body 上并使用 fixed 定位：避免被弹窗的滚动区域裁切，也不会撑高弹窗 -->
+    <Teleport to="body">
+      <div v-if="open" ref="menuEl" class="sp-menu" :style="menuStyle" @click.stop>
+        <input
+          v-if="showSearch"
+          v-model="keyword"
+          type="text"
+          class="sp-search"
+          :placeholder="`搜索${placeholder || '选项'}…`"
+        />
+        <div class="sp-scroll">
+          <button
+            v-if="multiple && selectedValues.length"
+            type="button"
+            class="sp-item sp-clear"
+            @click="clearAll"
+          >
+            <span class="sp-check"></span>
+            <span class="sp-clear-label">清除筛选</span>
+          </button>
+          <button
+            type="button"
+            v-for="opt in filteredOptions"
+            :key="String(opt.value)"
+            class="sp-item"
+            :class="{ active: isActive(opt) }"
+            @click="pick(opt)"
+          >
+            <span class="sp-check">{{ isActive(opt) ? '✓' : '' }}</span>
+            <span>{{ opt.label }}</span>
+          </button>
+          <div v-if="!filteredOptions.length" class="sp-empty">无匹配选项</div>
+        </div>
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 const props = defineProps({
   modelValue: { type: [String, Number, Array], default: '' },
@@ -53,8 +56,19 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'change'])
 
 const root = ref(null)
+const triggerEl = ref(null)
+const menuEl = ref(null)
 const open = ref(false)
 const keyword = ref('')
+const menuPos = reactive({ top: 0, left: 0, width: 0, maxHeight: 300, placed: false })
+
+const menuStyle = computed(() => ({
+  top: `${menuPos.top}px`,
+  left: `${menuPos.left}px`,
+  width: `${menuPos.width}px`,
+  maxHeight: `${menuPos.maxHeight}px`,
+  visibility: menuPos.placed ? 'visible' : 'hidden',
+}))
 
 const showSearch = computed(() => props.options.length >= 8)
 
@@ -68,8 +82,15 @@ const filteredOptions = computed(() => {
   )
 })
 
-watch(open, (v) => {
-  if (v) keyword.value = ''
+watch(open, async (v) => {
+  if (!v) {
+    menuPos.placed = false
+    return
+  }
+  keyword.value = ''
+  menuPos.placed = false
+  await nextTick()
+  placeMenu()
 })
 
 const selectedValues = computed(() =>
@@ -98,6 +119,29 @@ function toggle() {
   open.value = !open.value
 }
 
+// 菜单固定在触发按钮附近；向上或向下弹出取决于可用空间，始终不超过视口
+function placeMenu() {
+  const trigger = triggerEl.value
+  if (!trigger || !open.value) return
+  const rect = trigger.getBoundingClientRect()
+  const gap = 6
+  const margin = 10
+  const spaceBelow = window.innerHeight - rect.bottom - gap - margin
+  const spaceAbove = rect.top - gap - margin
+  const openUp = spaceBelow < 160 && spaceAbove > spaceBelow
+  const maxHeight = Math.max(140, Math.min(300, openUp ? spaceAbove : spaceBelow))
+  const measured = menuEl.value ? menuEl.value.offsetHeight : maxHeight
+  const height = Math.min(measured, maxHeight)
+
+  menuPos.maxHeight = maxHeight
+  menuPos.width = Math.max(160, Math.min(rect.width, window.innerWidth - margin * 2))
+  menuPos.left = Math.max(margin, Math.min(rect.left, window.innerWidth - menuPos.width - margin))
+  menuPos.top = openUp
+    ? Math.max(margin, rect.top - gap - height)
+    : Math.min(rect.bottom + gap, window.innerHeight - margin - height)
+  menuPos.placed = true
+}
+
 function pick(opt) {
   if (props.multiple) {
     const key = String(opt.value)
@@ -119,11 +163,32 @@ function clearAll() {
 }
 
 function onClickOutside(e) {
-  if (root.value && !root.value.contains(e.target)) open.value = false
+  if (root.value?.contains(e.target)) return
+  if (menuEl.value?.contains(e.target)) return
+  open.value = false
 }
 
-onMounted(() => document.addEventListener('click', onClickOutside))
-onBeforeUnmount(() => document.removeEventListener('click', onClickOutside))
+function onScroll(e) {
+  if (!open.value) return
+  // 菜单内部滚动（如搜索后翻列表）不应关闭菜单
+  if (menuEl.value?.contains(e.target)) return
+  open.value = false
+}
+
+function onResize() {
+  placeMenu()
+}
+
+onMounted(() => {
+  document.addEventListener('click', onClickOutside)
+  document.addEventListener('scroll', onScroll, true)
+  window.addEventListener('resize', onResize)
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('click', onClickOutside)
+  document.removeEventListener('scroll', onScroll, true)
+  window.removeEventListener('resize', onResize)
+})
 </script>
 
 <style scoped>
@@ -173,11 +238,9 @@ onBeforeUnmount(() => document.removeEventListener('click', onClickOutside))
   color: var(--tk-blue);
 }
 .sp-menu {
-  position: absolute;
-  top: calc(100% + 5px);
-  left: 0;
-  z-index: 40;
-  min-width: 100%;
+  position: fixed;
+  /* 需高于弹窗遮罩（rm-overlay 为 1000），否则在弹窗内会被遮挡 */
+  z-index: 1200;
   background: #fff;
   border: 1px solid var(--tk-border);
   border-radius: 10px;
@@ -185,14 +248,18 @@ onBeforeUnmount(() => document.removeEventListener('click', onClickOutside))
   padding: 4px;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 .sp-scroll {
   display: grid;
   gap: 1px;
+  flex: 1 1 auto;
+  min-height: 0;
   max-height: 280px;
   overflow-y: auto;
 }
 .sp-search {
+  flex: none;
   margin-bottom: 3px;
   border: 1px solid #dbe1ea;
   border-radius: 8px;
