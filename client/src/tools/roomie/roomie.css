@@ -1055,7 +1055,9 @@
 .rm-setting-copy small { margin-top: 2px; color: var(--tk-faint); font-weight: 400; }
 .rm-setting-value { color: var(--tk-muted); font-weight: 600; white-space: nowrap; }
 .rm-setting-select { width: 170px; flex: none; }
-.rm-form-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
+.rm-card-aside { display: flex; align-items: center; gap: 12px; }
+.rm-card-aside > .rm-card { flex: 1; min-width: 0; }
+.rm-card-aside > .rm-btn { flex: none; }
 .rm-identity-setting {
   display: flex;
   align-items: center;

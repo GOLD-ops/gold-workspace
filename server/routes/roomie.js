@@ -1019,9 +1019,31 @@ router.put('/rooms', route((req, res) => {
 
 router.post('/rooms/leave', route((req, res) => {
   if (req.room.owner_user_id === req.userId) {
-    return res.status(409).json({ error: '房主不能直接退出房间' });
+    return res.status(409).json({ error: '房主不能直接退出房间，可选择解散房间' });
   }
   softRemoveMember(req.spaceId, req.memberId);
+  res.json({ ok: true });
+}));
+
+// 解散房间：房主专属，删除房间及其全部数据
+router.post('/rooms/dissolve', route((req, res) => {
+  if (req.room.owner_user_id !== req.userId) {
+    return res.status(403).json({ error: '只有房主可以解散房间' });
+  }
+  const spaceId = req.spaceId;
+  db.transaction(() => {
+    // 先清理对成员/费用/公约存在引用的明细表，避免级联删除时的外键顺序问题
+    db.prepare(
+      'DELETE FROM roomie_expense_shares WHERE expense_id IN (SELECT id FROM roomie_expenses WHERE space_id = ?)'
+    ).run(spaceId);
+    db.prepare(
+      'DELETE FROM roomie_rule_votes WHERE rule_id IN (SELECT id FROM roomie_rules WHERE space_id = ?)'
+    ).run(spaceId);
+    db.prepare('DELETE FROM roomie_settlement_transfers WHERE space_id = ?').run(spaceId);
+    db.prepare('DELETE FROM roomie_item_transactions WHERE space_id = ?').run(spaceId);
+    db.prepare('DELETE FROM roomie_rooms WHERE id = ?').run(req.roomId);
+    db.prepare('DELETE FROM spaces WHERE id = ?').run(spaceId);
+  })();
   res.json({ ok: true });
 }));
 

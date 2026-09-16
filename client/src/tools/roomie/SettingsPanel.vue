@@ -32,20 +32,20 @@
           <p>设置新任务默认采用的分配方式，创建单个任务时仍可调整</p>
         </div>
       </div>
-      <div class="rm-card rm-setting-list">
-        <div class="rm-setting-row">
-          <span class="rm-setting-copy">
-            <strong>默认分配方式</strong>
-            <small>{{ assignmentDescription }}</small>
-          </span>
-          <select v-model="reminderForm.default_assignment_mode" class="rm-input rm-setting-select">
-            <option value="fair">公平轮换</option>
-            <option value="manual">手动指定</option>
-            <option value="claim">自由认领</option>
-          </select>
+      <div class="rm-card-aside">
+        <div class="rm-card rm-setting-list">
+          <div class="rm-setting-row">
+            <span class="rm-setting-copy">
+              <strong>默认分配方式</strong>
+              <small>{{ assignmentDescription }}</small>
+            </span>
+            <select v-model="reminderForm.default_assignment_mode" class="rm-input rm-setting-select">
+              <option value="fair">公平轮换</option>
+              <option value="manual">手动指定</option>
+              <option value="claim">自由认领</option>
+            </select>
+          </div>
         </div>
-      </div>
-      <div class="rm-form-actions">
         <button class="rm-btn primary" :disabled="savingSettings" @click="saveSettings">
           {{ savingSettings ? '保存中…' : '保存排班设置' }}
         </button>
@@ -71,7 +71,8 @@
           <button class="rm-mini" @click="copyInviteCode">复制</button>
         </div>
         <div class="rm-room-actions">
-          <button class="rm-mini danger" @click="leaveRoom">退出房间</button>
+          <button v-if="isOwner" class="rm-mini danger" @click="dissolveRoom">解散房间</button>
+          <button v-else class="rm-mini danger" @click="leaveRoom">退出房间</button>
         </div>
       </div>
 
@@ -124,29 +125,29 @@
         </div>
       </div>
 
-      <div class="rm-card rm-setting-list">
-        <label class="rm-setting-row clickable">
-          <span class="rm-setting-copy"><strong>公约待确认</strong><small>有新提案或提案重新发起时提醒</small></span>
-          <input v-model="reminderForm.rule_reminder" class="rm-native-check" type="checkbox" />
-          <span class="rm-switch" aria-hidden="true"></span>
-        </label>
-        <label class="rm-setting-row clickable">
-          <span class="rm-setting-copy"><strong>值日到期</strong><small>任务到期前一天及逾期后提醒</small></span>
-          <input v-model="reminderForm.chore_reminder" class="rm-native-check" type="checkbox" />
-          <span class="rm-switch" aria-hidden="true"></span>
-        </label>
-        <label class="rm-setting-row clickable">
-          <span class="rm-setting-copy"><strong>低库存采购</strong><small>物品触及提醒阈值且分配给我时提醒</small></span>
-          <input v-model="reminderForm.item_reminder" class="rm-native-check" type="checkbox" />
-          <span class="rm-switch" aria-hidden="true"></span>
-        </label>
-        <label class="rm-setting-row clickable">
-          <span class="rm-setting-copy"><strong>费用结算</strong><small>需要登记转账或确认收款时提醒</small></span>
-          <input v-model="reminderForm.settlement_reminder" class="rm-native-check" type="checkbox" />
-          <span class="rm-switch" aria-hidden="true"></span>
-        </label>
-      </div>
-      <div class="rm-form-actions">
+      <div class="rm-card-aside">
+        <div class="rm-card rm-setting-list">
+          <label class="rm-setting-row clickable">
+            <span class="rm-setting-copy"><strong>公约待确认</strong><small>有新提案或提案重新发起时提醒</small></span>
+            <input v-model="reminderForm.rule_reminder" class="rm-native-check" type="checkbox" />
+            <span class="rm-switch" aria-hidden="true"></span>
+          </label>
+          <label class="rm-setting-row clickable">
+            <span class="rm-setting-copy"><strong>值日到期</strong><small>任务到期前一天及逾期后提醒</small></span>
+            <input v-model="reminderForm.chore_reminder" class="rm-native-check" type="checkbox" />
+            <span class="rm-switch" aria-hidden="true"></span>
+          </label>
+          <label class="rm-setting-row clickable">
+            <span class="rm-setting-copy"><strong>低库存采购</strong><small>物品触及提醒阈值且分配给我时提醒</small></span>
+            <input v-model="reminderForm.item_reminder" class="rm-native-check" type="checkbox" />
+            <span class="rm-switch" aria-hidden="true"></span>
+          </label>
+          <label class="rm-setting-row clickable">
+            <span class="rm-setting-copy"><strong>费用结算</strong><small>需要登记转账或确认收款时提醒</small></span>
+            <input v-model="reminderForm.settlement_reminder" class="rm-native-check" type="checkbox" />
+            <span class="rm-switch" aria-hidden="true"></span>
+          </label>
+        </div>
         <button class="rm-btn primary" :disabled="savingSettings" @click="saveSettings">
           {{ savingSettings ? '保存中…' : '保存提醒设置' }}
         </button>
@@ -377,6 +378,22 @@ async function leaveRoom() {
     emit('changed')
   } catch (error) {
     emit('notify', error.message || '退出失败', 'error')
+  }
+}
+
+async function dissolveRoom() {
+  const ok = await confirmDialog({
+    title: '解散房间',
+    message: '解散后房间内的费用、值日、公共物品与公约记录将全部删除，且无法恢复，所有成员都会被移出。确定解散吗？',
+    confirmText: '确认解散',
+  })
+  if (!ok) return
+  try {
+    await api('/api/roomie/rooms/dissolve', { method: 'POST' })
+    emit('notify', '房间已解散')
+    emit('changed')
+  } catch (error) {
+    emit('notify', error.message || '解散失败', 'error')
   }
 }
 
