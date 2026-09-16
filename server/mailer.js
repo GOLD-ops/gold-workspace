@@ -250,6 +250,125 @@ function richMailTemplate({ headline = '', rows = [], advice = [], requirements 
   );
 }
 
+// ===== 合租生活管家：邮件提醒（成员各自开关，每天最多一封） =====
+function roomieDateOffset(days) {
+  const d = new Date();
+  d.setDate(d.getDate() + Number(days || 0));
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+async function checkRoomieForUser(u) {
+  if (!u || !u.email) return { sent: 0 };
+  const member = db
+    .prepare(
+      `SELECT m.*, r.name AS room_name
+       FROM roomie_roommates m
+       JOIN roomie_rooms r ON r.space_id = m.space_id
+       WHERE m.user_id = ? AND m.moved_out_at = ''
+       LIMIT 1`
+    )
+    .get(u.id);
+  if (!member) return { sent: 0 };
+
+  const wantsRule = !!member.email_rule;
+  const wantsChore = !!member.email_chore;
+  const wantsItem = !!member.email_item;
+  const wantsSettlement = !!member.email_settlement;
+  if (!wantsRule && !wantsChore && !wantsItem && !wantsSettlement) return { sent: 0 };
+
+  const today = roomieDateOffset(0);
+  if (member.email_last_sent === today) return { sent: 0 };
+
+  const todos = [];
+
+  if (wantsRule) {
+    const rules = db
+      .prepare("SELECT * FROM roomie_rules WHERE space_id = ? AND status = 'pending'")
+      .all(member.space_id);
+    for (const rule of rules) {
+      let voters = [];
+      try {
+        voters = JSON.parse(rule.voter_snapshot || '[]').map(Number);
+      } catch {
+        voters = [];
+      }
+      if (!voters.includes(Number(member.id))) continue;
+      const voted = db
+        .prepare('SELECT 1 FROM roomie_rule_votes WHERE rule_id = ? AND member_id = ?')
+        .get(rule.id, member.id);
+      if (!voted) todos.push(['公约', `待确认：${rule.title}`]);
+    }
+  }
+
+  if (wantsChore) {
+    const chores = db
+      .prepare(
+        `SELECT * FROM roomie_chores WHERE space_id = ? AND done = 0 AND due_date <> ''
+         AND due_date <= ? AND (assignee_id = ? OR assignee_id IS NULL)
+         ORDER BY due_date LIMIT 20`
+      )
+      .all(member.space_id, roomieDateOffset(1), member.id);
+    for (const chore of chores) {
+      const label = Number(chore.assignee_id) === Number(member.id) ? '待完成' : '待认领';
+      todos.push(['值日', `${label}：${chore.title}（${chore.due_date}）`]);
+    }
+  }
+
+  if (wantsItem) {
+    const items = db
+      .prepare(
+        `SELECT * FROM roomie_items WHERE space_id = ? AND archived_at = ''
+         AND low_threshold > 0 AND quantity <= low_threshold LIMIT 20`
+      )
+      .all(member.space_id);
+    for (const item of items) {
+      if (item.current_purchaser_id && Number(item.current_purchaser_id) !== Number(member.id)) continue;
+      todos.push(['物品', `待补货：${item.name}（余 ${item.quantity}${item.unit || ''}）`]);
+    }
+  }
+
+  if (wantsSettlement) {
+    const transfers = db
+      .prepare(
+        `SELECT * FROM roomie_settlement_transfers WHERE space_id = ?
+         AND status IN ('pending', 'paid') AND (from_member_id = ? OR to_member_id = ?) LIMIT 20`
+      )
+      .all(member.space_id, member.id, member.id);
+    for (const t of transfers) {
+      if (Number(t.from_member_id) === Number(member.id) && t.status === 'pending') {
+        todos.push(['费用', `待转账 ¥${(t.amount / 100).toFixed(2)}`]);
+      }
+      if (Number(t.to_member_id) === Number(member.id) && t.status === 'paid') {
+        todos.push(['费用', `待确认收款 ¥${(t.amount / 100).toFixed(2)}`]);
+      }
+    }
+  }
+
+  if (!todos.length) return { sent: 0 };
+
+  const transport = await createTransport();
+  if (!transport) return { sent: 0, skipped: true, reason: '发信账号未配置' };
+
+  try {
+    await sendMail(
+      u.email,
+      `【合租管家】${member.room_name} 待办提醒（${todos.length} 项）`,
+      richMailTemplate({
+        headline: `${member.room_name} · 待办提醒`,
+        rows: todos,
+        buttonText: '打开合租生活管家',
+        buttonUrl: SITE_URL.replace('/tools/recruitment', '/tools/roomie'),
+      })
+    );
+    db.prepare('UPDATE roomie_roommates SET email_last_sent = ? WHERE id = ?').run(today, member.id);
+    return { sent: 1 };
+  } catch (error) {
+    console.error('[mailer] 合租提醒发送失败:', error.message);
+    return { sent: 0 };
+  }
+}
+
 async function checkForUser(u) {
   const to = u.email;
   if (!to) return { sent: 0, skipped: true, reason: '未填写接收邮箱' };
@@ -401,12 +520,15 @@ async function checkReminders(userId) {
   if (userId) {
     const u = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
     if (!u) return { sent: 0 };
-    return checkForUser(u);
+    const job = await checkForUser(u);
+    const roomie = await checkRoomieForUser(u);
+    return { sent: job.sent + roomie.sent };
   }
   const users = db.prepare('SELECT * FROM users').all();
   let sent = 0;
   for (const u of users) {
     sent += (await checkForUser(u)).sent;
+    sent += (await checkRoomieForUser(u)).sent;
   }
   return { sent };
 }

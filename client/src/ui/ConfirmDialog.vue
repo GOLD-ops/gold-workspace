@@ -39,7 +39,8 @@ function confirm() {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 200;
+  /* 需高于业务弹窗（rm-overlay 1000），保证二次确认永远在最上层 */
+  z-index: 2000;
   padding: 20px;
 }
 .cf-dialog {

@@ -77,30 +77,34 @@
     </div>
 
     <div class="rm-card rm-settings-block">
-      <h4>提醒设置</h4>
+      <h4>邮件提醒</h4>
       <p class="rm-settings-desc">
-        开关即时生效：满足条件时在顶部导航显示红点。仅站内提示，不会发送邮件或短信。
+        站内待办红点默认开启。打开下面的开关后，出现对应待办时每天最多向你发送一封汇总邮件。
+      </p>
+      <p class="rm-email-target">
+        <template v-if="emailPrefs.email">提醒邮件发送至：{{ emailPrefs.email }}</template>
+        <template v-else>当前账号未绑定邮箱，无法接收提醒邮件</template>
       </p>
 
-      <div class="rm-setting-list" :class="{ 'is-locked': guest }">
+      <div class="rm-setting-list" :class="{ 'is-locked': guest || !emailPrefs.email }">
         <label class="rm-setting-row clickable">
-          <span class="rm-setting-copy"><strong>公约待确认</strong><small>有新提案或提案重新发起时提醒</small></span>
-          <input v-model="reminderForm.rule_reminder" class="rm-native-check" type="checkbox" @change="saveReminders" />
+          <span class="rm-setting-copy"><strong>公约待确认</strong><small>有公约提案等你确认时发邮件</small></span>
+          <input v-model="emailPrefs.rules" class="rm-native-check" type="checkbox" @change="saveEmailPrefs" />
           <span class="rm-switch" aria-hidden="true"></span>
         </label>
         <label class="rm-setting-row clickable">
-          <span class="rm-setting-copy"><strong>值日到期</strong><small>任务到期前一天及逾期后提醒</small></span>
-          <input v-model="reminderForm.chore_reminder" class="rm-native-check" type="checkbox" @change="saveReminders" />
+          <span class="rm-setting-copy"><strong>值日到期</strong><small>值日任务到期前一天或已逾期时发邮件</small></span>
+          <input v-model="emailPrefs.chores" class="rm-native-check" type="checkbox" @change="saveEmailPrefs" />
           <span class="rm-switch" aria-hidden="true"></span>
         </label>
         <label class="rm-setting-row clickable">
-          <span class="rm-setting-copy"><strong>低库存采购</strong><small>物品触及提醒阈值且分配给我时提醒</small></span>
-          <input v-model="reminderForm.item_reminder" class="rm-native-check" type="checkbox" @change="saveReminders" />
+          <span class="rm-setting-copy"><strong>低库存采购</strong><small>公共物品低于阈值、且轮到你采购时发邮件</small></span>
+          <input v-model="emailPrefs.items" class="rm-native-check" type="checkbox" @change="saveEmailPrefs" />
           <span class="rm-switch" aria-hidden="true"></span>
         </label>
         <label class="rm-setting-row clickable">
-          <span class="rm-setting-copy"><strong>费用结算</strong><small>需要登记转账或确认收款时提醒</small></span>
-          <input v-model="reminderForm.settlement_reminder" class="rm-native-check" type="checkbox" @change="saveReminders" />
+          <span class="rm-setting-copy"><strong>费用结算</strong><small>有转账待登记或待确认收款时发邮件</small></span>
+          <input v-model="emailPrefs.settlement" class="rm-native-check" type="checkbox" @change="saveEmailPrefs" />
           <span class="rm-switch" aria-hidden="true"></span>
         </label>
       </div>
@@ -131,7 +135,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { api, copyText } from '../../api'
 import { confirmDialog } from '../../ui/confirm'
 import { memberInitial as initial, roommateColor } from './roomie'
@@ -157,32 +161,51 @@ const memberForm = reactive({ name: '' })
 const roomNameEditing = ref(false)
 const roomNameDraft = ref('')
 const roomNameInput = ref(null)
-const reminderForm = reactive({
-  rule_reminder: true,
-  chore_reminder: true,
-  item_reminder: true,
-  settlement_reminder: true,
-  notification_email: '',
-  default_assignment_mode: 'fair',
+const emailPrefs = reactive({
+  email: '',
+  rules: false,
+  chores: false,
+  items: false,
+  settlement: false,
 })
 const savingMember = ref(false)
 const savingRoomName = ref(false)
 
-watch(
-  () => props.settings,
-  (value) => {
-    const reminders = value.reminders || {}
-    reminderForm.rule_reminder = (value.rule_reminder ?? value.reminder_rule ?? reminders.rule_pending) !== false && (value.rule_reminder ?? value.reminder_rule ?? reminders.rule_pending) !== 0
-    reminderForm.chore_reminder = (value.chore_reminder ?? value.reminder_chore ?? reminders.chore_due) !== false && (value.chore_reminder ?? value.reminder_chore ?? reminders.chore_due) !== 0
-    reminderForm.item_reminder = (value.item_reminder ?? value.reminder_item ?? reminders.item_low) !== false && (value.item_reminder ?? value.reminder_item ?? reminders.item_low) !== 0
-    reminderForm.settlement_reminder = (value.settlement_reminder ?? value.reminder_settlement ?? reminders.settlement) !== false && (value.settlement_reminder ?? value.reminder_settlement ?? reminders.settlement) !== 0
-    reminderForm.notification_email = value.notification_email || value.reminder_email || reminders.email || ''
-    reminderForm.default_assignment_mode = ['fair', 'manual', 'claim'].includes(value.default_assignment_mode)
-      ? value.default_assignment_mode
-      : 'fair'
-  },
-  { immediate: true, deep: true }
-)
+async function loadEmailPrefs() {
+  if (props.guest) return
+  try {
+    const data = await api('/api/roomie/email-preferences')
+    emailPrefs.email = data.email || ''
+    emailPrefs.rules = !!data.rules
+    emailPrefs.chores = !!data.chores
+    emailPrefs.items = !!data.items
+    emailPrefs.settlement = !!data.settlement
+  } catch {
+    // 未加入房间或接口不可用时忽略
+  }
+}
+
+async function saveEmailPrefs() {
+  if (props.guest) {
+    emit('notify', '请先登录后再修改邮件提醒', 'error')
+    return
+  }
+  try {
+    await api('/api/roomie/email-preferences', {
+      method: 'PUT',
+      body: {
+        rules: emailPrefs.rules,
+        chores: emailPrefs.chores,
+        items: emailPrefs.items,
+        settlement: emailPrefs.settlement,
+      },
+    })
+    emit('notify', '邮件提醒设置已更新')
+  } catch (error) {
+    emit('notify', error.message || '保存失败', 'error')
+    loadEmailPrefs()
+  }
+}
 
 function isMovedOut(member) {
   return member?.status === 'moved_out' || Boolean(member?.moved_out_at)
@@ -323,22 +346,5 @@ async function transferOwner(member) {
   }
 }
 
-// 开关即改即存，连续切换时合并为一次请求
-let reminderTimer = null
-function saveReminders() {
-  if (props.guest) {
-    emit('notify', '请先登录后再修改提醒设置', 'error')
-    return
-  }
-  clearTimeout(reminderTimer)
-  reminderTimer = setTimeout(async () => {
-    try {
-      await api('/api/roomie/settings', { method: 'PUT', body: { ...reminderForm } })
-      emit('notify', '提醒设置已更新')
-      emit('changed')
-    } catch (error) {
-      emit('notify', error.message || '提醒设置保存失败', 'error')
-    }
-  }, 350)
-}
+onMounted(loadEmailPrefs)
 </script>

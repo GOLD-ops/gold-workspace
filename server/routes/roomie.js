@@ -71,6 +71,11 @@ function addColumn(table, column, definition) {
   ['roomie_roommates', 'moved_out_at', "TEXT DEFAULT ''"],
   ['roomie_roommates', 'updated_at', "TEXT DEFAULT ''"],
   ['roomie_roommates', 'user_id', 'INTEGER'],
+  ['roomie_roommates', 'email_rule', 'INTEGER DEFAULT 0'],
+  ['roomie_roommates', 'email_chore', 'INTEGER DEFAULT 0'],
+  ['roomie_roommates', 'email_item', 'INTEGER DEFAULT 0'],
+  ['roomie_roommates', 'email_settlement', 'INTEGER DEFAULT 0'],
+  ['roomie_roommates', 'email_last_sent', "TEXT DEFAULT ''"],
   ['roomie_expenses', 'split_mode', "TEXT DEFAULT 'equal'"],
   ['roomie_expenses', 'split_config', "TEXT DEFAULT '{}'"],
   ['roomie_expenses', 'status', "TEXT DEFAULT 'unsettled'"],
@@ -1080,6 +1085,41 @@ router.delete('/rooms/members/:memberId', route((req, res) => {
   }
   softRemoveMember(req.spaceId, target.id);
   res.json({ ok: true, room: roomJson(req.roomId) });
+}));
+
+// ===================== 邮件提醒（按成员各自设置） =====================
+function emailPrefsJson(row, user) {
+  return {
+    email: (user && user.email) || '',
+    rules: !!row.email_rule,
+    chores: !!row.email_chore,
+    items: !!row.email_item,
+    settlement: !!row.email_settlement,
+  };
+}
+
+router.get('/email-preferences', route((req, res) => {
+  const row = member(req.spaceId, req.memberId);
+  if (!row) return res.status(404).json({ error: '成员不存在' });
+  res.json(emailPrefsJson(row, req.user));
+}));
+
+router.put('/email-preferences', route((req, res) => {
+  const row = member(req.spaceId, req.memberId);
+  if (!row) return res.status(404).json({ error: '成员不存在' });
+  const body = req.body || {};
+  const bool = (value, fallback) => (value === undefined ? fallback : value ? 1 : 0);
+  db.prepare(
+    `UPDATE roomie_roommates SET email_rule = ?, email_chore = ?, email_item = ?, email_settlement = ?
+     WHERE id = ?`
+  ).run(
+    bool(body.rules, row.email_rule),
+    bool(body.chores, row.email_chore),
+    bool(body.items, row.email_item),
+    bool(body.settlement, row.email_settlement),
+    row.id
+  );
+  res.json(emailPrefsJson(member(req.spaceId, row.id), req.user));
 }));
 
 // ===================== 设置 / 当前身份 =====================
@@ -2406,7 +2446,8 @@ router.get('/alerts', route((req, res) => {
   expireRuleProposals(req.spaceId);
 
   // voter_snapshot 是 JSON；在 JS 中做精确包含判断，避免 id=1 匹配到 11。
-  if (preferences.reminder_rule) {
+  // 站内红点默认开启，不再受提醒开关控制（开关改为控制邮件推送）
+  {
     const pendingRules = db
       .prepare("SELECT * FROM roomie_rules WHERE space_id = ? AND status = 'pending'")
       .all(req.spaceId);
@@ -2436,7 +2477,7 @@ router.get('/alerts', route((req, res) => {
     }
   }
 
-  if (preferences.reminder_settlement) {
+  {
     const monthSettlement = settlementFor(req.spaceId, currentMonth());
     for (const transfer of monthSettlement.transfers) {
       if (transfer.from_member_id === actor.id && transfer.status === 'pending') {
@@ -2458,7 +2499,7 @@ router.get('/alerts', route((req, res) => {
     }
   }
 
-  if (preferences.reminder_chore) {
+  {
     const chores = db
       .prepare(
         `SELECT * FROM roomie_chores WHERE space_id = ? AND done = 0
@@ -2477,7 +2518,7 @@ router.get('/alerts', route((req, res) => {
     }
   }
 
-  if (preferences.reminder_item) {
+  {
     const lowItems = db
       .prepare(
         "SELECT * FROM roomie_items WHERE space_id = ? AND archived_at = '' AND quantity <= low_threshold"
