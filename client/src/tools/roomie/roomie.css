@@ -545,9 +545,6 @@
   margin-bottom: 22px;
 }
 .rm-tabs button { min-height: 48px; padding: 12px 15px 14px; }
-.rm-tabs button.settings { margin-left: auto; color: var(--tk-faint); }
-.rm-tabs button.settings.active { color: var(--tk-text); }
-.rm-tabs button.settings.active::after { background: var(--tk-text); }
 .rm-tabs button.has-alert { padding-right: 24px; }
 .rm-notice-dot {
   position: absolute;
