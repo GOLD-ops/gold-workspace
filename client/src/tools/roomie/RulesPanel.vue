@@ -12,23 +12,37 @@
       <template v-if="pending.length">
         <article v-for="proposal in pending" :key="proposal.id" class="rm-card rm-proposal">
           <div class="rm-proposal-main">
-            <div class="rm-proposal-head">
-              <h3>{{ proposalTitle(proposal) }}</h3>
-              <button
-                v-if="canEditProposal(proposal)"
-                class="rm-text-btn"
-                @click="openProposal(proposal.proposal_type || 'create', proposal.parent_rule_id, proposal)"
-              >
-                编辑本次提案
-              </button>
+            <div class="rm-proposal-top">
+              <div class="rm-proposal-meta">
+                <span class="rm-badge blue">{{ proposalStatus(proposal) }}</span>
+                <span>{{ memberName(proposal.proposer_id) || '成员' }}发起</span>
+                <span>{{ shortDate(proposal.created_at) }}</span>
+                <span v-if="proposal.deadline">截止至 {{ shortDate(proposal.deadline) }}</span>
+              </div>
+              <div class="rm-proposal-actions">
+                <button
+                  v-if="canEditProposal(proposal)"
+                  class="rm-text-btn"
+                  @click="openProposal(proposal.proposal_type || 'create', proposal.parent_rule_id, proposal)"
+                >
+                  编辑本次提案
+                </button>
+                <template v-if="canVote(proposal)">
+                  <button class="rm-btn primary sm" :disabled="busyId === proposal.id" @click="agree(proposal)">
+                    确认同意
+                  </button>
+                  <button class="rm-btn sm" :disabled="busyId === proposal.id" @click="openFeedback(proposal)">
+                    提出修改
+                  </button>
+                </template>
+                <div v-else-if="isFullyAgreed(proposal)" class="rm-vote-success">
+                  <span class="rm-vote-success-icon">✓</span>
+                  <span><b>全员已确认</b><small>公约已自动生效</small></span>
+                </div>
+              </div>
             </div>
+            <h3>{{ proposalTitle(proposal) }}</h3>
             <p class="rm-proposal-content">{{ proposal.content || '暂未填写详细约定' }}</p>
-            <div class="rm-proposal-meta">
-              <span class="rm-badge blue">{{ proposalStatus(proposal) }}</span>
-              <span>{{ memberName(proposal.proposer_id) || '成员' }}发起</span>
-              <span>{{ shortDate(proposal.created_at) }}</span>
-              <span v-if="proposal.deadline">截止至 {{ shortDate(proposal.deadline) }}</span>
-            </div>
           </div>
 
           <div class="rm-vote-panel">
@@ -52,14 +66,6 @@
                     <small>{{ voteLabel(vote.decision) }}</small>
                   </span>
                 </div>
-              </div>
-              <div v-if="canVote(proposal)" class="rm-proposal-actions">
-                <button class="rm-btn primary sm" :disabled="busyId === proposal.id" @click="agree(proposal)">确认同意</button>
-                <button class="rm-btn sm" :disabled="busyId === proposal.id" @click="openFeedback(proposal)">提出修改</button>
-              </div>
-              <div v-else-if="isFullyAgreed(proposal)" class="rm-vote-success">
-                <span class="rm-vote-success-icon">✓</span>
-                <span><b>全员已确认</b><small>公约已自动生效</small></span>
               </div>
             </div>
             <div v-if="revisionComments(proposal).length" class="rm-revision-list">
