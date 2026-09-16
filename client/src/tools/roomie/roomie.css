@@ -482,6 +482,21 @@
 .rm-picker .sp-trigger { height: 38px; }
 .rm-add-form .rm-picker { flex: 1; min-width: 140px; }
 
+/* 未登录引导（保留页面框架，仅提示登录） */
+.rm-auth-gate { display: flex; justify-content: center; padding: 40px 0 24px; }
+.rm-auth-gate-card {
+  width: 100%;
+  max-width: 460px;
+  background: #fff;
+  border: 1px solid var(--tk-border);
+  border-radius: var(--tk-radius);
+  box-shadow: var(--tk-shadow-sm);
+  padding: 30px 26px;
+  text-align: center;
+}
+.rm-auth-gate-card h3 { font-size: 17px; margin: 0 0 8px; }
+.rm-auth-gate-card p { font-size: 13px; color: var(--tk-muted); line-height: 1.7; margin: 0 0 20px; }
+
 /* 房间引导页 */
 .rm-onboard {
   max-width: 480px;
