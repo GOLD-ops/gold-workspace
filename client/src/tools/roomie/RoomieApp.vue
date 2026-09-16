@@ -49,17 +49,6 @@
         </button>
     </nav>
 
-    <!-- 未登录提示条：下方按页面正常展示结构骨架 -->
-    <div v-if="needLogin" class="rm-guest-bar">
-      <span>当前未登录，登录后可创建或加入房间并使用全部功能</span>
-      <RouterLink
-        :to="{ path: '/login', query: { redirect: '/tools/roomie' } }"
-        class="rm-btn primary sm"
-      >
-        去登录
-      </RouterLink>
-    </div>
-
     <!-- 未加入房间：创建 / 加入 -->
     <div v-if="noRoom" class="rm-onboard">
       <div class="rm-onboard-card">

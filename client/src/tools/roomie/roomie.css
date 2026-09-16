@@ -482,22 +482,6 @@
 .rm-picker .sp-trigger { height: 38px; }
 .rm-add-form .rm-picker { flex: 1; min-width: 140px; }
 
-/* 未登录提示条（下方按页面正常展示结构骨架） */
-.rm-guest-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  padding: 12px 18px;
-  margin-bottom: 18px;
-  border: 1px solid #dbe6f7;
-  background: var(--tk-blue-soft);
-  border-radius: var(--tk-radius);
-  font-size: 13px;
-  color: var(--tk-muted);
-}
-
 /* 房间引导页 */
 .rm-onboard {
   max-width: 540px;
@@ -1148,22 +1132,33 @@
 .rm-setting-copy small { display: block; }
 .rm-setting-copy small { margin-top: 2px; color: var(--tk-faint); font-weight: 400; }
 .rm-setting-value { color: var(--tk-muted); font-weight: 600; white-space: nowrap; }
-.rm-member-list { margin-top: 14px; border-top: 1px dashed var(--rm-line); }
-.rm-member-row {
+.rm-member-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+.rm-member-card {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
-  padding: 13px 0;
-  border-bottom: 1px dashed var(--rm-line);
+  padding: 10px 12px;
+  border: 1px solid var(--rm-line);
+  border-radius: 10px;
 }
-.rm-member-row:last-child { border-bottom: 0; padding-bottom: 0; }
-.rm-member-row.inactive { opacity: 0.6; }
-.rm-member-info { flex: 1; min-width: 118px; }
-.rm-member-name { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 13.5px; font-weight: 700; white-space: nowrap; }
-.rm-member-name > :first-child { flex: 0 1 auto; }
+.rm-member-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+}
 .rm-member-name .rm-badge { flex: none; }
-.rm-member-info small { display: block; margin-top: 2px; color: var(--tk-faint); white-space: nowrap; }
 .rm-member-actions { display: flex; gap: 5px; flex: none; }
 .rm-email-input { width: min(280px, 42vw); }
 .rm-native-check { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
@@ -1313,8 +1308,8 @@
   .rm-active-rule-head h3 { min-width: calc(100% - 80px); }
   .rm-history-row { grid-template-columns: 90px 1fr; }
   .rm-history-row > :nth-child(n + 3) { display: none; }
-  .rm-member-row { flex-wrap: wrap; }
-  .rm-member-actions { width: 100%; padding-left: 40px; }
+  .rm-member-card { flex-wrap: wrap; }
+  .rm-member-actions { width: 100%; padding-left: 38px; }
   .rm-setting-row { align-items: flex-start; flex-wrap: wrap; padding: 12px 14px; }
   .rm-setting-value { margin-left: auto; }
   .rm-email-input { width: 100%; }

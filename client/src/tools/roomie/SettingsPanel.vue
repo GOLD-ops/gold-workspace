@@ -18,43 +18,33 @@
         <button v-else class="rm-mini danger rm-room-action" @click="leaveRoom">退出房间</button>
       </div>
 
-      <div v-if="roommates.length" class="rm-member-list">
-        <div
-          v-for="member in roommates"
-          :key="member.id"
-          class="rm-member-row"
-          :class="{ inactive: isMovedOut(member) }"
-        >
-          <span class="rm-avatar sm" :style="{ background: roommateColor(member) }">{{ initial(member.name) }}</span>
-          <div class="rm-member-info">
-            <div class="rm-member-name">
-              {{ member.name }}
-              <span v-if="Number(member.user_id) === Number(room?.owner_user_id)" class="rm-badge blue">房主</span>
-              <span v-if="Number(member.id) === Number(currentMemberId)" class="rm-badge">我</span>
-              <span v-if="isMovedOut(member)" class="rm-badge">已搬走</span>
-            </div>
-            <small v-if="isMovedOut(member)">
-              {{ member.moved_out_at ? `${member.moved_out_at.slice(0, 10)} 搬走` : '不再参与新任务' }}
-            </small>
-            <small v-else>在住 · 可参与分摊与排班</small>
+      <div v-if="activeRoommates.length" class="rm-member-grid">
+        <div v-for="member in activeRoommates" :key="member.id" class="rm-member-card">
+          <span class="rm-avatar sm" :style="{ background: roommateColor(member) }">
+            {{ initial(member.name) }}
+          </span>
+          <div class="rm-member-name">
+            {{ member.name }}
+            <span v-if="Number(member.user_id) === Number(room?.owner_user_id)" class="rm-badge blue">房主</span>
+            <span v-if="Number(member.id) === Number(currentMemberId)" class="rm-badge">我</span>
           </div>
           <div class="rm-member-actions">
             <button
-              v-if="Number(member.id) === Number(currentMemberId) && !isMovedOut(member)"
+              v-if="Number(member.id) === Number(currentMemberId)"
               class="rm-mini"
               @click="openMember(member)"
             >
               改昵称
             </button>
             <button
-              v-if="isOwner && !isMovedOut(member) && Number(member.id) !== Number(currentMemberId)"
+              v-if="isOwner && Number(member.id) !== Number(currentMemberId)"
               class="rm-mini"
               @click="transferOwner(member)"
             >
               设为房主
             </button>
             <button
-              v-if="isOwner && !isMovedOut(member) && Number(member.id) !== Number(currentMemberId)"
+              v-if="isOwner && Number(member.id) !== Number(currentMemberId)"
               class="rm-mini danger"
               @click="moveOut(member)"
             >
