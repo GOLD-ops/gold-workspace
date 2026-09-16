@@ -273,16 +273,12 @@
               </label>
               <label class="rm-field">
                 <span>分类</span>
-                <input
-                  v-model.trim="form.category"
-                  class="rm-input"
-                  list="rm-expense-category-list"
-                  maxlength="20"
-                  placeholder="选择或输入新分类"
+                <EditableSelect
+                  v-model="form.category"
+                  :options="categoryOptions"
+                  placeholder="选择或输入分类"
+                  tip="可直接输入新分类"
                 />
-                <datalist id="rm-expense-category-list">
-                  <option v-for="category in availableCategories" :key="category" :value="category"></option>
-                </datalist>
               </label>
             </div>
 
@@ -420,6 +416,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { api } from '../../api'
 import { confirmDialog } from '../../ui/confirm'
+import EditableSelect from '../../ui/EditableSelect.vue'
 import SelectPicker from '../recruitment/SelectPicker.vue'
 import { CATEGORIES, centsToYuan, roommateColor, todayStr, yuanToCents } from './roomie'
 
@@ -465,6 +462,10 @@ const availableCategories = computed(() => {
   const values = [...CATEGORIES, ...categories.value, ...expenses.value.map((expense) => expense.category)]
   return [...new Set(values.map((value) => String(value || '').trim()).filter(Boolean))]
 })
+
+const categoryOptions = computed(() =>
+  availableCategories.value.map((value) => ({ value, label: value }))
+)
 
 const categoryFilterOptions = computed(() => [
   { value: 'all', label: '全部分类' },

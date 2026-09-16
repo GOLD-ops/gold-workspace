@@ -87,7 +87,16 @@ const consumeForm = reactive({ amount: 1 })
 const restockModal = reactive({ open: false, item: null })
 const restockForm = reactive({ quantity: 1, buyer_id: null, create_expense: true, cost: '', scheme_id: null })
 
-const DEFAULT_CATEGORIES = ['清洁用品', '纸品', '厨房用品', '其他']
+const DEFAULT_CATEGORIES = [
+  '清洁用品',
+  '纸品',
+  '厨房用品',
+  '卫浴用品',
+  '洗涤用品',
+  '食品饮料',
+  '家电工具',
+  '其他',
+]
 const UNIT_VALUES = ['个', '瓶', '卷', '袋', '盒', '包', 'L', 'kg']
 const categories = computed(() => [...new Set([...DEFAULT_CATEGORIES, ...serverCategories.value, ...items.value.map((item) => item.category).filter(Boolean)])])
 const categoryOptions = computed(() => categories.value.map((value) => ({ value, label: value })))
