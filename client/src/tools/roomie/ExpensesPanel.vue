@@ -266,6 +266,7 @@
 
         <div class="rm-modal-body">
           <div class="rm-form">
+            <div v-if="formError" class="rm-form-error">{{ formError }}</div>
             <div class="rm-field-row">
               <label class="rm-field">
                 <span>费用名称</span>
@@ -333,33 +334,7 @@
                 </button>
               </div>
 
-              <div v-if="form.split_method === 'preset'" class="rm-split-panel">
-                <div class="rm-field">
-                  <span>预设方案</span>
-                  <div class="rm-scheme-row">
-                    <SelectPicker
-                      v-model="form.scheme_id"
-                      :options="schemeOptions"
-                      placeholder="请选择分摊方案"
-                      @change="applyPreset"
-                    />
-                    <button
-                      v-if="selectedScheme"
-                      type="button"
-                      class="rm-btn sm"
-                      @click="openSchemeEditor(selectedScheme)"
-                    >
-                      编辑
-                    </button>
-                    <button type="button" class="rm-btn sm" @click="openSchemeEditor(null)">
-                      + 新建方案
-                    </button>
-                  </div>
-                </div>
-                <small class="rm-help">选择方案后会同步参与成员和预设比例。</small>
-              </div>
-
-              <div v-else-if="form.split_method === 'equal'" class="rm-split-panel">
+              <div v-if="form.split_method === 'equal'" class="rm-split-panel">
                 <div v-for="share in splitPreview" :key="share.roommate_id" class="rm-split-row readonly">
                   <span>{{ roommateName(share.roommate_id) }}</span>
                   <span>平均承担</span>
@@ -380,7 +355,6 @@
                   />
                   <strong>¥{{ centsToYuan(previewAmountFor(member.id)) }}</strong>
                 </label>
-                <small class="rm-help">比例为 {{ ratioText || '—' }}，系统按比例自动计算到分。</small>
               </div>
 
               <div v-else class="rm-split-panel">
@@ -396,19 +370,6 @@
                   />
                   <strong>元</strong>
                 </label>
-                <small class="rm-help" :class="{ error: fixedDifference !== 0 }">
-                  已分配 ¥{{ centsToYuan(fixedAssignedTotal) }}，
-                  <template v-if="fixedDifference === 0">与费用金额一致。</template>
-                  <template v-else-if="fixedDifference > 0">还需分配 ¥{{ centsToYuan(fixedDifference) }}。</template>
-                  <template v-else>已超出 ¥{{ centsToYuan(-fixedDifference) }}。</template>
-                </small>
-              </div>
-
-              <div v-if="form.split_method === 'preset' && selectedScheme" class="rm-split-preview">
-                <div v-for="share in splitPreview" :key="share.roommate_id">
-                  <span>{{ roommateName(share.roommate_id) }}</span>
-                  <strong>¥{{ centsToYuan(share.share_cents) }}</strong>
-                </div>
               </div>
             </fieldset>
           </div>
@@ -423,62 +384,6 @@
       </div>
     </div>
 
-    <div v-if="schemeModal.open" class="rm-overlay" @mousedown.self="schemeModal.open = false">
-      <div class="rm-modal rm-modal-wide">
-        <div class="rm-modal-header">
-          <h3>{{ schemeModal.editing ? '编辑分摊方案' : '新建分摊方案' }}</h3>
-          <button class="rm-modal-close" aria-label="关闭" @click="schemeModal.open = false">✕</button>
-        </div>
-        <div class="rm-modal-body">
-          <div class="rm-form">
-            <div class="rm-field-row">
-              <label class="rm-field">
-                <span>方案名称</span>
-                <input v-model.trim="schemeForm.name" class="rm-input" placeholder="例如：房租方案" maxlength="20" />
-              </label>
-              <label class="rm-field">
-                <span>分摊方式</span>
-                <select v-model="schemeForm.split_method" class="rm-input">
-                  <option value="equal">平均分摊</option>
-                  <option value="ratio">按比例</option>
-                </select>
-              </label>
-            </div>
-            <div class="rm-field">
-              <span>成员比例</span>
-              <div class="rm-ratio-editor">
-                <label v-for="member in roommates" :key="member.id" class="rm-ratio-row">
-                  <span>{{ member.name }}</span>
-                  <input
-                    v-model.number="schemeForm.weights[member.id]"
-                    class="rm-input"
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    :disabled="schemeForm.split_method === 'equal'"
-                  />
-                </label>
-              </div>
-              <small class="rm-help">平均分摊会忽略输入值；按比例时至少一人的比例需大于 0。</small>
-            </div>
-          </div>
-        </div>
-        <div class="rm-modal-footer">
-          <button
-            v-if="schemeModal.editing"
-            class="rm-btn danger"
-            style="margin-right: auto"
-            @click="removeScheme"
-          >
-            停用方案
-          </button>
-          <button class="rm-btn" @click="schemeModal.open = false">取消</button>
-          <button class="rm-btn primary" :disabled="savingScheme" @click="saveScheme">
-            {{ savingScheme ? '保存中…' : '保存方案' }}
-          </button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -500,11 +405,10 @@ import {
 const props = defineProps({
   roommates: { type: Array, default: () => [] },
   currentMemberId: { type: [Number, String], default: null },
-  splitSchemes: { type: Array, default: () => [] },
   guest: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['notify', 'alerts-changed', 'schemes-changed'])
+const emit = defineEmits(['notify', 'alerts-changed'])
 
 const view = ref('ledger')
 const month = ref(currentMonth())
@@ -520,13 +424,13 @@ const loadSequence = ref(0)
 
 const filters = reactive({ keyword: '', category: 'all', member: 'all', status: 'all' })
 const modal = reactive({ open: false, editing: null })
+const formError = ref('')
 const form = reactive(emptyForm())
 
 const splitModeOptions = [
   { value: 'equal', label: '平均分摊' },
   { value: 'ratio', label: '按比例' },
   { value: 'fixed', label: '固定金额' },
-  { value: 'preset', label: '使用预设' },
 ]
 
 const statusFilterOptions = [
@@ -560,23 +464,6 @@ const roommateOptions = computed(() =>
   props.roommates.map((roommate) => ({ value: Number(roommate.id), label: roommate.name }))
 )
 
-const normalizedSchemes = computed(() => props.splitSchemes.map(normalizeScheme))
-const schemeOptions = computed(() =>
-  normalizedSchemes.value.map((scheme) => ({
-    value: scheme.id,
-    label: `${scheme.name} · ${scheme.mode === 'equal' ? '平均分摊' : schemeRatioLabel(scheme)}`,
-  }))
-)
-
-const selectedScheme = computed(() =>
-  normalizedSchemes.value.find((scheme) => String(scheme.id) === String(form.scheme_id)) || null
-)
-
-// ===== 分摊方案管理（就地新建 / 编辑 / 停用） =====
-const schemeModal = reactive({ open: false, editing: null })
-const schemeForm = reactive({ name: '', split_method: 'ratio', weights: {} })
-const savingScheme = ref(false)
-
 const selectedMembers = computed(() =>
   props.roommates.filter((roommate) => form.participants.includes(Number(roommate.id)))
 )
@@ -594,8 +481,6 @@ const splitPreview = computed(() => {
   let weights = ids.map(() => 1)
   if (form.split_method === 'ratio') {
     weights = ids.map((id) => Math.max(0, Number(form.ratioWeights[id]) || 0))
-  } else if (form.split_method === 'preset' && selectedScheme.value?.mode !== 'equal') {
-    weights = ids.map((id) => Math.max(0, Number(selectedScheme.value.weights[id]) || 0))
   }
 
   return distributeCents(amountCents.value, ids, weights)
@@ -608,9 +493,6 @@ const fixedAssignedTotal = computed(() =>
   )
 )
 const fixedDifference = computed(() => amountCents.value - fixedAssignedTotal.value)
-const ratioText = computed(() =>
-  selectedMembers.value.map((member) => Number(form.ratioWeights[member.id]) || 0).join(':')
-)
 
 const filteredExpenses = computed(() => {
   const keyword = filters.keyword.toLocaleLowerCase()
@@ -677,7 +559,6 @@ function emptyForm() {
     note: '',
     participants: [],
     split_method: 'equal',
-    scheme_id: '',
     ratioWeights: {},
     fixedAmounts: {},
   }
@@ -764,20 +645,11 @@ function splitLabel(expense) {
   const mode = splitMethod(expense)
   if (mode === 'equal') return '平均分摊'
   if (mode === 'fixed') return '固定金额'
-  if (mode === 'preset') {
-    const scheme = normalizedSchemes.value.find((item) => String(item.id) === String(expense.scheme_id))
-    return scheme ? `预设 · ${scheme.name}` : '使用预设'
-  }
   const weights = expenseShares(expense).map((share) => share.weight).filter((weight) => weight > 0)
   return weights.length ? `按比例 ${weights.join(':')}` : '按比例'
 }
 
 function splitDetail(expense) {
-  const mode = splitMethod(expense)
-  if (mode === 'preset') {
-    const scheme = normalizedSchemes.value.find((item) => String(item.id) === String(expense.scheme_id))
-    return scheme ? `使用「${scheme.name}」` : '使用预设方案'
-  }
   return splitLabel(expense)
 }
 
@@ -823,40 +695,6 @@ function distributeCents(total, ids, weights) {
     share_cents: allocated[index],
     weight: safeWeights[index],
   }))
-}
-
-function normalizeScheme(scheme) {
-  let storedWeights = scheme?.weights || {}
-  if (typeof storedWeights === 'string') {
-    try {
-      storedWeights = JSON.parse(storedWeights)
-    } catch {
-      storedWeights = {}
-    }
-  }
-  const members = Array.isArray(scheme?.members) ? scheme.members : []
-  const memberWeights = Object.fromEntries(
-    members.map((member) => [
-      Number(member.roommate_id ?? member.member_id ?? member.id),
-      Number(member.weight ?? member.value ?? 0),
-    ])
-  )
-  return {
-    id: scheme?.id,
-    name: scheme?.name || '未命名方案',
-    mode: scheme?.split_method || scheme?.mode || 'ratio',
-    weights: { ...storedWeights, ...memberWeights },
-    memberIds: members.length
-      ? members.map((member) => Number(member.roommate_id ?? member.member_id ?? member.id)).filter(Boolean)
-      : Object.keys(storedWeights).map(Number).filter(Boolean),
-  }
-}
-
-function schemeRatioLabel(scheme) {
-  const ids = scheme.memberIds.length
-    ? scheme.memberIds
-    : props.roommates.map((roommate) => Number(roommate.id))
-  return ids.map((id) => Number(scheme.weights[id]) || 0).join(':') || '按比例'
 }
 
 function shiftMonth(offset) {
@@ -924,81 +762,11 @@ function resetForm(values = {}) {
   ensureShareInputs()
 }
 
-// ===== 分摊方案管理（就地新建 / 编辑 / 停用） =====
-function openSchemeEditor(scheme = null) {
-  if (props.guest) return emit('notify', '请先登录后再配置分摊方案', 'error')
-  if (!props.roommates.length) return emit('notify', '房间暂无成员', 'error')
-  schemeModal.editing = scheme || null
-  const source = scheme && typeof scheme.weights === 'object' && scheme.weights ? scheme.weights : {}
-  schemeForm.name = scheme?.name || ''
-  schemeForm.split_method = scheme?.split_method || scheme?.mode || 'ratio'
-  schemeForm.weights = Object.fromEntries(
-    props.roommates.map((member) => [
-      Number(member.id),
-      source[member.id] === undefined ? 1 : Number(source[member.id]) || 0,
-    ])
-  )
-  schemeModal.open = true
-}
-
-async function saveScheme() {
-  if (!schemeForm.name.trim()) return emit('notify', '请填写方案名称', 'error')
-  if (
-    schemeForm.split_method === 'ratio' &&
-    !Object.values(schemeForm.weights).some((value) => Number(value) > 0)
-  ) {
-    return emit('notify', '至少设置一个大于 0 的比例', 'error')
-  }
-  savingScheme.value = true
-  try {
-    const body = {
-      name: schemeForm.name.trim(),
-      split_method: schemeForm.split_method,
-      weights: schemeForm.weights,
-      members: props.roommates.map((member) => ({
-        member_id: Number(member.id),
-        value: schemeForm.split_method === 'equal' ? 1 : Number(schemeForm.weights[member.id]) || 0,
-      })),
-    }
-    if (schemeModal.editing) {
-      await api(`/api/roomie/split-schemes/${schemeModal.editing.id}`, { method: 'PUT', body })
-      emit('notify', '分摊方案已更新')
-    } else {
-      await api('/api/roomie/split-schemes', { method: 'POST', body })
-      emit('notify', '分摊方案已创建')
-    }
-    schemeModal.open = false
-    emit('schemes-changed')
-  } catch (error) {
-    emit('notify', error.message || '方案保存失败', 'error')
-  } finally {
-    savingScheme.value = false
-  }
-}
-
-async function removeScheme() {
-  const scheme = schemeModal.editing
-  if (!scheme) return
-  const ok = await confirmDialog({
-    title: '停用分摊方案',
-    message: `停用「${scheme.name}」后不能再用于新费用，历史账单不会改变。`,
-    confirmText: '停用',
-  })
-  if (!ok) return
-  try {
-    await api(`/api/roomie/split-schemes/${scheme.id}`, { method: 'DELETE' })
-    emit('notify', '分摊方案已停用')
-    schemeModal.open = false
-    emit('schemes-changed')
-  } catch (error) {
-    emit('notify', error.message || '停用失败', 'error')
-  }
-}
-
 function openAdd() {
   if (props.guest) return emit('notify', '请先登录后再记账', 'error')
   if (!props.roommates.length) return emit('notify', '房间暂无成员，请分享房间编号邀请室友加入', 'error')
   modal.editing = null
+  formError.value = ''
   const participantIds = props.roommates.map((roommate) => Number(roommate.id))
   resetForm({
     payer_id: Number(props.currentMemberId) || participantIds[0] || null,
@@ -1010,6 +778,7 @@ function openAdd() {
 
 function openEdit(expense) {
   modal.editing = expense
+  formError.value = ''
   const participantIds = expenseParticipantIds(expense)
   const shares = expenseShares(expense)
   const method = splitMethod(expense)
@@ -1022,7 +791,6 @@ function openEdit(expense) {
     note: expense.note || '',
     participants: participantIds,
     split_method: method,
-    scheme_id: expense.scheme_id || '',
     ratioWeights: Object.fromEntries(shares.map((share) => [share.roommate_id, share.weight || 1])),
     fixedAmounts: Object.fromEntries(
       shares.map((share) => [share.roommate_id, centsToYuan(share.share_cents)])
@@ -1047,24 +815,6 @@ function ensureShareInputs() {
 function setSplitMethod(mode) {
   form.split_method = mode
   ensureShareInputs()
-  if (mode === 'preset' && !form.scheme_id && normalizedSchemes.value.length) {
-    form.scheme_id = normalizedSchemes.value[0].id
-    applyPreset(form.scheme_id)
-  }
-}
-
-function applyPreset(schemeId) {
-  form.scheme_id = schemeId
-  const scheme = normalizedSchemes.value.find((item) => String(item.id) === String(schemeId))
-  if (!scheme) return
-  const availableIds = props.roommates.map((roommate) => Number(roommate.id))
-  const schemeIds = scheme.memberIds.filter((id) =>
-    availableIds.includes(Number(id)) &&
-    (scheme.mode !== 'ratio' || Number(scheme.weights[id]) > 0)
-  )
-  form.participants = schemeIds.length ? schemeIds : availableIds
-  for (const id of form.participants) form.ratioWeights[id] = Number(scheme.weights[id]) || 1
-  ensureShareInputs()
 }
 
 function previewAmountFor(memberId) {
@@ -1082,12 +832,6 @@ function requestShares() {
     return selectedMembers.value.map((member) => ({
       roommate_id: Number(member.id),
       weight: Math.max(0, Number(form.ratioWeights[member.id]) || 0),
-    }))
-  }
-  if (form.split_method === 'preset' && selectedScheme.value?.mode !== 'equal') {
-    return selectedMembers.value.map((member) => ({
-      roommate_id: Number(member.id),
-      weight: Math.max(0, Number(selectedScheme.value.weights[member.id]) || 0),
     }))
   }
   return selectedMembers.value.map((member) => ({ roommate_id: Number(member.id) }))
@@ -1111,22 +855,17 @@ function validateForm() {
     }
     if (fixedDifference.value !== 0) return '每人固定金额之和必须等于费用总额'
   }
-  if (form.split_method === 'preset') {
-    if (!selectedScheme.value) return '请选择一个分摊方案'
-    if (
-      selectedScheme.value.mode !== 'equal' &&
-      !selectedMembers.value.some((member) => Number(selectedScheme.value.weights[member.id]) > 0)
-    ) {
-      return '所选方案没有可用的成员比例'
-    }
-  }
   return ''
 }
 
 async function save() {
   if (saving.value) return
   const error = validateForm()
-  if (error) return emit('notify', error, 'error')
+  if (error) {
+    formError.value = error
+    return
+  }
+  formError.value = ''
 
   const body = {
     title: form.title,
@@ -1136,7 +875,6 @@ async function save() {
     spent_at: form.spent_at,
     note: form.note,
     split_method: form.split_method,
-    scheme_id: form.split_method === 'preset' ? form.scheme_id : null,
     shares: requestShares(),
   }
   saving.value = true

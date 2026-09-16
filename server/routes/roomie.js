@@ -2185,9 +2185,11 @@ function applyProposal(ruleId) {
   } else {
     const target = activeRule(proposal.space_id, proposal.parent_rule_id);
     if (!target) throw Object.assign(new Error('原公约已不在生效状态'), { status: 409 });
+    // 修订后原版本标记为"已被替代"，废止后标记为"已废止"，避免历史里出现重复的同一公约
+    const targetStatus = proposal.proposal_type === 'revise' ? 'superseded' : 'repealed';
     db.prepare(
-      "UPDATE roomie_rules SET status = 'archived', archived_at = ?, updated_at = ? WHERE id = ?"
-    ).run(ts, ts, target.id);
+      'UPDATE roomie_rules SET status = ?, archived_at = ?, updated_at = ? WHERE id = ?'
+    ).run(targetStatus, ts, ts, target.id);
     if (proposal.proposal_type === 'revise') {
       db.prepare(
         `UPDATE roomie_rules SET status = 'active', version = ?, effective_at = ?,
@@ -2275,6 +2277,8 @@ router.get('/rules', route((req, res) => {
   const active = rows.filter((row) => row.status === 'active').map(ruleJson);
   const history = rows
     .filter((row) => !['pending', 'active'].includes(row.status))
+    // 废止提案本身只是操作记录，废止结果已体现在原公约状态上，避免历史里重复出现
+    .filter((row) => String(row.proposal_type || 'create') !== 'repeal')
     .map(ruleJson);
   res.json({
     pending,

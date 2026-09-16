@@ -1210,6 +1210,15 @@
 .rm-fieldset > legend { margin-bottom: 7px; color: var(--tk-muted); font-size: 12.5px; font-weight: 600; }
 .rm-split-tabs { align-self: flex-start; flex-wrap: wrap; }
 .rm-split-panel { margin-top: 4px; padding: 10px 13px; border: 1px solid var(--rm-line); border-radius: 11px; background: #fafbfd; }
+.rm-form-error {
+  padding: 10px 14px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fef2f2;
+  color: #dc2626;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
 .rm-scheme-row { display: flex; align-items: center; gap: 8px; }
 .rm-scheme-row > .sp { flex: 1; min-width: 0; }
 .rm-scheme-row > .rm-btn { flex: none; }

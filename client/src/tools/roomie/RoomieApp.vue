@@ -126,11 +126,9 @@
           v-else-if="view === 'expenses'"
           :roommates="activeRoommates"
           :current-member-id="currentMemberId"
-          :split-schemes="splitSchemes"
           :guest="needLogin"
           @notify="notify"
           @alerts-changed="loadAlerts"
-          @schemes-changed="loadContext"
         />
         <ChoresPanel
           v-else-if="view === 'chores'"

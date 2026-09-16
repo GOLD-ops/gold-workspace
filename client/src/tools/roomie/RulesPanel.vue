@@ -23,10 +23,10 @@
               <div class="rm-proposal-actions">
                 <button
                   v-if="canEditProposal(proposal)"
-                  class="rm-text-btn"
+                  class="rm-btn sm"
                   @click="openProposal(proposal.proposal_type || 'create', proposal.parent_rule_id, proposal)"
                 >
-                  编辑本次提案
+                  编辑
                 </button>
                 <template v-if="canVote(proposal)">
                   <button class="rm-btn primary sm" :disabled="busyId === proposal.id" @click="agree(proposal)">
@@ -236,7 +236,17 @@ function myVoteText(proposal) {
   const decision = myVote(proposal)?.decision
   return decision === 'agree' ? '你已确认，等待其他成员' : decision === 'revise' ? '你已提出修改意见' : '等待其他成员确认'
 }
-function historyStatus(status) { return ({ superseded: '已被新版本替代', repealed: '已废止', withdrawn: '已撤回', expired: '已到期' })[status] || '历史记录' }
+function historyStatus(status) {
+  return (
+    {
+      superseded: '已被新版本替代',
+      repealed: '已废止',
+      archived: '已废止',
+      withdrawn: '已撤回',
+      expired: '已到期',
+    }[status] || '历史记录'
+  )
+}
 
 async function load() {
   if (props.guest) return
