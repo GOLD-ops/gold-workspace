@@ -1,6 +1,6 @@
 <template>
   <div class="rm-panel rm-chores">
-    <div v-if="!roommates.length" class="rm-empty">请先在「设置」中新增一起合租的人</div>
+    <div v-if="!roommates.length" class="rm-empty">房间暂时没有可排班的成员</div>
 
     <template v-else>
       <div class="rm-toolbar rm-chore-toolbar">
@@ -50,7 +50,7 @@
               列表
             </button>
           </div>
-          <button type="button" class="rm-btn sm" @click="scheduleOpen = true">排班规则</button>
+          <button type="button" class="rm-btn sm" @click="openSchedule">排班规则</button>
           <button type="button" class="rm-btn primary" @click="openAdd()">+ 新增任务</button>
         </div>
       </div>
@@ -108,7 +108,6 @@
               <strong>本月分配依据</strong>
               <span>{{ assignmentSummary }}</span>
             </div>
-            <button type="button" class="rm-mini" @click="scheduleOpen = true">查看规则</button>
           </div>
         </div>
 
@@ -273,18 +272,22 @@
           <button class="rm-modal-close" type="button" aria-label="关闭" @click="scheduleOpen = false">✕</button>
         </div>
         <div class="rm-modal-body">
-          <div class="rm-schedule-summary">
-            <span>默认分配方式</span>
-            <strong>{{ assignmentModeLabel(defaultAssignmentMode) }}</strong>
-          </div>
+          <p class="rm-form-note">选择新增任务默认采用的分配方式，创建单个任务时仍可单独调整。</p>
           <div class="rm-schedule-rules">
-            <div v-for="mode in assignmentOptions" :key="mode.value" class="rm-schedule-rule">
+            <button
+              v-for="mode in assignmentOptions"
+              :key="mode.value"
+              type="button"
+              class="rm-schedule-rule"
+              :class="{ active: mode.value === assignmentDraft }"
+              @click="assignmentDraft = mode.value"
+            >
               <div>
                 <strong>{{ mode.label }}</strong>
-                <span v-if="mode.value === defaultAssignmentMode" class="rm-badge blue">默认</span>
+                <span v-if="mode.value === assignmentDraft" class="rm-badge blue">已选</span>
               </div>
               <p>{{ assignmentModeDescription(mode.value) }}</p>
-            </div>
+            </button>
           </div>
           <div class="rm-schedule-members">
             <strong>参与排班</strong>
@@ -300,7 +303,10 @@
           </p>
         </div>
         <div class="rm-modal-footer">
-          <button type="button" class="rm-btn primary" @click="scheduleOpen = false">知道了</button>
+          <button type="button" class="rm-btn" @click="scheduleOpen = false">取消</button>
+          <button type="button" class="rm-btn primary" :disabled="savingRule" @click="saveAssignmentMode">
+            {{ savingRule ? '保存中…' : '保存' }}
+          </button>
         </div>
       </div>
     </div>
@@ -319,7 +325,7 @@ const props = defineProps({
   currentMemberId: { type: [Number, String], default: null },
   settings: { type: Object, default: () => ({}) },
 })
-const emit = defineEmits(['notify', 'alerts-changed'])
+const emit = defineEmits(['notify', 'alerts-changed', 'settings-changed'])
 
 const WEEKDAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 const TASK_TYPES = ['客厅清洁', '厨房清洁', '卫生间清洁', '垃圾清运', '公共区域整理', '其他']
@@ -360,6 +366,8 @@ const memberFilter = ref('all')
 const typeFilter = ref('all')
 const statusFilter = ref('all')
 const scheduleOpen = ref(false)
+const assignmentDraft = ref('fair')
+const savingRule = ref(false)
 const taskModal = reactive({ open: false, editing: null })
 const form = reactive({
   title: '',
@@ -577,6 +585,29 @@ function assignmentModeDescription(mode) {
     claim: '先不指定负责人，任一在住成员都可以主动认领。',
   }
   return descriptions[mode] || descriptions.fair
+}
+
+function openSchedule() {
+  assignmentDraft.value = defaultAssignmentMode.value
+  scheduleOpen.value = true
+}
+
+async function saveAssignmentMode() {
+  if (savingRule.value) return
+  savingRule.value = true
+  try {
+    await api('/api/roomie/settings', {
+      method: 'PUT',
+      body: { default_assignment_mode: assignmentDraft.value },
+    })
+    emit('notify', '排班规则已更新')
+    emit('settings-changed')
+    scheduleOpen.value = false
+  } catch (error) {
+    emit('notify', error.message || '保存失败', 'error')
+  } finally {
+    savingRule.value = false
+  }
 }
 
 function dateDay(date) {

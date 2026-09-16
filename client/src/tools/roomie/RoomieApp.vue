@@ -131,6 +131,7 @@
           :settings="settings"
           @notify="notify"
           @alerts-changed="loadAlerts"
+          @settings-changed="loadContext"
         />
         <ItemsPanel
           v-else-if="view === 'items'"

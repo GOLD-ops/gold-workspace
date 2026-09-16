@@ -1020,10 +1020,23 @@
 .rm-status.claim { border: 1px dashed #c9d2df; background: #fff; color: var(--tk-muted); }
 .rm-chore-actions { display: flex; justify-content: flex-end; gap: 5px; }
 .rm-form-note { padding: 10px 12px; border: 1px solid var(--rm-line); border-radius: 10px; background: #fafbfd; color: var(--tk-muted); font-size: 11.5px; line-height: 1.6; }
-.rm-schedule-summary { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-radius: 10px; background: var(--tk-blue-soft); color: var(--tk-muted); }
-.rm-schedule-summary strong { color: var(--tk-blue); }
-.rm-schedule-rules { margin: 14px 0; }
-.rm-schedule-rule { padding: 10px 0; border-bottom: 1px dashed var(--rm-line); }
+.rm-schedule-rules { margin: 14px 0; display: grid; gap: 6px; }
+.rm-schedule-rule {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.rm-schedule-rule:hover { background: #f7f9fd; }
+.rm-schedule-rule.active { background: var(--tk-blue-soft); border-color: #bcd0f2; }
+.rm-schedule-rule.active strong { color: var(--tk-blue); }
 .rm-schedule-rule > div { display: flex; align-items: center; gap: 7px; }
 .rm-schedule-rule p { margin: 3px 0 0; color: var(--tk-muted); }
 .rm-schedule-members > strong { display: block; margin-bottom: 8px; }
@@ -1078,9 +1091,9 @@
 .rm-setting-copy small { margin-top: 2px; color: var(--tk-faint); font-weight: 400; }
 .rm-setting-value { color: var(--tk-muted); font-weight: 600; white-space: nowrap; }
 .rm-setting-select { width: 170px; flex: none; }
-.rm-card-aside { display: flex; align-items: center; gap: 12px; }
-.rm-card-aside > .rm-card { flex: 1; min-width: 0; }
-.rm-card-aside > .rm-btn { flex: none; }
+.rm-setting-inline { display: flex; align-items: center; gap: 14px; padding-right: 18px; }
+.rm-setting-inline > .rm-setting-list { flex: 1; min-width: 0; }
+.rm-setting-inline > .rm-btn { flex: none; }
 .rm-identity-setting {
   display: flex;
   align-items: center;

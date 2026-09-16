@@ -28,33 +28,6 @@
     <section class="rm-settings-section">
       <div class="rm-block-head">
         <div>
-          <h2>值日排班</h2>
-          <p>设置新任务默认采用的分配方式，创建单个任务时仍可调整</p>
-        </div>
-      </div>
-      <div class="rm-card-aside">
-        <div class="rm-card rm-setting-list">
-          <div class="rm-setting-row">
-            <span class="rm-setting-copy">
-              <strong>默认分配方式</strong>
-              <small>{{ assignmentDescription }}</small>
-            </span>
-            <select v-model="reminderForm.default_assignment_mode" class="rm-input rm-setting-select">
-              <option value="fair">公平轮换</option>
-              <option value="manual">手动指定</option>
-              <option value="claim">自由认领</option>
-            </select>
-          </div>
-        </div>
-        <button class="rm-btn primary" :disabled="savingSettings" @click="saveSettings">
-          {{ savingSettings ? '保存中…' : '保存排班设置' }}
-        </button>
-      </div>
-    </section>
-
-    <section class="rm-settings-section">
-      <div class="rm-block-head">
-        <div>
           <h2>房间</h2>
           <p>每位室友使用自己的账号，通过房间编号加入</p>
         </div>
@@ -132,8 +105,8 @@
         </div>
       </div>
 
-      <div class="rm-card-aside">
-        <div class="rm-card rm-setting-list">
+      <div class="rm-card rm-setting-inline">
+        <div class="rm-setting-list">
           <label class="rm-setting-row clickable">
             <span class="rm-setting-copy"><strong>公约待确认</strong><small>有新提案或提案重新发起时提醒</small></span>
             <input v-model="reminderForm.rule_reminder" class="rm-native-check" type="checkbox" />
@@ -276,12 +249,6 @@ watch(
   },
   { immediate: true, deep: true }
 )
-
-const assignmentDescription = computed(() => ({
-  fair: '优先安排本月累计工作量较少的成员',
-  manual: '每次创建任务时由发起人选择负责人',
-  claim: '先不指定负责人，由任一在住成员主动认领',
-})[reminderForm.default_assignment_mode])
 
 function initial(name) {
   return String(name || '?').slice(0, 1)
