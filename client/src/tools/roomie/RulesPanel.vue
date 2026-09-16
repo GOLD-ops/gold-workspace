@@ -1,15 +1,14 @@
 <template>
   <div class="rm-panel">
-    <section class="rm-rule-section">
+    <!-- 有待确认提案时才显示该模块 -->
+    <section v-if="pending.length" class="rm-rule-section">
       <div class="rm-block-head compact">
         <div>
           <h2><span v-if="needsMyVote" class="rm-inline-alert" aria-hidden="true"></span>待你确认</h2>
           <p>{{ pendingSummary }}</p>
         </div>
-        <button class="rm-btn primary" :disabled="!currentMemberId" @click="openProposal()">+ 发起公约提案</button>
       </div>
 
-      <template v-if="pending.length">
         <article v-for="proposal in pending" :key="proposal.id" class="rm-card rm-proposal">
           <div class="rm-proposal-main">
             <div class="rm-proposal-body">
@@ -81,13 +80,14 @@
           </div>
         </article>
         <div class="rm-rule-note"><span>i</span>所有在住成员同意后提案才会生效；若内容有修改，需要大家重新确认。</div>
-      </template>
-      <div v-else class="rm-quiet-empty">目前没有待确认提案</div>
     </section>
 
     <section class="rm-rule-section">
       <div class="rm-block-head compact">
         <div><h2>已生效公约</h2><p>当前共同遵守的 {{ active.length }} 条约定</p></div>
+        <button class="rm-btn primary" :disabled="!currentMemberId" @click="openProposal()">
+          + 发起公约提案
+        </button>
       </div>
       <div v-if="active.length" class="rm-rule-list">
         <article v-for="rule in active" :key="rule.id" class="rm-card rm-active-rule">
