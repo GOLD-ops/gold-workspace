@@ -499,23 +499,55 @@
 
 /* 房间引导页 */
 .rm-onboard {
-  max-width: 480px;
-  margin: 24px auto 0;
+  max-width: 540px;
+  margin: 36px auto 0;
 }
 .rm-onboard-card {
   background: #fff;
   border: 1px solid var(--tk-border);
   border-radius: var(--tk-radius);
   box-shadow: var(--tk-shadow-sm);
-  padding: 26px;
+  padding: 32px;
 }
-.rm-onboard-head { margin-bottom: 16px; }
-.rm-onboard-head h2 { font-size: 18px; margin: 0 0 6px; }
-.rm-onboard-head p { font-size: 13px; color: var(--tk-muted); margin: 0; line-height: 1.6; }
-.rm-onboard-form { display: flex; gap: 10px; }
-.rm-onboard-form .rm-input { flex: 1; }
-.rm-onboard-segmented { display: flex; width: 100%; margin-bottom: 16px; }
-.rm-onboard-segmented button { flex: 1; }
+.rm-onboard-head { margin-bottom: 22px; }
+.rm-onboard-head h2 { font-size: 19px; margin: 0 0 8px; }
+.rm-onboard-head p { font-size: 13px; color: var(--tk-muted); margin: 0; line-height: 1.7; }
+.rm .rm-onboard-segmented {
+  display: flex;
+  gap: 22px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  margin-bottom: 18px;
+}
+.rm .rm-onboard-segmented button {
+  flex: none;
+  min-height: 0;
+  padding: 2px 0 8px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--tk-muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+.rm .rm-onboard-segmented button.active {
+  background: transparent;
+  color: var(--tk-blue);
+  font-weight: 700;
+  border-bottom-color: var(--tk-blue);
+}
+.rm-onboard-form { display: flex; gap: 12px; }
+.rm-onboard-form .rm-input { flex: 1; min-height: 42px; }
+.rm-onboard-form .rm-btn { padding-left: 22px; padding-right: 22px; }
+.rm-onboard-hint { margin: 12px 0 0; font-size: 12px; color: var(--tk-faint); line-height: 1.6; }
+@media (max-width: 560px) {
+  .rm-onboard-card { padding: 24px 20px; }
+  .rm-onboard-form { flex-direction: column; align-items: stretch; }
+}
 
 /* 房间信息 */
 .rm-room-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }

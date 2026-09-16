@@ -89,30 +89,36 @@
           </button>
         </div>
 
-        <form v-if="boardMode === 'join'" class="rm-onboard-form" @submit.prevent="joinRoom">
-          <input
-            v-model="joinCode"
-            class="rm-input"
-            placeholder="输入 6 位房间编号"
-            maxlength="6"
-            autocomplete="off"
-          />
-          <button type="submit" class="rm-btn primary" :disabled="joining">
-            {{ joining ? '加入中…' : '加入房间' }}
-          </button>
-        </form>
+        <template v-if="boardMode === 'join'">
+          <form class="rm-onboard-form" @submit.prevent="joinRoom">
+            <input
+              v-model="joinCode"
+              class="rm-input"
+              placeholder="输入 6 位房间编号"
+              maxlength="6"
+              autocomplete="off"
+            />
+            <button type="submit" class="rm-btn primary" :disabled="joining">
+              {{ joining ? '加入中…' : '加入房间' }}
+            </button>
+          </form>
+          <p class="rm-onboard-hint">房间编号由房主分享给你，共 6 位字母或数字</p>
+        </template>
 
-        <form v-else class="rm-onboard-form" @submit.prevent="createRoom">
-          <input
-            v-model="createName"
-            class="rm-input"
-            placeholder="房间名称，例如：温馨小家"
-            maxlength="20"
-          />
-          <button type="submit" class="rm-btn primary" :disabled="creating">
-            {{ creating ? '创建中…' : '创建房间' }}
-          </button>
-        </form>
+        <template v-else>
+          <form class="rm-onboard-form" @submit.prevent="createRoom">
+            <input
+              v-model="createName"
+              class="rm-input"
+              placeholder="房间名称，例如：温馨小家"
+              maxlength="20"
+            />
+            <button type="submit" class="rm-btn primary" :disabled="creating">
+              {{ creating ? '创建中…' : '创建房间' }}
+            </button>
+          </form>
+          <p class="rm-onboard-hint">创建后会生成房间编号，发给室友即可一起加入</p>
+        </template>
       </div>
     </div>
 
