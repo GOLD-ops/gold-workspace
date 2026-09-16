@@ -37,3 +37,35 @@ export function todayStr() {
   const p = (n) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
+
+export function addDays(value, amount) {
+  const date = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return value
+  date.setDate(date.getDate() + Number(amount || 0))
+  const p = (n) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`
+}
+
+export function currentMonth() {
+  return todayStr().slice(0, 7)
+}
+
+export function shiftMonth(value, offset) {
+  const [year, month] = String(value || currentMonth()).split('-').map(Number)
+  const date = new Date(year, (month || 1) - 1 + Number(offset || 0), 1)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+}
+
+export function monthLabel(value) {
+  const [year, month] = String(value || currentMonth()).split('-')
+  return `${year} 年 ${Number(month)} 月`
+}
+
+export function safeJson(value, fallback = {}) {
+  if (value && typeof value === 'object') return value
+  try {
+    return JSON.parse(value || '')
+  } catch {
+    return fallback
+  }
+}

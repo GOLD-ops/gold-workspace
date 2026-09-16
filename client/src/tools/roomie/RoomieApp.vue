@@ -1,101 +1,169 @@
 <template>
   <div class="rm">
-    <div class="rm-header">
-      <div class="rm-tabs">
-        <button
-          v-for="t in tabs"
-          :key="t.key"
-          :class="{ active: view === t.key }"
-          @click="view = t.key"
-        >
-          <svg
-            class="rm-tab-icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <template v-if="t.key === 'roommates'">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </template>
-            <template v-else-if="t.key === 'expenses'">
-              <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-              <line x1="1" y1="10" x2="23" y2="10" />
-            </template>
-            <template v-else-if="t.key === 'chores'">
-              <polyline points="9 11 12 14 22 4" />
-              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-            </template>
-            <template v-else-if="t.key === 'items'">
-              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-              <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-              <line x1="12" y1="22.08" x2="12" y2="12" />
-            </template>
-            <template v-else>
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-            </template>
-          </svg>
-          {{ t.label }}
-        </button>
+    <!-- 未加入房间：创建 / 加入 -->
+    <div v-if="noRoom" class="rm-onboard">
+      <div class="rm-onboard-card">
+        <div class="rm-onboard-head">
+          <h2>加入或创建合租房间</h2>
+          <p>每位室友使用自己的账号，通过房间编号加入同一个房间</p>
+        </div>
+
+        <section class="rm-onboard-section">
+          <h3>创建房间</h3>
+          <form class="rm-onboard-form" @submit.prevent="createRoom">
+            <input
+              v-model="createName"
+              class="rm-input"
+              placeholder="房间名称，例如：温馨小家"
+              maxlength="20"
+            />
+            <button type="submit" class="rm-btn primary" :disabled="creating">
+              {{ creating ? '创建中…' : '创建房间' }}
+            </button>
+          </form>
+        </section>
+
+        <div class="rm-onboard-divider">或</div>
+
+        <section class="rm-onboard-section">
+          <h3>通过房间编号加入</h3>
+          <form class="rm-onboard-form" @submit.prevent="joinRoom">
+            <input
+              v-model="joinCode"
+              class="rm-input"
+              placeholder="输入 6 位房间编号"
+              maxlength="6"
+              autocomplete="off"
+            />
+            <button type="submit" class="rm-btn primary" :disabled="joining">
+              {{ joining ? '加入中…' : '加入房间' }}
+            </button>
+          </form>
+        </section>
       </div>
     </div>
 
-    <RoommatesPanel
-      v-if="view === 'roommates'"
-      :roommates="roommates"
-      @changed="loadRoommates"
-      @notify="notify"
-    />
-    <ExpensesPanel
-      v-else-if="view === 'expenses'"
-      :roommates="roommates"
-      @notify="notify"
-    />
-    <ChoresPanel
-      v-else-if="view === 'chores'"
-      :roommates="roommates"
-      @notify="notify"
-    />
-    <ItemsPanel v-else-if="view === 'items'" @notify="notify" />
-    <RulesPanel v-else-if="view === 'rules'" @notify="notify" />
+    <template v-else>
+      <nav class="rm-tabs" aria-label="合租生活管家功能导航">
+        <button
+          v-for="tab in tabs"
+          :key="tab.key"
+          :class="{ active: view === tab.key, 'has-alert': Number(alerts[tab.key]) > 0, settings: tab.key === 'settings' }"
+          :aria-current="view === tab.key ? 'page' : undefined"
+          :aria-label="tabAriaLabel(tab)"
+          :title="alertTitle(tab.key)"
+          @click="view = tab.key"
+        >
+          <span v-if="tab.key === 'settings'" aria-hidden="true">⚙</span>
+          {{ tab.label }}
+          <span v-if="Number(alerts[tab.key]) > 0" class="rm-notice-dot" aria-hidden="true"></span>
+        </button>
+      </nav>
 
-    <div v-if="toast" class="rm-toast" :class="{ error: toastType === 'error' }">
+      <div v-if="loading" class="rm-loading">正在加载合租数据…</div>
+
+      <template v-else>
+        <RulesPanel
+          v-if="view === 'rules'"
+          :roommates="activeRoommates"
+          :current-member-id="currentMemberId"
+          @notify="notify"
+          @alerts-changed="loadAlerts"
+        />
+        <ExpensesPanel
+          v-else-if="view === 'expenses'"
+          :roommates="activeRoommates"
+          :current-member-id="currentMemberId"
+          :split-schemes="splitSchemes"
+          @notify="notify"
+          @alerts-changed="loadAlerts"
+        />
+        <ChoresPanel
+          v-else-if="view === 'chores'"
+          :roommates="activeRoommates"
+          :current-member-id="currentMemberId"
+          :settings="settings"
+          @notify="notify"
+          @alerts-changed="loadAlerts"
+        />
+        <ItemsPanel
+          v-else-if="view === 'items'"
+          :roommates="activeRoommates"
+          :current-member-id="currentMemberId"
+          :split-schemes="splitSchemes"
+          @notify="notify"
+          @alerts-changed="loadAlerts"
+        />
+        <SettingsPanel
+          v-else
+          :roommates="roommates"
+          :current-member-id="currentMemberId"
+          :split-schemes="splitSchemes"
+          :settings="settings"
+          :room="room"
+          @notify="notify"
+          @changed="loadContext"
+        />
+      </template>
+    </template>
+
+    <div v-if="toast" class="rm-toast" :class="{ error: toastType === 'error' }" role="status">
       {{ toast }}
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { api } from '../../api'
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { api, getToken } from '../../api'
 import './roomie.css'
-import RoommatesPanel from './RoommatesPanel.vue'
+import RulesPanel from './RulesPanel.vue'
 import ExpensesPanel from './ExpensesPanel.vue'
 import ChoresPanel from './ChoresPanel.vue'
 import ItemsPanel from './ItemsPanel.vue'
-import RulesPanel from './RulesPanel.vue'
+import SettingsPanel from './SettingsPanel.vue'
+
+const router = useRouter()
 
 const tabs = [
-  { key: 'roommates', label: '室友' },
-  { key: 'expenses', label: '费用 AA' },
-  { key: 'chores', label: '值日排班' },
-  { key: 'items', label: '公共物品' },
-  { key: 'rules', label: '室友公约' },
+  { key: 'rules', label: '公约' },
+  { key: 'expenses', label: '费用' },
+  { key: 'chores', label: '值日' },
+  { key: 'items', label: '物品' },
+  { key: 'settings', label: '设置' },
 ]
 
-const view = ref('roommates')
+const view = ref('rules')
+const me = ref(null)
+const noRoom = ref(false)
 const roommates = ref([])
+const settings = ref({})
+const splitSchemes = ref([])
+const alerts = ref({ rules: 0, expenses: 0, chores: 0, items: 0 })
+const loading = ref(true)
 const toast = ref('')
 const toastType = ref('ok')
+const createName = ref('')
+const joinCode = ref('')
+const creating = ref(false)
+const joining = ref(false)
 let toastTimer = null
+
+const room = computed(() => me.value?.room || null)
+
+const activeRoommates = computed(() =>
+  roommates.value.filter((member) => member.status !== 'moved_out' && !member.moved_out_at)
+)
+
+const currentMemberId = computed(() => {
+  const uid = Number(me.value?.user?.id)
+  if (uid) {
+    const self = activeRoommates.value.find((member) => Number(member.user_id) === uid)
+    if (self) return Number(self.id)
+  }
+  return null
+})
 
 function notify(message, type = 'ok') {
   toast.value = message
@@ -106,13 +174,102 @@ function notify(message, type = 'ok') {
   }, 2600)
 }
 
-async function loadRoommates() {
+function alertTitle(key) {
+  if (!Number(alerts.value[key])) return ''
+  const labels = {
+    rules: '有公约提案待你确认',
+    expenses: '有费用结算待你处理',
+    chores: '有值日任务待你处理',
+    items: '有公共物品待你补货',
+  }
+  return labels[key] || ''
+}
+
+function tabAriaLabel(tab) {
+  const suffix = alertTitle(tab.key)
+  return suffix ? `${tab.label}，${suffix}` : tab.label
+}
+
+async function loadAlerts() {
+  if (!currentMemberId.value) {
+    alerts.value = { rules: 0, expenses: 0, chores: 0, items: 0 }
+    return
+  }
   try {
-    roommates.value = await api('/api/roomie/roommates')
-  } catch (e) {
-    notify(e.message || '室友加载失败', 'error')
+    const data = await api(`/api/roomie/alerts?actor_id=${currentMemberId.value}`)
+    alerts.value = data?.badges || data || { rules: 0, expenses: 0, chores: 0, items: 0 }
+  } catch {
+    alerts.value = { rules: 0, expenses: 0, chores: 0, items: 0 }
   }
 }
 
-onMounted(loadRoommates)
+async function loadContext() {
+  loading.value = true
+  try {
+    const meData = await api('/api/roomie/me')
+    me.value = meData
+    if (!meData.room) {
+      noRoom.value = true
+      return
+    }
+    noRoom.value = false
+    const [membersData, settingsData, schemesData] = await Promise.all([
+      api('/api/roomie/roommates?include_inactive=1'),
+      api('/api/roomie/settings'),
+      api('/api/roomie/split-schemes'),
+    ])
+    roommates.value = Array.isArray(membersData) ? membersData : []
+    settings.value = settingsData || {}
+    splitSchemes.value = Array.isArray(schemesData)
+      ? schemesData
+      : Array.isArray(schemesData?.schemes)
+        ? schemesData.schemes
+        : []
+    await loadAlerts()
+  } catch (error) {
+    notify(error.message || '合租数据加载失败', 'error')
+  } finally {
+    loading.value = false
+  }
+}
+
+async function createRoom() {
+  const name = createName.value.trim()
+  if (!name) return notify('请填写房间名称', 'error')
+  creating.value = true
+  try {
+    await api('/api/roomie/rooms', { method: 'POST', body: { name } })
+    notify('房间已创建')
+    createName.value = ''
+    await loadContext()
+  } catch (error) {
+    notify(error.message || '创建失败', 'error')
+  } finally {
+    creating.value = false
+  }
+}
+
+async function joinRoom() {
+  const code = joinCode.value.trim().toUpperCase()
+  if (!code) return notify('请输入房间编号', 'error')
+  joining.value = true
+  try {
+    await api('/api/roomie/rooms/join', { method: 'POST', body: { invite_code: code } })
+    notify('已加入房间')
+    joinCode.value = ''
+    await loadContext()
+  } catch (error) {
+    notify(error.message || '加入失败', 'error')
+  } finally {
+    joining.value = false
+  }
+}
+
+onMounted(() => {
+  if (!getToken()) {
+    router.push({ path: '/login', query: { redirect: '/tools/roomie' } })
+    return
+  }
+  loadContext()
+})
 </script>
