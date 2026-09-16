@@ -944,11 +944,20 @@
 }
 .rm-proposal { overflow: hidden; margin-bottom: 10px; }
 .rm-proposal-main { padding: 16px 20px 18px; }
-.rm-proposal-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
-.rm-proposal-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--tk-faint); font-size: 11.5px; }
-.rm-proposal-actions { display: flex; align-items: center; gap: 8px; flex: none; margin-left: auto; }
-.rm-proposal-main h3 { margin: 0 0 6px; font-size: 16px; line-height: 1.5; }
+.rm-proposal-body { display: flex; align-items: center; gap: 16px; }
+.rm-proposal-copy { flex: 1; min-width: 0; }
+.rm-proposal-copy h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0 0 6px;
+  font-size: 16px;
+  line-height: 1.5;
+}
 .rm-proposal-content { margin: 0; color: var(--tk-muted); line-height: 1.75; white-space: pre-wrap; }
+.rm-proposal-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+.rm-proposal-meta { margin-left: auto; color: var(--tk-faint); font-size: 11.5px; font-weight: 400; }
 .rm-text-btn { flex: none; margin: 0; padding: 0; border: 0; background: transparent; color: var(--tk-blue); font-size: 12px; cursor: pointer; }
 .rm-text-btn:hover { text-decoration: underline; }
 .rm-vote-panel { padding: 14px 20px 16px; border-top: 1px solid var(--rm-line); background: #fafbfd; }
@@ -1319,9 +1328,8 @@
   .rm-inventory-row > * { display: flex !important; }
   .rm-stock-cell { display: block !important; }
   .rm-inventory-actions { justify-content: flex-start; flex-wrap: wrap; }
-  .rm-vote-body { align-items: stretch; flex-direction: column; }
-  .rm-proposal-actions,
-  .rm-vote-success { margin-left: 0; }
+  .rm-proposal-body { align-items: stretch; flex-direction: column; gap: 12px; }
+  .rm-proposal-actions { justify-content: flex-end; }
   .rm-active-rule-head { flex-wrap: wrap; }
   .rm-active-rule-head h3 { min-width: calc(100% - 80px); }
   .rm-history-row { grid-template-columns: 90px 1fr; }

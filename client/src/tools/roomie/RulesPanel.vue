@@ -12,12 +12,13 @@
       <template v-if="pending.length">
         <article v-for="proposal in pending" :key="proposal.id" class="rm-card rm-proposal">
           <div class="rm-proposal-main">
-            <div class="rm-proposal-top">
-              <div class="rm-proposal-meta">
-                <span class="rm-badge blue">{{ proposalStatus(proposal) }}</span>
-                <span>{{ memberName(proposal.proposer_id) || '成员' }}发起</span>
-                <span>{{ shortDate(proposal.created_at) }}</span>
-                <span v-if="proposal.deadline">截止至 {{ shortDate(proposal.deadline) }}</span>
+            <div class="rm-proposal-body">
+              <div class="rm-proposal-copy">
+                <h3>
+                  {{ proposalTitle(proposal) }}
+                  <span class="rm-badge blue">{{ proposalStatus(proposal) }}</span>
+                </h3>
+                <p class="rm-proposal-content">{{ proposal.content || '暂未填写详细约定' }}</p>
               </div>
               <div class="rm-proposal-actions">
                 <button
@@ -29,10 +30,10 @@
                 </button>
                 <template v-if="canVote(proposal)">
                   <button class="rm-btn primary sm" :disabled="busyId === proposal.id" @click="agree(proposal)">
-                    确认同意
+                    同意
                   </button>
                   <button class="rm-btn sm" :disabled="busyId === proposal.id" @click="openFeedback(proposal)">
-                    提出修改
+                    修改
                   </button>
                 </template>
                 <div v-else-if="isFullyAgreed(proposal)" class="rm-vote-success">
@@ -41,14 +42,17 @@
                 </div>
               </div>
             </div>
-            <h3>{{ proposalTitle(proposal) }}</h3>
-            <p class="rm-proposal-content">{{ proposal.content || '暂未填写详细约定' }}</p>
           </div>
 
           <div class="rm-vote-panel">
             <div class="rm-vote-title">
               <span>确认情况</span>
               <small class="rm-vote-count">{{ agreeCount(proposal) }}/{{ voterCount(proposal) }} 人已确认</small>
+              <span class="rm-proposal-meta">
+                {{ memberName(proposal.proposer_id) || '成员' }}发起 ·
+                {{ shortDate(proposal.created_at) }}
+                <template v-if="proposal.deadline"> · 截止至 {{ shortDate(proposal.deadline) }}</template>
+              </span>
             </div>
             <div class="rm-vote-body">
               <div class="rm-voters">
