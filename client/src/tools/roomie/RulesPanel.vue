@@ -4,7 +4,7 @@
     <section v-if="pending.length" class="rm-rule-section">
       <div class="rm-block-head compact">
         <div>
-          <h2><span v-if="needsMyVote" class="rm-inline-alert" aria-hidden="true"></span>待你确认</h2>
+          <h2><span v-if="needsMyVote" class="rm-inline-alert" aria-hidden="true"></span>待确认公约</h2>
           <p>{{ pendingSummary }}</p>
         </div>
       </div>
@@ -90,15 +90,23 @@
         </button>
       </div>
       <div v-if="active.length" class="rm-rule-list">
-        <article v-for="rule in active" :key="rule.id" class="rm-card rm-active-rule">
+        <article v-for="(rule, index) in active" :key="rule.id" class="rm-card rm-active-rule">
           <div class="rm-active-rule-head">
-            <h3>{{ rule.title }}</h3>
-            <span class="rm-badge">{{ rule.category || '其他' }}</span>
-            <button class="rm-mini" @click="openProposal('revise', rule.id)">发起修订</button>
-            <button class="rm-mini danger" @click="openProposal('repeal', rule.id)">申请废止</button>
+            <span class="rm-rule-index">{{ index + 1 }}</span>
+            <div class="rm-active-rule-title">
+              <h3>{{ rule.title }}</h3>
+              <span class="rm-badge">{{ rule.category || '其他' }}</span>
+            </div>
+            <div class="rm-active-rule-actions">
+              <button class="rm-mini" @click="openProposal('revise', rule.id)">发起修订</button>
+              <button class="rm-mini danger" @click="openProposal('repeal', rule.id)">申请废止</button>
+            </div>
           </div>
           <p>{{ rule.content }}</p>
-          <small>v{{ rule.version || 1 }} · {{ shortDate(rule.effective_at || rule.updated_at) }} 生效</small>
+          <div class="rm-active-rule-meta">
+            <span class="rm-rule-version">v{{ rule.version || 1 }}</span>
+            <span>{{ shortDate(rule.effective_at || rule.updated_at) }} 生效</span>
+          </div>
         </article>
       </div>
       <div v-else class="rm-quiet-empty">还没有已生效公约，可以从一个简单约定开始</div>
