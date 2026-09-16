@@ -51,7 +51,9 @@
                   class="rm-voter"
                   :class="{ pending: !vote.decision || vote.decision === 'pending', revise: vote.decision === 'revise' }"
                 >
-                  <span class="rm-avatar sm">{{ initial(memberName(vote.roommate_id)) }}</span>
+                  <span class="rm-avatar sm" :style="{ background: memberColor(vote.roommate_id) }">
+                    {{ initial(memberName(vote.roommate_id)) }}
+                  </span>
                   <span class="rm-voter-copy">
                     <b>{{ memberName(vote.roommate_id) }}</b>
                     <small>{{ voteLabel(vote.decision) }}</small>
@@ -146,7 +148,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { api } from '../../api'
-import { addDays, memberInitial as initial, todayStr } from './roomie'
+import { addDays, memberInitial as initial, roommateColor, todayStr } from './roomie'
 
 const props = defineProps({
   roommates: { type: Array, default: () => [] },
@@ -186,6 +188,10 @@ const proposalModalTitle = computed(() => {
 })
 
 function memberName(id) { return props.roommates.find((member) => Number(member.id) === Number(id))?.name || `成员 ${id || ''}` }
+function memberColor(id) {
+  const member = props.roommates.find((item) => Number(item.id) === Number(id))
+  return roommateColor(member || { id })
+}
 function shortDate(value, full = false) {
   if (!value) return ''
   const date = new Date(String(value).length === 10 ? `${value}T00:00:00` : value)

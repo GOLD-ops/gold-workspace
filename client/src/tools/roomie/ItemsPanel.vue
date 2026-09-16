@@ -18,7 +18,7 @@
         <div class="rm-stock-cell"><div class="rm-stock-copy"><b>{{ displayQuantity(item.quantity) }} {{ item.unit }}</b><span>常备 {{ displayQuantity(item.target_quantity) }} {{ item.unit }}</span></div><div class="rm-stock-track" :class="{ low: isLow(item) }"><span :style="{ width: stockPercent(item) }"></span></div></div>
         <span>{{ displayQuantity(item.low_threshold) }} {{ item.unit }}</span>
         <span>{{ purchaseModeLabel(item.purchase_mode) }}</span>
-        <span class="rm-owner"><span v-if="item.current_purchaser_id" class="rm-avatar sm">{{ initial(memberName(item.current_purchaser_id)) }}</span>{{ purchaserLabel(item) }}</span>
+        <span class="rm-owner"><span v-if="item.current_purchaser_id" class="rm-avatar sm" :style="{ background: memberColor(item.current_purchaser_id) }">{{ initial(memberName(item.current_purchaser_id)) }}</span>{{ purchaserLabel(item) }}</span>
         <span class="rm-badge" :class="isLow(item) ? 'danger' : ''">{{ isLow(item) ? '待补货' : '库存正常' }}</span>
         <div class="rm-inventory-actions">
           <button v-if="isLow(item) && !item.current_purchaser_id" class="rm-mini" @click="claim(item)">认领</button>
@@ -71,7 +71,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { api } from '../../api'
 import { confirmDialog } from '../../ui/confirm'
 import EditableSelect from '../../ui/EditableSelect.vue'
-import { memberInitial as initial, todayStr, yuanToCents } from './roomie'
+import { memberInitial as initial, roommateColor, todayStr, yuanToCents } from './roomie'
 
 const props = defineProps({ roommates: { type: Array, default: () => [] }, currentMemberId: { type: [Number, String], default: null }, splitSchemes: { type: Array, default: () => [] }, guest: { type: Boolean, default: false } })
 const emit = defineEmits(['notify', 'alerts-changed'])
@@ -112,6 +112,10 @@ const filteredItems = computed(() => items.value.filter((item) => {
 }))
 
 function memberName(id) { return props.roommates.find((member) => Number(member.id) === Number(id))?.name || '' }
+function memberColor(id) {
+  const member = props.roommates.find((item) => Number(item.id) === Number(id))
+  return roommateColor(member || { id })
+}
 function displayQuantity(value) { const number = Number(value || 0); return Number.isInteger(number) ? String(number) : number.toFixed(1).replace(/\.0$/, '') }
 function isLow(item) { return item.status === 'low' || (Number(item.low_threshold) > 0 && Number(item.quantity) <= Number(item.low_threshold)) }
 function stockPercent(item) { return `${Math.max(0, Math.min(100, Number(item.quantity) / Math.max(0.01, Number(item.target_quantity) || 1) * 100))}%` }

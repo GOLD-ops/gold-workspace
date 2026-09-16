@@ -12,10 +12,11 @@
         >
           {{ room.invite_code }}
         </button>
-        <button v-if="isOwner" class="rm-mini danger rm-room-action" @click="dissolveRoom">
-          解散房间
-        </button>
-        <button v-else class="rm-mini danger rm-room-action" @click="leaveRoom">退出房间</button>
+        <div class="rm-room-actions">
+          <button v-if="isOwner" class="rm-mini" @click="openRoomName">修改名称</button>
+          <button v-if="isOwner" class="rm-mini danger" @click="dissolveRoom">解散房间</button>
+          <button v-else class="rm-mini danger" @click="leaveRoom">退出房间</button>
+        </div>
       </div>
 
       <div v-if="activeRoommates.length" class="rm-member-grid">
@@ -86,6 +87,32 @@
       </div>
     </div>
 
+    <div v-if="roomNameModal.open" class="rm-overlay" @mousedown.self="roomNameModal.open = false">
+      <div class="rm-modal">
+        <div class="rm-modal-header">
+          <h3>修改房间名称</h3>
+          <button class="rm-modal-close" aria-label="关闭" @click="roomNameModal.open = false">✕</button>
+        </div>
+        <div class="rm-modal-body">
+          <div class="rm-field">
+            <span>房间名称</span>
+            <input
+              v-model.trim="roomNameForm.name"
+              class="rm-input"
+              maxlength="20"
+              placeholder="例如：温馨小家"
+            />
+          </div>
+        </div>
+        <div class="rm-modal-footer">
+          <button class="rm-btn" @click="roomNameModal.open = false">取消</button>
+          <button class="rm-btn primary" :disabled="savingRoomName" @click="saveRoomName">
+            {{ savingRoomName ? '保存中…' : '保存' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div v-if="memberModal.open" class="rm-overlay" @mousedown.self="memberModal.open = false">
       <div class="rm-modal">
         <div class="rm-modal-header">
@@ -134,6 +161,8 @@ const isOwner = computed(
 )
 const memberModal = reactive({ open: false, editing: null })
 const memberForm = reactive({ name: '' })
+const roomNameModal = reactive({ open: false })
+const roomNameForm = reactive({ name: '' })
 const reminderForm = reactive({
   rule_reminder: true,
   chore_reminder: true,
@@ -143,6 +172,7 @@ const reminderForm = reactive({
   default_assignment_mode: 'fair',
 })
 const savingMember = ref(false)
+const savingRoomName = ref(false)
 
 watch(
   () => props.settings,
@@ -162,6 +192,28 @@ watch(
 
 function isMovedOut(member) {
   return member?.status === 'moved_out' || Boolean(member?.moved_out_at)
+}
+
+function openRoomName() {
+  if (!isOwner.value) return
+  roomNameForm.name = props.room?.name || ''
+  roomNameModal.open = true
+}
+
+async function saveRoomName() {
+  const name = roomNameForm.name.trim()
+  if (!name) return emit('notify', '请填写房间名称', 'error')
+  savingRoomName.value = true
+  try {
+    await api('/api/roomie/rooms', { method: 'PUT', body: { name } })
+    emit('notify', '房间名称已更新')
+    roomNameModal.open = false
+    emit('changed')
+  } catch (error) {
+    emit('notify', error.message || '修改失败', 'error')
+  } finally {
+    savingRoomName.value = false
+  }
 }
 
 function openMember(member = null) {

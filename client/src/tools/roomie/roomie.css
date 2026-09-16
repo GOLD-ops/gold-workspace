@@ -552,7 +552,7 @@
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 .rm-room-code:hover { background: #dfe9fb; border-color: #bcd0f2; }
-.rm-room-action { margin-left: auto; }
+.rm-room-actions { display: flex; gap: 6px; flex: none; margin-left: auto; }
 
 /* ===== 完整版：统一信息密度与视觉语言 ===== */
 .rm {
@@ -648,7 +648,8 @@
 .rm-badge.blue { background: var(--tk-blue-soft); color: var(--tk-blue); }
 .rm-badge.danger,
 .rm-status.overdue { background: var(--rm-danger-soft); color: var(--rm-danger); }
-.rm-avatar { background: #667085 !important; }
+/* 兜底色：未显式指定成员颜色时使用莫兰迪雾霾蓝 */
+.rm-avatar { background: #7c8ea8; }
 
 /* 单行操作栏：筛选在左，日期与视图在右 */
 .rm-toolbar {

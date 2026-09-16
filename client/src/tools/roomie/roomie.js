@@ -21,7 +21,7 @@ export const COLORS = [
   '#857A94', // 灰紫
   '#6C8A93', // 雾青
   '#B08560', // 陶土橙
-  '#8C8A76', // 灰橄榄
+  '#A87E8E', // 灰玫
 ]
 
 export function colorFor(key) {
