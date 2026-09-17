@@ -2548,9 +2548,6 @@ router.get('/alerts', route((req, res) => {
   if (!actor) return;
   const preferences = ensureSettings(req.spaceId);
   const today = localDate();
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() + 3);
-  const dueBefore = localDate(cutoff);
   const alerts = [];
   expireRuleProposals(req.spaceId);
 
@@ -2609,13 +2606,14 @@ router.get('/alerts', route((req, res) => {
   }
 
   {
+    // 站内红点只提示“今天到期或已逾期”的值日（未来的任务由邮件在到期前一天提醒）
     const chores = db
       .prepare(
-        `SELECT * FROM roomie_chores WHERE space_id = ? AND done = 0
+        `SELECT * FROM roomie_chores WHERE space_id = ? AND done = 0 AND due_date <> ''
          AND due_date <= ? AND (assignee_id = ? OR assignee_id IS NULL)
          ORDER BY due_date`
       )
-      .all(req.spaceId, dueBefore, actor.id);
+      .all(req.spaceId, today, actor.id);
     for (const chore of chores) {
       alerts.push({
         type: chore.assignee_id ? 'chore_due' : 'chore_unclaimed',

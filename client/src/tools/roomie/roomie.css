@@ -790,7 +790,7 @@
     minmax(140px, 240px)
     minmax(0, max-content)
     minmax(0, max-content)
-    minmax(180px, 340px)
+    minmax(180px, max-content)
     minmax(0, max-content)
     minmax(116px, max-content);
   gap: 16px;
@@ -805,7 +805,7 @@
   font-size: 11.5px;
   font-weight: 600;
 }
-.rm-expense-table-head > :last-child { text-align: right; }
+.rm-expense-table-head > :last-child { text-align: center; }
 .rm-expense-row {
   min-height: 70px;
   padding: 13px 18px;
@@ -829,7 +829,7 @@
 .rm-expense-amount > strong { font-size: 14px; white-space: nowrap; }
 .rm-expense-shares { margin: 0; min-width: 0; }
 .rm-expense-split { color: var(--tk-muted); font-size: 12px; }
-.rm-expense-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+.rm-expense-actions { display: flex; align-items: center; justify-content: center; gap: 6px; }
 .rm-share-list { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-top: 8px; }
 .rm-share-chip {
   display: inline-flex;
