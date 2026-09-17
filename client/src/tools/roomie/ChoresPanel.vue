@@ -12,10 +12,10 @@
             aria-label="按成员筛选"
           />
           <SelectPicker
-            v-model="typeFilter"
-            :options="taskTypeFilterOptions"
+            v-model="titleFilter"
+            :options="titleFilterOptions"
             class="rm-filter-picker"
-            aria-label="按任务类型筛选"
+            aria-label="按任务名称筛选"
           />
           <SelectPicker
             v-model="statusFilter"
@@ -125,7 +125,7 @@
               </div>
               <div class="rm-chore-task">
                 <strong>{{ task.title }}</strong>
-                <small>{{ task.type || '日常清洁' }} · {{ taskPoints(task) }} 分 · {{ repeatLabel(task.repeat_rule) }}</small>
+                <small>{{ taskPoints(task) }} 分 · {{ repeatLabel(task.repeat_rule) }}</small>
               </div>
               <div class="rm-chore-person" :class="{ unassigned: !task.assignee_id }">
                 <span
@@ -179,30 +179,31 @@
         <div class="rm-modal-body">
           <div class="rm-form">
             <div class="rm-field-row">
-              <label class="rm-field">
-                <span>任务名称</span>
-                <input v-model.trim="form.title" class="rm-input" maxlength="40" placeholder="例如：清洁卫生间" />
-              </label>
               <div class="rm-field">
-                <span>任务类型</span>
-                <SelectPicker v-model="form.type" :options="taskTypeOptions" class="rm-picker" />
+                <span>任务名称</span>
+                <EditableSelect
+                  v-model="form.title"
+                  :options="titleOptions"
+                  placeholder="选择或输入任务名称"
+                  tip="可从常用家务中选择，也可直接输入"
+                />
               </div>
-            </div>
-            <div class="rm-field-row">
               <label class="rm-field">
                 <span>执行日期</span>
                 <input v-model="form.due_date" class="rm-input" type="date" />
               </label>
+            </div>
+            <div class="rm-field-row">
               <div class="rm-field">
                 <span>工作量</span>
                 <SelectPicker v-model="form.points" :options="pointOptions" class="rm-picker" />
               </div>
-            </div>
-            <div class="rm-field-row">
               <div class="rm-field">
                 <span>重复规则</span>
                 <SelectPicker v-model="form.repeat_rule" :options="repeatOptions" class="rm-picker" />
               </div>
+            </div>
+            <div class="rm-field-row">
               <div class="rm-field">
                 <span>分配方式</span>
                 <SelectPicker
@@ -212,15 +213,15 @@
                   @change="onAssignmentModeChange"
                 />
               </div>
-            </div>
-            <div v-if="needsAssignee" class="rm-field">
-              <span>负责人</span>
-              <SelectPicker
-                v-model="form.assignee_id"
-                :options="roommateOptions"
-                placeholder="请选择负责人"
-                class="rm-picker"
-              />
+              <div v-if="needsAssignee" class="rm-field">
+                <span>负责人</span>
+                <SelectPicker
+                  v-model="form.assignee_id"
+                  :options="roommateOptions"
+                  placeholder="请选择负责人"
+                  class="rm-picker"
+                />
+              </div>
             </div>
             <div class="rm-form-note">{{ assignmentHelp }}</div>
           </div>
@@ -265,6 +266,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { api } from '../../api'
 import { confirmDialog } from '../../ui/confirm'
+import EditableSelect from '../../ui/EditableSelect.vue'
 import SelectPicker from '../recruitment/SelectPicker.vue'
 import { memberInitial as initial, roommateColor, todayStr } from './roomie'
 
@@ -277,7 +279,23 @@ const props = defineProps({
 const emit = defineEmits(['notify', 'alerts-changed'])
 
 const WEEKDAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
-const TASK_TYPES = ['客厅清洁', '厨房清洁', '卫生间清洁', '垃圾清运', '公共区域整理', '其他']
+// 常见家务预设：任务名称支持直接选择，也支持自己输入
+const CHORE_TITLE_PRESETS = [
+  '客厅吸尘',
+  '拖地',
+  '厨房台面清理',
+  '灶台油污清理',
+  '洗碗',
+  '卫生间刷洗',
+  '马桶清洁',
+  '垃圾清运',
+  '换垃圾袋',
+  '洗衣晾晒',
+  '阳台打扫',
+  '冰箱整理',
+  '玄关整理',
+  '季度大扫除',
+]
 const ASSIGNMENT_MODES = new Set(['fair', 'fixed', 'manual', 'claim'])
 
 const assignmentOptions = [
@@ -288,14 +306,18 @@ const assignmentOptions = [
 ]
 const repeatOptions = [
   { value: 'none', label: '不重复' },
+  { value: 'daily', label: '每天' },
+  { value: 'weekdays', label: '工作日（周一至周五）' },
   { value: 'weekly', label: '每周' },
   { value: 'biweekly', label: '每两周' },
   { value: 'monthly', label: '每月' },
 ]
 const pointOptions = [
-  { value: 1, label: '1 分 · 较轻' },
-  { value: 2, label: '2 分 · 一般' },
-  { value: 3, label: '3 分 · 较重' },
+  { value: 1, label: '1 分 · 很轻' },
+  { value: 2, label: '2 分 · 较轻' },
+  { value: 3, label: '3 分 · 一般' },
+  { value: 4, label: '4 分 · 较重' },
+  { value: 5, label: '5 分 · 很重' },
 ]
 const statusFilterOptions = [
   { value: 'all', label: '全部状态' },
@@ -312,12 +334,11 @@ const actionBusyId = ref(null)
 const selectedMonth = ref(todayStr().slice(0, 7))
 const viewMode = ref('calendar')
 const memberFilter = ref('all')
-const typeFilter = ref('all')
+const titleFilter = ref('all')
 const statusFilter = ref('all')
 const taskModal = reactive({ open: false, editing: null })
 const form = reactive({
   title: '',
-  type: TASK_TYPES[0],
   due_date: todayStr(),
   points: 2,
   repeat_rule: 'none',
@@ -338,18 +359,17 @@ const memberFilterOptions = computed(() => {
   )
 })
 
-const taskTypeOptions = computed(() => {
-  const values = new Set(TASK_TYPES)
-  chores.value.forEach((task) => {
-    if (task.type) values.add(task.type)
-  })
-  return Array.from(values).map((value) => ({ value, label: value }))
+const titleOptions = computed(() => {
+  const used = chores.value.map((task) => String(task.title || '').trim()).filter(Boolean)
+  return [...new Set([...CHORE_TITLE_PRESETS, ...used])].map((value) => ({ value, label: value }))
 })
 
-const taskTypeFilterOptions = computed(() => [
-  { value: 'all', label: '全部任务' },
-  ...taskTypeOptions.value,
-])
+const titleFilterOptions = computed(() => {
+  const used = [
+    ...new Set(chores.value.map((task) => String(task.title || '').trim()).filter(Boolean)),
+  ].sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'))
+  return [{ value: 'all', label: '全部任务' }, ...used.map((value) => ({ value, label: value }))]
+})
 
 const defaultAssignmentMode = computed(() => {
   const candidate =
@@ -372,7 +392,7 @@ const filteredChores = computed(() => {
         const memberId = Number(memberFilter.value.slice(7))
         if (Number(task.assignee_id) !== memberId) return false
       }
-      if (typeFilter.value !== 'all' && String(task.type || '') !== String(typeFilter.value)) return false
+      if (titleFilter.value !== 'all' && String(task.title || '') !== String(titleFilter.value)) return false
       if (statusFilter.value !== 'all') {
         if (statusFilter.value === 'claim') return isClaimTask(task)
         if (taskStatus(task) !== statusFilter.value) return false
@@ -532,7 +552,6 @@ function resetForm(date = defaultDueDate()) {
   const mode = defaultAssignmentMode.value
   Object.assign(form, {
     title: '',
-    type: TASK_TYPES[0],
     due_date: date,
     points: 2,
     repeat_rule: 'none',
@@ -554,7 +573,6 @@ function openEdit(task) {
   taskModal.editing = task
   Object.assign(form, {
     title: task.title || '',
-    type: task.type || TASK_TYPES[0],
     due_date: String(task.due_date || defaultDueDate()).slice(0, 10),
     points: taskPoints(task),
     repeat_rule: task.repeat_rule || 'none',
@@ -592,6 +610,12 @@ async function load() {
         : Array.isArray(data?.chores)
           ? data.chores
           : []
+      if (
+        titleFilter.value !== 'all' &&
+        !chores.value.some((task) => String(task.title || '') === titleFilter.value)
+      ) {
+        titleFilter.value = 'all'
+      }
     }
   } catch (error) {
     if (sequence === loadSequence) emit('notify', error.message || '值日加载失败', 'error')
@@ -618,7 +642,6 @@ async function save() {
 
   const body = {
     title,
-    type: form.type,
     due_date: form.due_date,
     points: taskPoints(form),
     repeat_rule: form.repeat_rule,
@@ -639,8 +662,9 @@ async function save() {
       await api(`/api/roomie/chores/${taskModal.editing.id}`, { method: 'PUT', body })
       emit('notify', '值日任务已更新')
     } else {
-      await api('/api/roomie/chores', { method: 'POST', body })
-      emit('notify', form.repeat_rule === 'none' ? '值日任务已创建' : '重复值日任务已创建')
+      const created = await api('/api/roomie/chores', { method: 'POST', body })
+      const count = Number(created?.created_count) || 1
+      emit('notify', count > 1 ? `已生成 ${count} 条值日任务` : '值日任务已创建')
     }
     taskModal.open = false
     await refreshForDate(form.due_date)

@@ -1545,14 +1545,22 @@ function parseRepeatRule(value) {
 function repeatedChoreDates(startValue, repeatRule) {
   const start = validDate(startValue, localDate());
   const rule = String(repeatRule || 'none');
-  if (!['weekly', 'biweekly', 'monthly'].includes(rule)) return [start];
+  if (!['daily', 'weekdays', 'weekly', 'biweekly', 'monthly'].includes(rule)) return [start];
   const [year, month, day] = start.split('-').map(Number);
   const cursor = new Date(year, month - 1, day, 12);
   const cutoff = new Date(cursor);
   cutoff.setDate(cutoff.getDate() + 93);
+  // 每天/工作日重复的密度高得多，生成条数单独收敛，避免一次写入过多记录
+  const maxCount = rule === 'daily' ? 31 : rule === 'weekdays' ? 23 : 16;
   const dates = [start];
-  while (dates.length < 16) {
-    if (rule === 'weekly' || rule === 'biweekly') {
+  while (dates.length < maxCount) {
+    if (rule === 'daily') {
+      cursor.setDate(cursor.getDate() + 1);
+    } else if (rule === 'weekdays') {
+      do {
+        cursor.setDate(cursor.getDate() + 1);
+      } while (cursor.getDay() === 0 || cursor.getDay() === 6);
+    } else if (rule === 'weekly' || rule === 'biweekly') {
       cursor.setDate(cursor.getDate() + (rule === 'weekly' ? 7 : 14));
     } else {
       const targetYear = cursor.getMonth() === 11 ? cursor.getFullYear() + 1 : cursor.getFullYear();
@@ -1603,7 +1611,8 @@ function choreFields(spaceId, body, old = null) {
   const title = String(body.title ?? (old && old.title) ?? '').trim();
   if (!title) throw Object.assign(new Error('值日事项不能为空'), { status: 400 });
   const dueDate = validDate(body.due_date ?? (old && old.due_date), localDate());
-  const points = Math.max(1, Math.round(Number(body.points ?? (old && old.points) ?? 1)));
+  // 工作量采用 5 分制
+  const points = Math.min(5, Math.max(1, Math.round(Number(body.points ?? (old && old.points) ?? 1))));
   let mode = String(
     body.assignment_mode ??
       (old && old.assignment_mode) ??
