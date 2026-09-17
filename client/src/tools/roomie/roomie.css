@@ -271,6 +271,9 @@
   padding: 3px 10px;
   font-weight: 600;
   flex: none;
+  /* 列宽按比例分配后，胶囊按内容宽度显示，不要被拉伸 */
+  justify-self: start;
+  width: max-content;
 }
 
 /* 结算概览 */
@@ -785,16 +788,18 @@
 .rm-expense-table-head,
 .rm-expense-row {
   display: grid;
-  /* 各列按内容定宽，剩余宽度均匀落到列间距上，避免分类/金额/每人分摊挤在一起 */
+  /*
+   * 表头与数据是两个独立网格，必须用同一套按比例（fr）的列宽，两边算出的列位置才会完全一致；
+   * 若用 max-content 自适应，两边内容不同会导致列头与内容错位。
+   */
   grid-template-columns:
-    minmax(140px, 240px)
-    minmax(0, max-content)
-    minmax(0, max-content)
-    minmax(180px, max-content)
-    minmax(0, max-content)
-    minmax(116px, max-content);
+    minmax(150px, 1.6fr)
+    minmax(76px, 0.7fr)
+    minmax(92px, 0.8fr)
+    minmax(210px, 2.2fr)
+    minmax(100px, 0.9fr)
+    minmax(124px, 1fr);
   gap: 16px;
-  justify-content: space-between;
   align-items: center;
 }
 .rm-expense-table-head {
