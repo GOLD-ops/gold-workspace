@@ -301,7 +301,6 @@ const ASSIGNMENT_MODES = new Set(['fair', 'fixed', 'manual', 'claim'])
 const assignmentOptions = [
   { value: 'fair', label: '公平轮换' },
   { value: 'fixed', label: '固定负责人' },
-  { value: 'manual', label: '手动指定' },
   { value: 'claim', label: '自由认领' },
 ]
 const repeatOptions = [
@@ -376,6 +375,8 @@ const defaultAssignmentMode = computed(() => {
     props.settings?.chore_assignment_mode ||
     props.settings?.default_chore_assignment_mode ||
     props.settings?.default_assignment_mode
+  // 旧数据里的“手动指定”已与“固定负责人”合并
+  if (candidate === 'manual') return 'fixed'
   return ASSIGNMENT_MODES.has(candidate) ? candidate : 'fair'
 })
 
@@ -517,8 +518,7 @@ function repeatLabel(rule) {
 function assignmentModeDescription(mode) {
   const descriptions = {
     fair: '保存后自动分给本月累计工作量较少的成员；重复任务会在每次生成时重新平衡。',
-    fixed: '由同一位负责人持续完成；适合个人固定负责的区域或长期任务。',
-    manual: '只为当前任务指定负责人，不影响其他任务和后续排班。',
+    fixed: '由选定的负责人完成；适合固定负责的区域或长期任务，重复任务会一直分给同一个人。',
     claim: '先不指定负责人，任一在住成员都可以主动认领。',
   }
   return descriptions[mode] || descriptions.fair
@@ -576,7 +576,10 @@ function openEdit(task) {
     due_date: String(task.due_date || defaultDueDate()).slice(0, 10),
     points: taskPoints(task),
     repeat_rule: task.repeat_rule || 'none',
-    assignment_mode: task.assignment_mode || (task.assignee_id ? 'manual' : 'claim'),
+    assignment_mode:
+      task.assignment_mode === 'manual'
+        ? 'fixed'
+        : task.assignment_mode || (task.assignee_id ? 'fixed' : 'claim'),
     assignee_id: task.assignee_id == null ? null : Number(task.assignee_id),
   })
   taskModal.open = true

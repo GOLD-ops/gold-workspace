@@ -7,7 +7,7 @@
         <select v-model="filters.status" class="rm-input"><option value="">全部状态</option><option value="low">待补货</option><option value="normal">库存正常</option></select>
         <select v-model="filters.owner" class="rm-input"><option value="">全部负责人</option><option v-for="member in roommates" :key="member.id" :value="String(member.id)">{{ member.name }}</option></select>
       </div>
-      <div class="rm-toolbar-actions"><span class="rm-result-count">{{ filteredItems.length }} 项 · {{ lowItems.length }} 项待补货</span><button class="rm-btn primary" @click="openItem()">+ 登记物品</button></div>
+      <div class="rm-toolbar-actions"><span class="rm-result-count">{{ countText }}</span><button class="rm-btn primary" @click="openItem()">+ 登记物品</button></div>
     </div>
 
     <div v-if="loading" class="rm-loading">正在加载物品…</div>
@@ -38,7 +38,7 @@
           <div class="rm-form">
             <div class="rm-field-row"><label class="rm-field"><span>物品名称</span><input v-model.trim="itemForm.name" class="rm-input" maxlength="40" placeholder="例如：洗洁精" /></label><label class="rm-field"><span>分类</span><EditableSelect v-model="itemForm.category" :options="categoryOptions" placeholder="清洁用品" tip="可直接输入新分类" /></label></div>
             <div class="rm-field-row four"><label class="rm-field"><span>当前量</span><input v-model.number="itemForm.quantity" class="rm-input" type="number" min="0" step="any" /></label><label class="rm-field"><span>常备量</span><input v-model.number="itemForm.target_quantity" class="rm-input" type="number" min="0.01" step="any" /></label><label class="rm-field"><span>提醒阈值</span><input v-model.number="itemForm.low_threshold" class="rm-input" type="number" min="0" step="any" /></label><label class="rm-field"><span>单位</span><EditableSelect v-model="itemForm.unit" :options="unitOptions" placeholder="瓶" /></label></div>
-            <div class="rm-field-row"><label class="rm-field"><span>采购分配方式</span><select v-model="itemForm.purchase_mode" class="rm-input"><option value="fixed">固定负责人</option><option value="rotation">室友轮换</option><option value="claim">等待认领</option></select></label><label class="rm-field"><span>固定负责人</span><select v-model="itemForm.fixed_purchaser_id" class="rm-input" :disabled="itemForm.purchase_mode !== 'fixed'"><option :value="null">请选择</option><option v-for="member in roommates" :key="member.id" :value="member.id">{{ member.name }}</option></select></label></div>
+            <div class="rm-field-row"><label class="rm-field"><span>采购分配方式</span><select v-model="itemForm.purchase_mode" class="rm-input"><option value="fixed">固定负责人</option><option value="rotation">室友轮换</option><option value="claim">等待认领</option></select></label><label v-if="itemForm.purchase_mode === 'fixed'" class="rm-field"><span>固定负责人</span><select v-model="itemForm.fixed_purchaser_id" class="rm-input"><option :value="null">请选择</option><option v-for="member in roommates" :key="member.id" :value="member.id">{{ member.name }}</option></select></label></div>
             <label class="rm-field"><span>备注（可选）</span><input v-model.trim="itemForm.note" class="rm-input" maxlength="120" placeholder="例如：放在厨房水槽下方" /></label>
             <p class="rm-help">当前量小于或等于提醒阈值时，仅生成一个补货待办，并按所选方式确定采购人。</p>
           </div>
@@ -110,6 +110,13 @@ const filteredItems = computed(() => items.value.filter((item) => {
   if (filters.owner && String(item.current_purchaser_id || item.fixed_purchaser_id || '') !== filters.owner) return false
   return true
 }))
+const countText = computed(() => {
+  const total = items.value.length
+  const showing = filteredItems.value.length
+  if (showing !== total) return `筛选 ${showing} / 共 ${total} 项`
+  if (!lowItems.value.length) return `共 ${total} 项`
+  return `共 ${total} 项，其中 ${lowItems.value.length} 项待补货`
+})
 
 function memberName(id) { return props.roommates.find((member) => Number(member.id) === Number(id))?.name || '' }
 function memberColor(id) {

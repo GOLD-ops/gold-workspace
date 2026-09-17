@@ -81,15 +81,14 @@
 
         <section v-else class="rm-card rm-expense-table" aria-label="费用账本">
           <div class="rm-expense-table-head" aria-hidden="true">
-            <span>分类</span>
             <span>费用</span>
+            <span>分类</span>
             <span>金额</span>
             <span>分摊</span>
             <span>操作</span>
           </div>
 
           <article v-for="expense in filteredExpenses" :key="expense.id" class="rm-expense-row">
-            <span class="rm-cat">{{ expense.category || '其他' }}</span>
             <div class="rm-expense-main">
               <strong>{{ expense.title }}</strong>
               <small>
@@ -97,6 +96,10 @@
                 {{ expense.spent_at || '未填写日期' }}
                 <template v-if="expense.note"> · {{ expense.note }}</template>
               </small>
+            </div>
+            <span class="rm-cat">{{ expense.category || '其他' }}</span>
+            <div class="rm-expense-amount">
+              <strong>¥{{ centsToYuan(expenseAmount(expense)) }}</strong>
               <div class="rm-share-list">
                 <span
                   v-for="share in expenseShares(expense)"
@@ -113,10 +116,6 @@
                   <strong>¥{{ centsToYuan(share.share_cents) }}</strong>
                 </span>
               </div>
-            </div>
-            <div class="rm-expense-amount">
-              <strong>¥{{ centsToYuan(expenseAmount(expense)) }}</strong>
-              <small>{{ expenseParticipantIds(expense).length }} 人</small>
             </div>
             <div class="rm-expense-split">{{ splitLabel(expense) }}</div>
             <div class="rm-expense-actions">

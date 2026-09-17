@@ -1621,6 +1621,8 @@ function choreFields(spaceId, body, old = null) {
   );
   if (mode === 'rotation') mode = 'fair';
   if (mode === 'free') mode = 'claim';
+  // “手动指定”已与“固定负责人”合并，历史数据继续兼容
+  if (mode === 'manual') mode = 'fixed';
   if (!['fair', 'fixed', 'manual', 'claim'].includes(mode)) {
     throw Object.assign(new Error('任务分配方式无效'), { status: 400 });
   }

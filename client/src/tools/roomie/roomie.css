@@ -54,7 +54,8 @@
   padding: 11px 24px;
   border-radius: 12px;
   font-size: 13px;
-  z-index: 999;
+  /* 需高于弹窗遮罩（rm-overlay 为 1000），否则弹窗内的校验提示会被挡住 */
+  z-index: 3000;
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.24);
   animation: rm-fade 0.25s ease;
   max-width: min(92vw, 560px);
@@ -797,7 +798,7 @@
 .rm-expense-table-head,
 .rm-expense-row {
   display: grid;
-  grid-template-columns: 76px minmax(220px, 1fr) 120px 130px 152px;
+  grid-template-columns: minmax(190px, 1.05fr) 84px minmax(220px, 1.1fr) 118px 150px;
   gap: 16px;
   align-items: center;
 }
@@ -809,7 +810,7 @@
   font-size: 11.5px;
   font-weight: 600;
 }
-.rm-expense-table-head > :nth-child(n+3) { text-align: right; }
+.rm-expense-table-head > :last-child { text-align: right; }
 .rm-expense-row {
   min-height: 70px;
   padding: 13px 18px;
@@ -829,12 +830,10 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.rm-expense-amount { text-align: right; }
-.rm-expense-amount strong,
-.rm-expense-amount small { display: block; }
-.rm-expense-amount strong { font-size: 14px; }
-.rm-expense-amount small { color: var(--tk-faint); font-size: 11px; }
-.rm-expense-split { color: var(--tk-muted); font-size: 12px; text-align: right; }
+.rm-expense-amount { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; min-width: 0; }
+.rm-expense-amount > strong { flex: none; font-size: 14px; white-space: nowrap; }
+.rm-expense-amount .rm-share-list { margin: 0; }
+.rm-expense-split { color: var(--tk-muted); font-size: 12px; }
 .rm-expense-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
 .rm-share-list { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .rm-share-chip {
@@ -842,7 +841,7 @@
   align-items: center;
   gap: 6px;
   max-width: 100%;
-  padding: 2px 10px 2px 3px;
+  padding: 2px 9px 2px 3px;
   border: 1px solid var(--rm-line);
   border-radius: 999px;
   background: #fbfcfe;
@@ -851,7 +850,7 @@
 .rm-share-chip .rm-avatar { flex: none; }
 .rm-share-chip .rm-share-name {
   overflow: hidden;
-  max-width: 108px;
+  max-width: 96px;
   color: var(--tk-muted);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1114,18 +1113,19 @@
   align-items: center;
 }
 .rm-inventory-head { padding: 10px 17px; border-bottom: 1px solid var(--rm-line); background: var(--rm-panel); color: var(--tk-faint); font-size: 11.5px; font-weight: 600; }
+.rm-inventory-head > :last-child { text-align: right; }
 .rm-inventory-row { min-height: 72px; padding: 13px 17px; border-bottom: 1px solid var(--rm-line); background: #fff; }
 .rm-inventory-row:last-child { border-bottom: 0; }
 .rm-inventory-row:hover { background: #fafbfd; }
-.rm-inventory-name,
-.rm-stock-cell { min-width: 0; }
+.rm-inventory-name { min-width: 0; }
+.rm-stock-cell { min-width: 0; max-width: 190px; }
 .rm-inventory-name b,
 .rm-inventory-name small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rm-inventory-name small { color: var(--tk-faint); }
-.rm-stock-copy { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 5px; color: var(--tk-faint); font-size: 10.5px; }
+.rm-stock-copy { display: flex; align-items: baseline; gap: 9px; margin-bottom: 5px; color: var(--tk-faint); font-size: 10.5px; }
 .rm-stock-copy b { color: var(--tk-text); font-size: 12.5px; white-space: nowrap; }
 .rm-stock-copy span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rm-stock-track { height: 6px; overflow: hidden; border-radius: 999px; background: var(--rm-line); }
+.rm-stock-track { max-width: 122px; height: 6px; overflow: hidden; border-radius: 999px; background: var(--rm-line); }
 .rm-stock-track > span { display: block; height: 100%; border-radius: inherit; background: var(--tk-blue); }
 .rm-stock-track.low > span { background: var(--rm-danger); }
 .rm-owner { display: flex; align-items: center; gap: 7px; min-width: 0; color: var(--tk-muted); }
@@ -1224,7 +1224,9 @@
 .rm-scheme-row { display: flex; align-items: center; gap: 8px; }
 .rm-scheme-row > .sp { flex: 1; min-width: 0; }
 .rm-scheme-row > .rm-btn { flex: none; }
-.rm-split-row { display: grid; grid-template-columns: minmax(100px, 1fr) 105px 110px; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px dashed var(--rm-line); }
+/* 固定行高：切换分摊方式时（纯文本行 / 带输入框行）卡片高度保持一致 */
+.rm-split-row { display: grid; grid-template-columns: minmax(100px, 1fr) 105px 110px; gap: 10px; align-items: center; height: 56px; min-height: 56px; padding: 7px 0; border-bottom: 1px dashed var(--rm-line); }
+.rm-split-row .rm-input { height: 41px; min-height: 41px; }
 .rm-split-row:last-of-type { border-bottom: 0; }
 .rm-split-row > strong { text-align: right; }
 .rm-split-row .rm-input { min-width: 0; }
@@ -1255,9 +1257,14 @@
   .rm-summary-metric { flex: 1 1 130px; }
   .rm-summary-count { margin-left: 0; }
   .rm-expense-table-head,
-  .rm-expense-row { grid-template-columns: 72px minmax(180px, 1fr) 108px 120px; }
-  .rm-expense-table-head > :nth-child(5),
-  .rm-expense-row > :nth-child(5) { display: none; }
+  .rm-expense-row { grid-template-columns: minmax(150px, 1fr) 72px minmax(200px, 1.3fr) 120px; }
+  /* 窄屏把分摊明细收紧，避免金额列被挤成多行 */
+  .rm-share-chip .rm-avatar { display: none; }
+  .rm-share-chip { padding: 2px 8px; }
+  .rm-share-chip .rm-share-name { max-width: 64px; }
+  /* 窄屏隐藏“分摊”列，保留金额里的每人明细 */
+  .rm-expense-table-head > :nth-child(4),
+  .rm-expense-row > .rm-expense-split { display: none; }
   .rm-settlement-head,
   .rm-settlement-row { grid-template-columns: minmax(230px, 1fr) 100px 180px; }
   .rm-settlement-head > :last-child,
@@ -1322,10 +1329,12 @@
   .rm-settlement-head,
   .rm-chore-board-head,
   .rm-inventory-head { display: none; }
-  .rm-expense-row { grid-template-columns: 70px 1fr auto; gap: 10px; padding: 13px 14px; }
-  .rm-expense-amount { grid-column: 3; grid-row: 1; }
-  .rm-expense-split { grid-column: 2; text-align: left; }
-  .rm-expense-row > .rm-expense-actions { display: flex; grid-column: 2 / -1; justify-content: flex-start; }
+  .rm-expense-row { grid-template-columns: 72px minmax(0, 1fr); gap: 8px 10px; padding: 13px 14px; align-items: start; }
+  .rm-expense-main { grid-column: 2; grid-row: 1; }
+  .rm-cat { grid-column: 1; grid-row: 1; }
+  .rm-expense-amount { grid-column: 1 / -1; grid-row: 2; }
+  .rm-expense-row > .rm-expense-split { display: block; grid-column: 1 / -1; grid-row: 3; text-align: left; }
+  .rm-expense-row > .rm-expense-actions { display: flex; grid-column: 1 / -1; grid-row: 4; justify-content: flex-start; }
   .rm-settlement-row { grid-template-columns: 1fr; gap: 8px; padding: 14px; }
   .rm-transfer-action { justify-content: flex-start; }
   .rm-chore-row { grid-template-columns: 64px 1fr; gap: 9px 12px; padding: 13px 14px; }
@@ -1335,7 +1344,8 @@
   .rm-chore-row > .rm-chore-actions { display: flex; justify-content: flex-start; }
   .rm-inventory-row { grid-template-columns: 1fr; gap: 8px; padding: 14px; }
   .rm-inventory-row > * { display: flex !important; }
-  .rm-stock-cell { display: block !important; }
+  .rm-stock-cell { display: block !important; max-width: none; }
+  .rm-stock-track { max-width: none; }
   .rm-inventory-actions { justify-content: flex-start; flex-wrap: wrap; }
   .rm-proposal-body { align-items: stretch; flex-direction: column; gap: 12px; }
   .rm-proposal-actions { justify-content: flex-end; }
