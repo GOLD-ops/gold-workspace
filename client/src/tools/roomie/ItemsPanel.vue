@@ -51,7 +51,7 @@
         <div class="rm-inventory-actions">
           <button v-if="isLow(item) && !item.current_purchaser_id" class="rm-mini" @click="claim(item)">认领</button>
           <button v-if="canRestock(item)" class="rm-mini" @click="openRestock(item)">完成补货</button>
-          <button v-else class="rm-mini" @click="openConsume(item)">登记消耗</button>
+          <button class="rm-mini" @click="openConsume(item)">登记消耗</button>
           <button class="rm-mini" @click="openItem(item)">编辑</button>
         </div>
       </article>
@@ -85,7 +85,77 @@
         <div class="rm-modal-body"><div class="rm-form">
           <div class="rm-field-row"><label class="rm-field"><span>本次增加（{{ restockModal.item?.unit }}）</span><input v-model.number="restockForm.quantity" class="rm-input" type="number" min="0.01" step="any" /></label><div class="rm-field"><span>采购人</span><SelectPicker v-model="restockForm.buyer_id" :options="purchaserOptions" class="rm-picker" /></div></div>
           <label class="rm-check-line"><input v-model="restockForm.create_expense" type="checkbox" /><span><b>同时生成公共费用</b><small>库存和费用将在同一次操作中保存</small></span></label>
-          <div v-if="restockForm.create_expense" class="rm-field-row"><label class="rm-field"><span>实付金额（元）</span><input v-model="restockForm.cost" class="rm-input" type="number" min="0.01" step="0.01" /></label><div class="rm-field"><span>分摊方案</span><SelectPicker v-model="restockForm.scheme_id" :options="schemeOptions" class="rm-picker" /></div></div>
+          <template v-if="restockForm.create_expense">
+            <label class="rm-field"><span>实付金额（元）</span><input v-model="restockForm.cost" class="rm-input" type="number" min="0.01" step="0.01" /></label>
+
+            <fieldset class="rm-field rm-fieldset">
+              <legend>参与分摊的成员</legend>
+              <div class="rm-check-grid">
+                <label v-for="member in roommates" :key="member.id" class="rm-check">
+                  <input
+                    v-model="restockForm.participants"
+                    type="checkbox"
+                    :value="Number(member.id)"
+                    @change="ensureRestockShares"
+                  />
+                  <span>{{ member.name }}</span>
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset class="rm-field rm-fieldset rm-split-field">
+              <legend>分摊方式</legend>
+              <div class="rm-segmented rm-split-tabs">
+                <button
+                  v-for="mode in splitModeOptions"
+                  :key="mode.value"
+                  type="button"
+                  :class="{ active: restockForm.split_method === mode.value }"
+                  @click="setRestockSplit(mode.value)"
+                >
+                  {{ mode.label }}
+                </button>
+              </div>
+
+              <div v-if="restockForm.split_method === 'equal'" class="rm-split-panel">
+                <div v-for="share in restockSplitPreview" :key="share.roommate_id" class="rm-split-row readonly">
+                  <span>{{ memberName(share.roommate_id) }}</span>
+                  <span>平均承担</span>
+                  <strong>¥{{ centsToYuan(share.share_cents) }}</strong>
+                </div>
+              </div>
+
+              <div v-else-if="restockForm.split_method === 'ratio'" class="rm-split-panel">
+                <label v-for="member in restockSelectedMembers" :key="member.id" class="rm-split-row">
+                  <span>{{ member.name }}</span>
+                  <input
+                    v-model.number="restockForm.ratioWeights[member.id]"
+                    class="rm-input"
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    aria-label="分摊比例"
+                  />
+                  <strong>¥{{ centsToYuan(restockPreviewFor(member.id)) }}</strong>
+                </label>
+              </div>
+
+              <div v-else class="rm-split-panel">
+                <label v-for="member in restockSelectedMembers" :key="member.id" class="rm-split-row">
+                  <span>{{ member.name }}</span>
+                  <input
+                    v-model="restockForm.fixedAmounts[member.id]"
+                    class="rm-input"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    aria-label="承担金额（元）"
+                  />
+                  <strong>元</strong>
+                </label>
+              </div>
+            </fieldset>
+          </template>
           <p class="rm-help">补货完成后会记录库存流水；若仍低于阈值，补货待办将继续保留。</p>
         </div></div>
         <div class="rm-modal-footer"><button class="rm-btn" @click="restockModal.open = false">取消</button><button class="rm-btn primary" :disabled="saving" @click="saveRestock">确认补货</button></div>
@@ -100,9 +170,9 @@ import { api } from '../../api'
 import { confirmDialog } from '../../ui/confirm'
 import EditableSelect from '../../ui/EditableSelect.vue'
 import SelectPicker from '../recruitment/SelectPicker.vue'
-import { memberInitial as initial, roommateColor, todayStr, yuanToCents } from './roomie'
+import { centsToYuan, distributeCents, memberInitial as initial, roommateColor, todayStr, yuanToCents } from './roomie'
 
-const props = defineProps({ roommates: { type: Array, default: () => [] }, currentMemberId: { type: [Number, String], default: null }, splitSchemes: { type: Array, default: () => [] }, guest: { type: Boolean, default: false } })
+const props = defineProps({ roommates: { type: Array, default: () => [] }, currentMemberId: { type: [Number, String], default: null }, guest: { type: Boolean, default: false } })
 const emit = defineEmits(['notify', 'alerts-changed'])
 const items = ref([])
 const serverCategories = ref([])
@@ -114,7 +184,21 @@ const itemForm = reactive({ name: '', category: '清洁用品', quantity: 0, tar
 const consumeModal = reactive({ open: false, item: null })
 const consumeForm = reactive({ amount: 1 })
 const restockModal = reactive({ open: false, item: null })
-const restockForm = reactive({ quantity: 1, buyer_id: null, create_expense: true, cost: '', scheme_id: null })
+const splitModeOptions = [
+  { value: 'equal', label: '平均分摊' },
+  { value: 'ratio', label: '按比例' },
+  { value: 'fixed', label: '固定金额' },
+]
+const restockForm = reactive({
+  quantity: 1,
+  buyer_id: null,
+  create_expense: true,
+  cost: '',
+  participants: [],
+  split_method: 'equal',
+  ratioWeights: {},
+  fixedAmounts: {},
+})
 
 const DEFAULT_CATEGORIES = [
   '清洁用品',
@@ -151,10 +235,22 @@ const purchaseModeOptions = [
 const purchaserOptions = computed(() =>
   props.roommates.map((member) => ({ value: Number(member.id), label: member.name }))
 )
-const schemeOptions = computed(() => [
-  { value: null, label: '全员平均分摊' },
-  ...props.splitSchemes.map((scheme) => ({ value: scheme.id, label: scheme.name })),
-])
+const restockSelectedMembers = computed(() =>
+  props.roommates.filter((member) => restockForm.participants.includes(Number(member.id)))
+)
+const restockAmountCents = computed(() => yuanToCents(restockForm.cost))
+const restockSplitPreview = computed(() => {
+  const ids = restockSelectedMembers.value.map((member) => Number(member.id))
+  if (!ids.length || restockAmountCents.value <= 0) return []
+  if (restockForm.split_method === 'fixed') {
+    return ids.map((id) => ({ roommate_id: id, share_cents: yuanToCents(restockForm.fixedAmounts[id]) }))
+  }
+  const weights =
+    restockForm.split_method === 'ratio'
+      ? ids.map((id) => Math.max(0, Number(restockForm.ratioWeights[id]) || 0))
+      : ids.map(() => 1)
+  return distributeCents(restockAmountCents.value, ids, weights)
+})
 const lowItems = computed(() => items.value.filter(isLow))
 const filteredItems = computed(() => items.value.filter((item) => {
   if (filters.q && !`${item.name} ${item.note || ''}`.toLowerCase().includes(filters.q.toLowerCase())) return false
@@ -193,9 +289,42 @@ function purchaserTitle(item) {
   return '库存偏低时按成员轮换自动分配'
 }
 function canRestock(item) {
-  return isLow(item) &&
-    !!props.currentMemberId &&
-    Number(item.current_purchaser_id) === Number(props.currentMemberId)
+  // 任何库存都可以补货；只有当这轮采购被其他室友认领时才不可操作
+  if (!props.currentMemberId) return false
+  return !item.current_purchaser_id || Number(item.current_purchaser_id) === Number(props.currentMemberId)
+}
+
+function restockPreviewFor(memberId) {
+  return restockSplitPreview.value.find((share) => Number(share.roommate_id) === Number(memberId))?.share_cents || 0
+}
+
+function ensureRestockShares() {
+  for (const member of restockSelectedMembers.value) {
+    const id = Number(member.id)
+    if (restockForm.ratioWeights[id] === undefined) restockForm.ratioWeights[id] = 1
+    if (restockForm.fixedAmounts[id] === undefined) restockForm.fixedAmounts[id] = '0.00'
+  }
+}
+
+function setRestockSplit(mode) {
+  restockForm.split_method = mode
+  ensureRestockShares()
+}
+
+function restockRequestShares() {
+  if (restockForm.split_method === 'fixed') {
+    return restockSelectedMembers.value.map((member) => ({
+      roommate_id: Number(member.id),
+      share_cents: yuanToCents(restockForm.fixedAmounts[member.id]),
+    }))
+  }
+  if (restockForm.split_method === 'ratio') {
+    return restockSelectedMembers.value.map((member) => ({
+      roommate_id: Number(member.id),
+      weight: Math.max(0, Number(restockForm.ratioWeights[member.id]) || 0),
+    }))
+  }
+  return restockSelectedMembers.value.map((member) => ({ roommate_id: Number(member.id) }))
 }
 
 async function load() {
@@ -261,10 +390,42 @@ async function saveConsume() {
   finally { saving.value = false }
 }
 
-function openRestock(item) { restockModal.item = item; restockForm.quantity = Math.max(0.01, Number(item.target_quantity || 1) - Number(item.quantity || 0)); restockForm.buyer_id = item.current_purchaser_id || Number(props.currentMemberId) || props.roommates[0]?.id || null; restockForm.create_expense = true; restockForm.cost = ''; restockForm.scheme_id = props.splitSchemes[0]?.id || null; restockModal.open = true }
+function openRestock(item) {
+  restockModal.item = item
+  // 默认补到常备量；本来就够的按 1 个单位起步
+  const gap = Number(item.target_quantity || 1) - Number(item.quantity || 0)
+  restockForm.quantity = gap > 0 ? Number(gap.toFixed(2)) : 1
+  restockForm.buyer_id = item.current_purchaser_id || Number(props.currentMemberId) || props.roommates[0]?.id || null
+  restockForm.create_expense = true
+  restockForm.cost = ''
+  restockForm.participants = props.roommates.map((member) => Number(member.id))
+  restockForm.split_method = 'equal'
+  restockForm.ratioWeights = {}
+  restockForm.fixedAmounts = {}
+  ensureRestockShares()
+  restockModal.open = true
+}
+
 async function saveRestock() {
   if (Number(restockForm.quantity) <= 0) return emit('notify', '补货数量必须大于 0', 'error')
   if (restockForm.create_expense && yuanToCents(restockForm.cost) <= 0) return emit('notify', '请填写实际采购金额', 'error')
+  if (restockForm.create_expense && !restockSelectedMembers.value.length) {
+    return emit('notify', '请至少选择一位参与分摊的成员', 'error')
+  }
+  if (restockForm.create_expense && restockForm.split_method === 'ratio') {
+    if (restockSelectedMembers.value.some((member) => Number(restockForm.ratioWeights[member.id]) <= 0)) {
+      return emit('notify', '每位参与成员的分摊比例都必须大于 0', 'error')
+    }
+  }
+  if (restockForm.create_expense && restockForm.split_method === 'fixed') {
+    const assigned = restockSelectedMembers.value.reduce(
+      (total, member) => total + yuanToCents(restockForm.fixedAmounts[member.id]),
+      0
+    )
+    if (assigned !== yuanToCents(restockForm.cost)) {
+      return emit('notify', '每人固定金额之和必须等于费用总额', 'error')
+    }
+  }
   saving.value = true
   try {
     const costCents = yuanToCents(restockForm.cost)
@@ -275,9 +436,9 @@ async function saveRestock() {
           category: '日用品',
           payer_id: Number(restockForm.buyer_id),
           spent_at: todayStr(),
-          ...(restockForm.scheme_id
-            ? { split_method: 'preset', scheme_id: Number(restockForm.scheme_id) }
-            : { split_method: 'equal', participants: props.roommates.map((member) => Number(member.id)) }),
+          split_method: restockForm.split_method,
+          participants: restockSelectedMembers.value.map((member) => Number(member.id)),
+          shares: restockRequestShares(),
         }
       : null
     await api(`/api/roomie/items/${restockModal.item.id}/restock`, {
@@ -288,7 +449,6 @@ async function saveRestock() {
         buyer_id: Number(restockForm.buyer_id),
         create_expense: restockForm.create_expense,
         cost_cents: costCents,
-        scheme_id: restockForm.scheme_id,
         expense,
       },
     })

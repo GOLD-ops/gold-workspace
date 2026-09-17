@@ -65,6 +65,30 @@ export function addDays(value, amount) {
   return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`
 }
 
+// 按权重把金额（分）分摊到各成员，余数按小数部分从大到小补齐，保证合计相等
+export function distributeCents(total, ids, weights) {
+  const safeTotal = Math.max(0, Math.round(Number(total) || 0))
+  const safeWeights = weights.map((weight) => Math.max(0, Number(weight) || 0))
+  const weightTotal = safeWeights.reduce((sum, weight) => sum + weight, 0)
+  if (!ids.length || weightTotal <= 0) {
+    return ids.map((id) => ({ roommate_id: Number(id), share_cents: 0, weight: 0 }))
+  }
+  const exact = safeWeights.map((weight) => (safeTotal * weight) / weightTotal)
+  const allocated = exact.map(Math.floor)
+  let remainder = safeTotal - allocated.reduce((sum, value) => sum + value, 0)
+  const order = exact
+    .map((value, index) => ({ index, fraction: value - allocated[index] }))
+    .sort((a, b) => b.fraction - a.fraction || a.index - b.index)
+  for (let index = 0; remainder > 0; index += 1, remainder -= 1) {
+    allocated[order[index % order.length].index] += 1
+  }
+  return ids.map((id, index) => ({
+    roommate_id: Number(id),
+    share_cents: allocated[index],
+    weight: safeWeights[index],
+  }))
+}
+
 export function currentMonth() {
   return todayStr().slice(0, 7)
 }

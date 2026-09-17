@@ -144,7 +144,6 @@
           v-else-if="view === 'items'"
           :roommates="activeRoommates"
           :current-member-id="currentMemberId"
-          :split-schemes="splitSchemes"
           :guest="needLogin"
           @notify="notify"
           @alerts-changed="loadAlerts"

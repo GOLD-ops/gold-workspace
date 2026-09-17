@@ -765,7 +765,8 @@
   padding: 13px 18px;
   margin-bottom: 16px;
 }
-.rm-summary-metric { display: flex; flex-direction: column; gap: 1px; min-width: 100px; }
+/* 四个指标等分整行，避免金额数字挤在一起 */
+.rm-summary-metric { display: flex; flex-direction: column; gap: 1px; flex: 1 1 0; min-width: 90px; }
 .rm-summary-metric span { color: var(--tk-faint); font-size: 11.5px; }
 .rm-summary-metric strong { color: var(--tk-text); font-size: 17px; line-height: 1.4; }
 .rm-summary-metric strong.primary { color: var(--tk-blue); }
@@ -784,9 +785,16 @@
 .rm-expense-table-head,
 .rm-expense-row {
   display: grid;
-  /* 总金额与每人分摊分开成两列，多出来的宽度给“每人分摊”，其余列按内容紧凑排布 */
-  grid-template-columns: minmax(150px, 268px) 92px 108px minmax(230px, 1fr) 108px 132px;
+  /* 各列按内容定宽，剩余宽度均匀落到列间距上，避免分类/金额/每人分摊挤在一起 */
+  grid-template-columns:
+    minmax(140px, 240px)
+    minmax(0, max-content)
+    minmax(0, max-content)
+    minmax(180px, 340px)
+    minmax(0, max-content)
+    minmax(116px, max-content);
   gap: 16px;
+  justify-content: space-between;
   align-items: center;
 }
 .rm-expense-table-head {
@@ -883,7 +891,12 @@
 .rm-settlement-head,
 .rm-settlement-row {
   display: grid;
-  grid-template-columns: minmax(280px, 1fr) 120px 210px 150px;
+  /* 金额/状态/操作按比例铺开，避免都挤在右侧 */
+  grid-template-columns:
+    minmax(200px, 1.5fr)
+    minmax(96px, 0.8fr)
+    minmax(140px, 1.2fr)
+    minmax(116px, 1fr);
   gap: 16px;
   align-items: center;
 }
@@ -895,6 +908,7 @@
   font-size: 11.5px;
   font-weight: 600;
 }
+.rm-settlement-head > :last-child { text-align: right; }
 .rm-settlement-row { padding: 14px 18px; border-bottom: 1px solid var(--rm-line); }
 .rm-settlement-row:last-child { border-bottom: 0; }
 .rm-transfer-people { display: flex; align-items: center; gap: 7px; min-width: 0; }
@@ -1107,12 +1121,12 @@
 .rm-inventory-head,
 .rm-inventory-row {
   display: grid;
-  grid-template-columns: minmax(130px, 1.05fr) minmax(155px, 1.25fr) 96px 108px 125px 88px 174px;
+  grid-template-columns: minmax(130px, 1.05fr) minmax(155px, 1.25fr) 96px 108px 125px 88px 238px;
   gap: 13px;
   align-items: center;
 }
 .rm-inventory-head { padding: 10px 17px; border-bottom: 1px solid var(--rm-line); background: var(--rm-panel); color: var(--tk-faint); font-size: 11.5px; font-weight: 600; }
-.rm-inventory-head > :last-child { text-align: right; }
+.rm-inventory-head > :last-child { text-align: center; }
 .rm-inventory-row { min-height: 72px; padding: 13px 17px; border-bottom: 1px solid var(--rm-line); background: #fff; }
 .rm-inventory-row:last-child { border-bottom: 0; }
 .rm-inventory-row:hover { background: #fafbfd; }
@@ -1131,7 +1145,7 @@
 .rm-owner-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rm-owner-hint { flex: none; color: var(--tk-faint); font-size: 10.5px; }
 .rm-owner.unassigned .rm-owner-name { color: var(--tk-faint); }
-.rm-inventory-actions { display: flex; justify-content: flex-end; gap: 5px; }
+.rm-inventory-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }
 
 /* 设置 */
 .rm-settings-block { padding: 18px; margin-bottom: 16px; }
@@ -1237,8 +1251,12 @@
   .rm-toolbar-filters,
   .rm-filter-group { flex-wrap: wrap; }
   .rm-toolbar-actions { margin-left: auto; }
+  /* 中等宽度下把分摊胶囊收紧，避免每人分摊列被压成竖排 */
+  .rm-share-chip .rm-avatar { display: none; }
+  .rm-share-chip { padding: 2px 8px; }
+  .rm-share-chip .rm-share-name { max-width: 64px; }
   .rm-inventory-head,
-  .rm-inventory-row { grid-template-columns: minmax(120px, 1fr) minmax(145px, 1.2fr) 100px 115px 94px 170px; }
+  .rm-inventory-row { grid-template-columns: minmax(120px, 1fr) minmax(145px, 1.2fr) 100px 115px 94px 208px; }
   .rm-inventory-head > :nth-child(5),
   .rm-inventory-row > :nth-child(5) { display: none; }
   .rm-chore-board-head,

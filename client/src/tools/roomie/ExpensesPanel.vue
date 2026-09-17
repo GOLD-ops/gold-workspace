@@ -347,6 +347,7 @@ import SelectPicker from '../recruitment/SelectPicker.vue'
 import {
   CATEGORIES,
   centsToYuan,
+  distributeCents,
   memberInitial as initial,
   roommateColor,
   todayStr,
@@ -619,30 +620,6 @@ function calculateSummary(items, currentId) {
     if (ownShare) myShare += ownShare.share_cents
   }
   return { total, myPaid, myShare, net: myPaid - myShare }
-}
-
-function distributeCents(total, ids, weights) {
-  const safeTotal = Math.max(0, Math.round(Number(total) || 0))
-  const safeWeights = weights.map((weight) => Math.max(0, Number(weight) || 0))
-  const weightTotal = safeWeights.reduce((sum, weight) => sum + weight, 0)
-  if (!ids.length || weightTotal <= 0) {
-    return ids.map((id) => ({ roommate_id: Number(id), share_cents: 0, weight: 0 }))
-  }
-
-  const exact = safeWeights.map((weight) => (safeTotal * weight) / weightTotal)
-  const allocated = exact.map(Math.floor)
-  let remainder = safeTotal - allocated.reduce((sum, value) => sum + value, 0)
-  const remainderOrder = exact
-    .map((value, index) => ({ index, fraction: value - allocated[index] }))
-    .sort((a, b) => b.fraction - a.fraction || a.index - b.index)
-  for (let index = 0; remainder > 0; index += 1, remainder -= 1) {
-    allocated[remainderOrder[index % remainderOrder.length].index] += 1
-  }
-  return ids.map((id, index) => ({
-    roommate_id: Number(id),
-    share_cents: allocated[index],
-    weight: safeWeights[index],
-  }))
 }
 
 function shiftMonth(offset) {
