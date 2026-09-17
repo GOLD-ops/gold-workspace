@@ -119,7 +119,7 @@
       </div>
     </details>
 
-    <div v-if="proposalModal.open" class="rm-overlay" @mousedown.self="closeProposal">
+    <div v-if="proposalModal.open" class="rm-overlay">
       <div class="rm-modal rm-modal-wide">
         <div class="rm-modal-header">
           <h3>{{ proposalModalTitle }}</h3>
@@ -129,7 +129,7 @@
           <div class="rm-form">
             <div class="rm-field-row">
               <label class="rm-field"><span>提案标题</span><input v-model.trim="proposalForm.title" class="rm-input" maxlength="60" placeholder="例如：公共区域安静时间" /></label>
-              <label class="rm-field"><span>分类</span><select v-model="proposalForm.category" class="rm-input"><option>作息</option><option>卫生</option><option>访客</option><option>费用</option><option>其他</option></select></label>
+              <div class="rm-field"><span>分类</span><SelectPicker v-model="proposalForm.category" :options="categoryOptions" class="rm-picker" /></div>
             </div>
             <label class="rm-field"><span>具体约定</span><textarea v-model.trim="proposalForm.content" class="rm-textarea" rows="5" maxlength="1200" placeholder="把时间、范围和例外情况写清楚…"></textarea></label>
             <label class="rm-field"><span>确认截止时间</span><input v-model="proposalForm.deadline" class="rm-input" type="date" /></label>
@@ -143,7 +143,7 @@
       </div>
     </div>
 
-    <div v-if="feedbackModal.open" class="rm-overlay" @mousedown.self="feedbackModal.open = false">
+    <div v-if="feedbackModal.open" class="rm-overlay">
       <div class="rm-modal">
         <div class="rm-modal-header"><h3>提出修改</h3><button class="rm-modal-close" aria-label="关闭" @click="feedbackModal.open = false">✕</button></div>
         <div class="rm-modal-body">
@@ -159,6 +159,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { api } from '../../api'
+import SelectPicker from '../recruitment/SelectPicker.vue'
 import { addDays, memberInitial as initial, roommateColor, todayStr } from './roomie'
 
 const props = defineProps({
@@ -177,6 +178,7 @@ const proposalModal = reactive({ open: false, editing: null, type: 'create', par
 const proposalForm = reactive({ title: '', category: '作息', content: '', deadline: addDays(todayStr(), 3) })
 const feedbackModal = reactive({ open: false, proposal: null })
 const feedbackForm = reactive({ comment: '' })
+const categoryOptions = ['作息', '卫生', '访客', '费用', '其他'].map((value) => ({ value, label: value }))
 
 const needsMyVote = computed(() => pending.value.some((proposal) => canVote(proposal)))
 const proposalModalTitle = computed(() => {

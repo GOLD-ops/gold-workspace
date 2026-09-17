@@ -86,6 +86,8 @@ function addColumn(table, column, definition) {
   ['roomie_chores', 'repeat_rule', "TEXT DEFAULT ''"],
   ['roomie_chores', 'assignment_mode', "TEXT DEFAULT 'manual'"],
   ['roomie_chores', 'updated_at', "TEXT DEFAULT ''"],
+  // 同一批重复任务的分组标识，用于按“仅这一天 / 这一天及之后”批量修改
+  ['roomie_chores', 'series_id', "TEXT DEFAULT ''"],
   ['roomie_items', 'target_quantity', 'REAL DEFAULT 0'],
   ['roomie_items', 'category', "TEXT DEFAULT '其他'"],
   ['roomie_items', 'purchase_mode', "TEXT DEFAULT 'claim'"],
@@ -1574,6 +1576,45 @@ function repeatedChoreDates(startValue, repeatRule) {
   return dates;
 }
 
+/**
+ * 早期版本的重复任务没有分组标识，这里按“房间 + 标题 + 重复规则 + 分数 + 分配方式 + 负责人”
+ * 分组，再要求日期严格符合规则的递进关系，尽量把同一批次生成的记录还原成一个系列。
+ * 只会处理 series_id 为空的记录，新数据不受影响。
+ */
+function backfillChoreSeries() {
+  const rows = db
+    .prepare(
+      `SELECT id, space_id, title, repeat_rule, points, assignment_mode, IFNULL(assignee_id, 0) AS assignee, due_date
+         FROM roomie_chores
+        WHERE series_id = '' AND repeat_rule NOT IN ('', 'none')
+        ORDER BY space_id, title, repeat_rule, points, assignment_mode, due_date, assignee, id`
+    )
+    .all();
+  if (!rows.length) return;
+  const update = db.prepare('UPDATE roomie_chores SET series_id = ? WHERE id = ?');
+  let count = 0;
+  db.transaction(() => {
+    let key = '';
+    let seriesId = '';
+    let expected = [];
+    for (const row of rows) {
+      // 固定/手动分配时负责人固定，可参与分组；公平轮换的负责人每天不同，不能作为分组依据
+      const stableAssignee = ['fixed', 'manual'].includes(row.assignment_mode) ? row.assignee : 0;
+      const rowKey = [row.space_id, row.title, row.repeat_rule, row.points, row.assignment_mode, stableAssignee].join('|');
+      if (rowKey !== key || !expected.includes(row.due_date)) {
+        key = rowKey;
+        seriesId = crypto.randomBytes(8).toString('hex');
+        expected = repeatedChoreDates(row.due_date, row.repeat_rule);
+      }
+      update.run(seriesId, row.id);
+      count += 1;
+    }
+  })();
+  console.log(`[roomie] 已为 ${count} 条历史重复值日任务补充分组`);
+}
+
+backfillChoreSeries();
+
 function choreJson(row) {
   const assignee = row.assignee_id
     ? db.prepare('SELECT * FROM roomie_roommates WHERE id = ?').get(row.assignee_id)
@@ -1686,15 +1727,41 @@ router.get('/chores', route((req, res) => {
   res.json({ chores, summary, types: [...new Set(rows.map((row) => row.type))] });
 }));
 
+// 批量操作范围：single=仅这一天，future=这一天及之后，all=整批
+function resolveChoreScope(row, value) {
+  const scope = String(value || 'single');
+  if (!['single', 'future', 'all'].includes(scope)) return 'single';
+  // 没有分组信息（非重复任务或历史数据）时只能单条处理
+  return row.series_id ? scope : 'single';
+}
+
+function choreScopeRows(spaceId, row, scope) {
+  if (scope === 'future') {
+    return db
+      .prepare(
+        'SELECT * FROM roomie_chores WHERE space_id = ? AND series_id = ? AND due_date >= ? ORDER BY due_date, id'
+      )
+      .all(spaceId, row.series_id, row.due_date);
+  }
+  if (scope === 'all') {
+    return db
+      .prepare('SELECT * FROM roomie_chores WHERE space_id = ? AND series_id = ? ORDER BY due_date, id')
+      .all(spaceId, row.series_id);
+  }
+  return [row];
+}
+
 router.post('/chores', route((req, res) => {
   const body = req.body || {};
   const firstFields = choreFields(req.spaceId, body);
   const dates = repeatedChoreDates(firstFields.due_date, firstFields.repeat_rule);
+  // 一批重复任务共用同一个 series_id，用于后续按“仅这一天 / 这一天及之后”批量修改
+  const seriesId = dates.length > 1 ? crypto.randomBytes(8).toString('hex') : '';
   const insert = db.prepare(
     `INSERT INTO roomie_chores
       (space_id, title, assignee_id, due_date, done, done_at, created_at, type,
-       points, repeat_rule, assignment_mode, updated_at)
-     VALUES (?, ?, ?, ?, 0, '', ?, ?, ?, ?, ?, ?)`
+       points, repeat_rule, assignment_mode, series_id, updated_at)
+     VALUES (?, ?, ?, ?, 0, '', ?, ?, ?, ?, ?, ?, ?)`
   );
   const ids = db.transaction(() => dates.map((dueDate) => {
     const fields = choreFields(req.spaceId, { ...body, due_date: dueDate });
@@ -1709,6 +1776,7 @@ router.post('/chores', route((req, res) => {
       fields.points,
       fields.repeat_rule,
       fields.assignment_mode,
+      seriesId,
       ts
     ).lastInsertRowid);
   }))();
@@ -1721,35 +1789,58 @@ router.put('/chores/:id', route((req, res) => {
     .prepare('SELECT * FROM roomie_chores WHERE id = ? AND space_id = ?')
     .get(asId(req.params.id), req.spaceId);
   if (!old) return res.status(404).json({ error: '值日事项不存在' });
-  const fields = choreFields(req.spaceId, req.body || {}, old);
-  const done = req.body.done === undefined ? old.done : req.body.done ? 1 : 0;
-  const doneAt = done ? old.done_at || nowIso() : '';
-  db.prepare(
+  const body = req.body || {};
+  const scope = resolveChoreScope(old, body.scope);
+  const targets = choreScopeRows(req.spaceId, old, scope);
+  const update = db.prepare(
     `UPDATE roomie_chores SET title = ?, assignee_id = ?, due_date = ?, done = ?,
      done_at = ?, type = ?, points = ?, repeat_rule = ?, assignment_mode = ?, updated_at = ?
      WHERE id = ?`
-  ).run(
-    fields.title,
-    fields.assignee_id,
-    fields.due_date,
-    done,
-    doneAt,
-    fields.type,
-    fields.points,
-    fields.repeat_rule,
-    fields.assignment_mode,
-    nowIso(),
-    old.id
   );
-  res.json(choreJson(db.prepare('SELECT * FROM roomie_chores WHERE id = ?').get(old.id)));
+  const ts = nowIso();
+  db.transaction(() => {
+    for (const row of targets) {
+      // 只允许当前这条改日期，同系列的其它天保留各自日期
+      const payload = row.id === old.id ? body : { ...body, due_date: row.due_date };
+      const fields = choreFields(req.spaceId, payload, row);
+      const done = row.id === old.id && body.done !== undefined ? (body.done ? 1 : 0) : row.done;
+      const doneAt = done ? row.done_at || ts : '';
+      update.run(
+        fields.title,
+        fields.assignee_id,
+        fields.due_date,
+        done,
+        doneAt,
+        fields.type,
+        fields.points,
+        fields.repeat_rule,
+        fields.assignment_mode,
+        ts,
+        row.id
+      );
+    }
+  })();
+  const first = choreJson(db.prepare('SELECT * FROM roomie_chores WHERE id = ?').get(old.id));
+  res.json({ ...first, updated_count: targets.length });
 }));
 
 router.delete('/chores/:id', route((req, res) => {
-  const result = db
-    .prepare('DELETE FROM roomie_chores WHERE id = ? AND space_id = ?')
-    .run(asId(req.params.id), req.spaceId);
-  if (!result.changes) return res.status(404).json({ error: '值日事项不存在' });
-  res.json({ ok: true });
+  const old = db
+    .prepare('SELECT * FROM roomie_chores WHERE id = ? AND space_id = ?')
+    .get(asId(req.params.id), req.spaceId);
+  if (!old) return res.status(404).json({ error: '值日事项不存在' });
+  const scope = resolveChoreScope(old, (req.query && req.query.scope) || (req.body && req.body.scope));
+  const result =
+    scope === 'future'
+      ? db
+          .prepare('DELETE FROM roomie_chores WHERE space_id = ? AND series_id = ? AND due_date >= ?')
+          .run(req.spaceId, old.series_id, old.due_date)
+      : scope === 'all'
+        ? db
+            .prepare('DELETE FROM roomie_chores WHERE space_id = ? AND series_id = ?')
+            .run(req.spaceId, old.series_id)
+        : db.prepare('DELETE FROM roomie_chores WHERE id = ?').run(old.id);
+  res.json({ ok: true, deleted_count: result.changes });
 }));
 
 router.post('/chores/:id/claim', route((req, res) => {

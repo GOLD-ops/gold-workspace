@@ -214,6 +214,10 @@ import PaperModal from './PaperModal.vue'
 import LiteratureFields from './LiteratureFields.vue'
 
 const emit = defineEmits(['notify'])
+// 子组件（字段配置 / 文献详情）的提示需要继续向上一层抛出
+function notify(message, type = '') {
+  emit('notify', message, type)
+}
 const papers = ref([])
 const q = ref('')
 const selectedIds = ref([])

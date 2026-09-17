@@ -107,7 +107,7 @@
       </div>
     </div>
 
-    <div v-if="memberModal.open" class="rm-overlay" @mousedown.self="memberModal.open = false">
+    <div v-if="memberModal.open" class="rm-overlay">
       <div class="rm-modal">
         <div class="rm-modal-header">
           <h3>修改我的昵称</h3>

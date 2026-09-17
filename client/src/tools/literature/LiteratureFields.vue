@@ -58,14 +58,7 @@
         </div>
         <div class="fm-field">
           <label>类型</label>
-          <select v-model="editing.type" class="lt-select">
-            <option value="text">文本</option>
-            <option value="date">日期（2026-08）</option>
-            <option value="boolean">布尔（是/否）</option>
-            <option value="number">数值</option>
-            <option value="category">单选分类</option>
-            <option value="multi">多选分类</option>
-          </select>
+          <SelectPicker v-model="editing.type" :options="editTypeOptions" class="lt-picker" />
         </div>
         <div v-if="isCategoryType(editing.type)" class="fm-field">
           <label>候选选项</label>
@@ -121,14 +114,7 @@
         </div>
         <div class="fm-field">
           <label>类型（默认文本）</label>
-          <select v-model="newType" class="lt-select">
-            <option value="text">文本</option>
-            <option value="date">日期</option>
-            <option value="boolean">是/否</option>
-            <option value="number">数值</option>
-            <option value="category">单选分类</option>
-            <option value="multi">多选分类</option>
-          </select>
+          <SelectPicker v-model="newType" :options="newTypeOptions" class="lt-picker" />
         </div>
         <div v-if="isCategoryType(newType)" class="fm-field">
           <label>候选选项</label>
@@ -169,6 +155,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { api } from '../../api'
 import { confirmDialog } from '../../ui/confirm'
+import SelectPicker from '../recruitment/SelectPicker.vue'
 
 const emit = defineEmits(['notify'])
 const fields = ref([])
@@ -183,6 +170,24 @@ const newOptionInput = ref('')
 const editOptionInput = ref('')
 const loaded = ref(false)
 let saveTimer = null
+
+// 字段类型的可选项（配置已有字段 / 新增字段两处文案略有不同）
+const editTypeOptions = [
+  { value: 'text', label: '文本' },
+  { value: 'date', label: '日期（2026-08）' },
+  { value: 'boolean', label: '布尔（是/否）' },
+  { value: 'number', label: '数值' },
+  { value: 'category', label: '单选分类' },
+  { value: 'multi', label: '多选分类' },
+]
+const newTypeOptions = [
+  { value: 'text', label: '文本' },
+  { value: 'date', label: '日期' },
+  { value: 'boolean', label: '是/否' },
+  { value: 'number', label: '数值' },
+  { value: 'category', label: '单选分类' },
+  { value: 'multi', label: '多选分类' },
+]
 
 const allEnabled = computed(() => fields.value.length > 0 && fields.value.every((f) => f.enabled))
 const enabledCount = computed(() => fields.value.filter((f) => f.enabled).length)

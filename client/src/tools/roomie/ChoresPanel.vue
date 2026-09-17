@@ -87,8 +87,16 @@
                   :title="`${task.title} · ${assigneeName(task)}`"
                   @click="openEdit(task)"
                 >
-                  <span aria-hidden="true">{{ taskStatusSymbol(task) }}</span>
-                  {{ task.title }} · {{ assigneeName(task) }}
+                  <span class="rm-calendar-task-title">{{ task.title }}</span>
+                  <span
+                    v-if="roommateOf(task)"
+                    class="rm-avatar xs"
+                    :style="{ background: assigneeColor(task) }"
+                    aria-hidden="true"
+                  >
+                    {{ initial(assigneeName(task)) }}
+                  </span>
+                  <span v-else class="rm-calendar-task-who">{{ assigneeName(task) }}</span>
                 </button>
                 <button
                   v-if="day.tasks.length > 3"
@@ -170,7 +178,7 @@
       </template>
     </template>
 
-    <div v-if="taskModal.open" class="rm-overlay" @mousedown.self="closeTaskModal">
+    <div v-if="taskModal.open" class="rm-overlay">
       <div class="rm-modal rm-modal-wide">
         <div class="rm-modal-header">
           <h3>{{ taskModal.editing ? '编辑值日任务' : '新增值日任务' }}</h3>
@@ -222,6 +230,30 @@
                   class="rm-picker"
                 />
               </div>
+            </div>
+            <div v-if="isSeriesEdit" class="rm-field">
+              <span>修改范围</span>
+              <div class="rm-segmented rm-scope-tabs" role="group" aria-label="修改范围">
+                <button
+                  type="button"
+                  :class="{ active: editScope === 'single' }"
+                  :aria-pressed="editScope === 'single'"
+                  @click="editScope = 'single'"
+                >
+                  仅这一天
+                </button>
+                <button
+                  type="button"
+                  :class="{ active: editScope === 'future' }"
+                  :aria-pressed="editScope === 'future'"
+                  @click="editScope = 'future'"
+                >
+                  这一天及之后
+                </button>
+              </div>
+              <small v-if="editScope === 'future'" class="rm-field-hint">
+                这一批重复任务的名字、工作量与分配方式会一起更新，各天日期和打卡状态保持不变。
+              </small>
             </div>
             <div class="rm-form-note">{{ assignmentHelp }}</div>
           </div>
@@ -336,6 +368,8 @@ const memberFilter = ref('all')
 const titleFilter = ref('all')
 const statusFilter = ref('all')
 const taskModal = reactive({ open: false, editing: null })
+// 重复任务的修改范围：single=仅这一天，future=这一天及之后
+const editScope = ref('single')
 const form = reactive({
   title: '',
   due_date: todayStr(),
@@ -442,6 +476,9 @@ const needsAssignee = computed(() => ['fixed', 'manual'].includes(form.assignmen
 
 const assignmentHelp = computed(() => assignmentModeDescription(form.assignment_mode))
 
+// 只有属于某个重复系列的记录才提供批量范围
+const isSeriesEdit = computed(() => Boolean(taskModal.editing && taskModal.editing.series_id))
+
 function localDateKey(date) {
   const pad = (value) => String(value).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
@@ -490,13 +527,6 @@ function taskStatus(task) {
 function taskStatusLabel(task) {
   const labels = { done: '已完成', overdue: '已逾期', claim: '待认领', pending: '待完成' }
   return labels[taskStatus(task)]
-}
-
-function taskStatusSymbol(task) {
-  if (isDone(task)) return '✓'
-  if (taskStatus(task) === 'overdue') return '!'
-  if (isClaimTask(task)) return '＋'
-  return '·'
 }
 
 function taskClasses(task) {
@@ -571,6 +601,7 @@ function openAdd(date) {
 
 function openEdit(task) {
   taskModal.editing = task
+  editScope.value = 'single'
   Object.assign(form, {
     title: task.title || '',
     due_date: String(task.due_date || defaultDueDate()).slice(0, 10),
@@ -649,6 +680,7 @@ async function save() {
     points: taskPoints(form),
     repeat_rule: form.repeat_rule,
     assignment_mode: form.assignment_mode,
+    scope: taskModal.editing ? editScope.value : 'single',
     assignee_id:
       form.assignment_mode === 'claim'
         ? null
@@ -662,8 +694,9 @@ async function save() {
   saving.value = true
   try {
     if (taskModal.editing) {
-      await api(`/api/roomie/chores/${taskModal.editing.id}`, { method: 'PUT', body })
-      emit('notify', '值日任务已更新')
+      const updated = await api(`/api/roomie/chores/${taskModal.editing.id}`, { method: 'PUT', body })
+      const count = Number(updated?.updated_count) || 1
+      emit('notify', count > 1 ? `已更新 ${count} 条值日任务` : '值日任务已更新')
     } else {
       const created = await api('/api/roomie/chores', { method: 'POST', body })
       const count = Number(created?.created_count) || 1
@@ -731,15 +764,32 @@ async function complete(task, closeAfter = false) {
   }
 }
 
-async function remove(task) {
+function removalMessage(task, scope) {
+  if (scope === 'future') {
+    return `确定删除「${task.title}」${task.due_date} 及之后的全部重复任务吗？删除后不可恢复。`
+  }
+  if (scope === 'all') {
+    return `确定删除「${task.title}」这一批重复任务吗？删除后不可恢复。`
+  }
+  if (task.series_id) {
+    return `确定删除「${task.title}」这一天的任务吗？其他重复任务不受影响。`
+  }
+  return `确定删除「${task.title}」吗？删除后不可恢复。`
+}
+
+async function remove(task, requestedScope = 'single') {
+  // 没有分组信息的任务只能删单条
+  const scope = task.series_id && requestedScope !== 'single' ? requestedScope : 'single'
   const ok = await confirmDialog({
     title: '删除值日任务',
-    message: `确定删除「${task.title}」吗？${task.repeat_rule && task.repeat_rule !== 'none' ? '本次操作只删除当前记录。' : '删除后不可恢复。'}`,
+    message: removalMessage(task, scope),
   })
   if (!ok) return false
   try {
-    await api(`/api/roomie/chores/${task.id}`, { method: 'DELETE' })
-    emit('notify', '值日任务已删除')
+    const query = scope === 'single' ? '' : `?scope=${scope}`
+    const result = await api(`/api/roomie/chores/${task.id}${query}`, { method: 'DELETE' })
+    const count = Number(result?.deleted_count) || 1
+    emit('notify', count > 1 ? `已删除 ${count} 条值日任务` : '值日任务已删除')
     await load()
     emit('alerts-changed')
     return true
@@ -751,7 +801,7 @@ async function remove(task) {
 
 async function removeFromModal() {
   if (!taskModal.editing) return
-  const removed = await remove(taskModal.editing)
+  const removed = await remove(taskModal.editing, editScope.value)
   if (removed) taskModal.open = false
 }
 

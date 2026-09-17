@@ -207,8 +207,12 @@ router.post('/test-mail', async (req, res) => {
 
 router.post('/mail-check', async (req, res) => {
   if (!req.user) return res.status(400).json({ error: '游客请先登录后使用邮件提醒' });
-  const r = await mailer.checkReminders(req.user.id);
-  res.json(r);
+  try {
+    const r = await mailer.checkReminders(req.user.id);
+    res.json(r);
+  } catch (err) {
+    res.status(500).json({ error: `检查提醒失败：${err.message}` });
+  }
 });
 
 router.get('/reminders', (req, res) => {

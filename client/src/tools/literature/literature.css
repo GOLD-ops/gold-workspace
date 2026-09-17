@@ -96,6 +96,8 @@
   background-position: right 12px center;
   background-size: 13px;
 }
+/* 选择器组件与 .lt-input / .lt-select 保持同样的高度与字号 */
+.lt-picker .sp-trigger { height: 35px; min-height: 35px; border-radius: 10px; font-size: 13px; }
 .lt-empty {
   text-align: center;
   padding: 60px 20px;

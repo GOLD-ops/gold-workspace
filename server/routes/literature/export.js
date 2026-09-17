@@ -59,8 +59,14 @@ router.get('/', async (req, res) => {
     'Content-Disposition',
     `attachment; filename*=UTF-8''${encodeURIComponent('文献分析结果.xlsx')}`
   );
-  await wb.xlsx.write(res);
-  res.end();
+  try {
+    await wb.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error('[literature] 导出 Excel 失败', err.message);
+    if (!res.headersSent) res.status(500).json({ error: '导出失败，请稍后重试' });
+    else res.end();
+  }
 });
 
 module.exports = router;

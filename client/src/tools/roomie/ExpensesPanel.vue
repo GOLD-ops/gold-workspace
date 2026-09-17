@@ -84,7 +84,8 @@
             <span>费用</span>
             <span>分类</span>
             <span>金额</span>
-            <span>分摊</span>
+            <span>每人分摊</span>
+            <span>分摊方式</span>
             <span>操作</span>
           </div>
 
@@ -98,24 +99,22 @@
               </small>
             </div>
             <span class="rm-cat">{{ expense.category || '其他' }}</span>
-            <div class="rm-expense-amount">
-              <strong>¥{{ centsToYuan(expenseAmount(expense)) }}</strong>
-              <div class="rm-share-list">
+            <div class="rm-expense-amount"><strong>¥{{ centsToYuan(expenseAmount(expense)) }}</strong></div>
+            <div class="rm-share-list rm-expense-shares">
+              <span
+                v-for="share in expenseShares(expense)"
+                :key="share.roommate_id"
+                class="rm-share-chip"
+              >
                 <span
-                  v-for="share in expenseShares(expense)"
-                  :key="share.roommate_id"
-                  class="rm-share-chip"
+                  class="rm-avatar sm"
+                  :style="{ background: memberColor(roommateById(share.roommate_id), share.roommate_id) }"
                 >
-                  <span
-                    class="rm-avatar sm"
-                    :style="{ background: memberColor(roommateById(share.roommate_id), share.roommate_id) }"
-                  >
-                    {{ initial(roommateName(share.roommate_id)) }}
-                  </span>
-                  <span class="rm-share-name">{{ roommateName(share.roommate_id) || '已搬走成员' }}</span>
-                  <strong>¥{{ centsToYuan(share.share_cents) }}</strong>
+                  {{ initial(roommateName(share.roommate_id)) }}
                 </span>
-              </div>
+                <span class="rm-share-name">{{ roommateName(share.roommate_id) || '已搬走成员' }}</span>
+                <strong>¥{{ centsToYuan(share.share_cents) }}</strong>
+              </span>
             </div>
             <div class="rm-expense-split">{{ splitLabel(expense) }}</div>
             <div class="rm-expense-actions">
@@ -210,7 +209,7 @@
       </template>
     </template>
 
-    <div v-if="modal.open" class="rm-overlay" @mousedown.self="closeModal">
+    <div v-if="modal.open" class="rm-overlay">
       <div class="rm-modal rm-modal-wide" role="dialog" aria-modal="true" aria-labelledby="rm-expense-modal-title">
         <div class="rm-modal-header">
           <h3 id="rm-expense-modal-title">{{ modal.editing ? '编辑费用' : '记一笔' }}</h3>
@@ -219,7 +218,6 @@
 
         <div class="rm-modal-body">
           <div class="rm-form">
-            <div v-if="formError" class="rm-form-error">{{ formError }}</div>
             <div class="rm-field-row">
               <label class="rm-field">
                 <span>费用名称</span>
@@ -375,7 +373,6 @@ const loadSequence = ref(0)
 
 const filters = reactive({ keyword: '', category: 'all', member: 'all', status: 'all' })
 const modal = reactive({ open: false, editing: null })
-const formError = ref('')
 const form = reactive(emptyForm())
 
 const splitModeOptions = [
@@ -705,7 +702,6 @@ function openAdd() {
   if (props.guest) return emit('notify', '请先登录后再记账', 'error')
   if (!props.roommates.length) return emit('notify', '房间暂无成员，请分享房间编号邀请室友加入', 'error')
   modal.editing = null
-  formError.value = ''
   const participantIds = props.roommates.map((roommate) => Number(roommate.id))
   resetForm({
     payer_id: Number(props.currentMemberId) || participantIds[0] || null,
@@ -717,7 +713,6 @@ function openAdd() {
 
 function openEdit(expense) {
   modal.editing = expense
-  formError.value = ''
   const participantIds = expenseParticipantIds(expense)
   const shares = expenseShares(expense)
   const method = splitMethod(expense)
@@ -800,11 +795,8 @@ function validateForm() {
 async function save() {
   if (saving.value) return
   const error = validateForm()
-  if (error) {
-    formError.value = error
-    return
-  }
-  formError.value = ''
+  // 校验提示统一用底部弹出的 toast，避免滚动后看不到卡片顶部的提示
+  if (error) return emit('notify', error, 'error')
 
   const body = {
     title: form.title,
@@ -839,7 +831,6 @@ async function remove(expense) {
   const confirmed = await confirmDialog({
     title: '删除费用',
     message: `确定删除「${expense.title}」吗？结算结果会随之重新计算。`,
-    confirmText: '删除',
   })
   if (!confirmed) return
   try {

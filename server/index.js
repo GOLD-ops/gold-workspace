@@ -53,6 +53,23 @@ if (fs.existsSync(dist)) {
 
 app.use((req, res) => res.status(404).json({ error: '接口不存在' }));
 
+// 统一错误出口：同步异常与未捕获的异步拒绝都返回 JSON，避免前端只看到 HTML 报错页
+app.use((err, req, res, next) => {
+  console.error('[server]', req.method, req.originalUrl, err && err.message);
+  if (res.headersSent) return next(err);
+  res.status(err && err.status ? err.status : 500).json({
+    error: (err && err.status && err.message) || '服务器开小差了，请稍后重试',
+  });
+});
+
+// 兜底：任何未处理的异常都记录下来但不退出进程，避免一个请求把整站带崩
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection]', (reason && reason.stack) || reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException]', (err && err.stack) || err);
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '127.0.0.1', () => {
   console.log(`Server running on http://127.0.0.1:${PORT}`);

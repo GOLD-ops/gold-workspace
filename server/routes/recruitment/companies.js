@@ -171,8 +171,14 @@ router.get('/export/xlsx', async (req, res) => {
     'Content-Disposition',
     `attachment; filename*=UTF-8''${encodeURIComponent(`秋招追踪器-${todayStr()}.xlsx`)}`
   );
-  await wb.xlsx.write(res);
-  res.end();
+  try {
+    await wb.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error('[recruitment] 导出 Excel 失败', err.message);
+    if (!res.headersSent) res.status(500).json({ error: '导出失败，请稍后重试' });
+    else res.end();
+  }
 });
 
 function fmtTime(v) {

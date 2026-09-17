@@ -291,8 +291,9 @@ async function createRoom() {
   if (!name) return notify('请填写房间名称', 'error')
   creating.value = true
   try {
-    await api('/api/roomie/rooms', { method: 'POST', body: { name } })
-    notify('房间已创建')
+    const created = await api('/api/roomie/rooms', { method: 'POST', body: { name } })
+    // 房间编号是室友加入的唯一凭据，创建后直接提示出来
+    notify(created?.invite_code ? `房间已创建，房间编号 ${created.invite_code}` : '房间已创建')
     createName.value = ''
     await loadContext()
   } catch (error) {

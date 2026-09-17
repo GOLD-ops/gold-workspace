@@ -3,9 +3,24 @@
     <div class="rm-toolbar rm-items-toolbar">
       <div class="rm-filter-group">
         <input v-model.trim="filters.q" class="rm-input rm-search" placeholder="搜索物品" />
-        <select v-model="filters.category" class="rm-input"><option value="">全部分类</option><option v-for="category in categories" :key="category" :value="category">{{ category }}</option></select>
-        <select v-model="filters.status" class="rm-input"><option value="">全部状态</option><option value="low">待补货</option><option value="normal">库存正常</option></select>
-        <select v-model="filters.owner" class="rm-input"><option value="">全部负责人</option><option v-for="member in roommates" :key="member.id" :value="String(member.id)">{{ member.name }}</option></select>
+        <SelectPicker
+          v-model="filters.category"
+          :options="categoryFilterOptions"
+          class="rm-filter-picker"
+          aria-label="按分类筛选"
+        />
+        <SelectPicker
+          v-model="filters.status"
+          :options="statusFilterOptions"
+          class="rm-filter-picker"
+          aria-label="按库存状态筛选"
+        />
+        <SelectPicker
+          v-model="filters.owner"
+          :options="ownerFilterOptions"
+          class="rm-filter-picker"
+          aria-label="按负责人筛选"
+        />
       </div>
       <div class="rm-toolbar-actions"><span class="rm-result-count">{{ countText }}</span><button class="rm-btn primary" @click="openItem()">+ 登记物品</button></div>
     </div>
@@ -18,7 +33,20 @@
         <div class="rm-stock-cell"><div class="rm-stock-copy"><b>{{ displayQuantity(item.quantity) }} {{ item.unit }}</b><span>常备 {{ displayQuantity(item.target_quantity) }} {{ item.unit }}</span></div><div class="rm-stock-track" :class="{ low: isLow(item) }"><span :style="{ width: stockPercent(item) }"></span></div></div>
         <span>{{ displayQuantity(item.low_threshold) }} {{ item.unit }}</span>
         <span>{{ purchaseModeLabel(item.purchase_mode) }}</span>
-        <span class="rm-owner"><span v-if="item.current_purchaser_id" class="rm-avatar sm" :style="{ background: memberColor(item.current_purchaser_id) }">{{ initial(memberName(item.current_purchaser_id)) }}</span>{{ purchaserLabel(item) }}</span>
+        <span class="rm-owner" :class="{ unassigned: !purchaserId(item) }" :title="purchaserTitle(item)">
+          <template v-if="purchaserId(item)">
+            <span
+              class="rm-avatar sm"
+              :style="{ background: memberColor(purchaserId(item)) }"
+              aria-hidden="true"
+            >
+              {{ initial(memberName(purchaserId(item))) }}
+            </span>
+            <span class="rm-owner-name">{{ memberName(purchaserId(item)) }}</span>
+            <small v-if="!item.current_purchaser_id" class="rm-owner-hint">固定</small>
+          </template>
+          <span v-else class="rm-owner-name">{{ purchaserLabel(item) }}</span>
+        </span>
         <span class="rm-badge" :class="isLow(item) ? 'danger' : ''">{{ isLow(item) ? '待补货' : '库存正常' }}</span>
         <div class="rm-inventory-actions">
           <button v-if="isLow(item) && !item.current_purchaser_id" class="rm-mini" @click="claim(item)">认领</button>
@@ -31,14 +59,14 @@
     </div>
     <button v-else-if="!loading" class="rm-empty-card" type="button" @click="openItem()">还没有公共物品，登记第一项常用物品</button>
 
-    <div v-if="itemModal.open" class="rm-overlay" @mousedown.self="itemModal.open = false">
+    <div v-if="itemModal.open" class="rm-overlay">
       <div class="rm-modal rm-modal-wide">
         <div class="rm-modal-header"><h3>{{ itemModal.editing ? '编辑物品' : '登记物品' }}</h3><button class="rm-modal-close" aria-label="关闭" @click="itemModal.open = false">✕</button></div>
         <div class="rm-modal-body">
           <div class="rm-form">
             <div class="rm-field-row"><label class="rm-field"><span>物品名称</span><input v-model.trim="itemForm.name" class="rm-input" maxlength="40" placeholder="例如：洗洁精" /></label><label class="rm-field"><span>分类</span><EditableSelect v-model="itemForm.category" :options="categoryOptions" placeholder="清洁用品" tip="可直接输入新分类" /></label></div>
             <div class="rm-field-row four"><label class="rm-field"><span>当前量</span><input v-model.number="itemForm.quantity" class="rm-input" type="number" min="0" step="any" /></label><label class="rm-field"><span>常备量</span><input v-model.number="itemForm.target_quantity" class="rm-input" type="number" min="0.01" step="any" /></label><label class="rm-field"><span>提醒阈值</span><input v-model.number="itemForm.low_threshold" class="rm-input" type="number" min="0" step="any" /></label><label class="rm-field"><span>单位</span><EditableSelect v-model="itemForm.unit" :options="unitOptions" placeholder="瓶" /></label></div>
-            <div class="rm-field-row"><label class="rm-field"><span>采购分配方式</span><select v-model="itemForm.purchase_mode" class="rm-input"><option value="fixed">固定负责人</option><option value="rotation">室友轮换</option><option value="claim">等待认领</option></select></label><label v-if="itemForm.purchase_mode === 'fixed'" class="rm-field"><span>固定负责人</span><select v-model="itemForm.fixed_purchaser_id" class="rm-input"><option :value="null">请选择</option><option v-for="member in roommates" :key="member.id" :value="member.id">{{ member.name }}</option></select></label></div>
+            <div class="rm-field-row"><div class="rm-field"><span>采购分配方式</span><SelectPicker v-model="itemForm.purchase_mode" :options="purchaseModeOptions" class="rm-picker" /></div><div v-if="itemForm.purchase_mode === 'fixed'" class="rm-field"><span>固定负责人</span><SelectPicker v-model="itemForm.fixed_purchaser_id" :options="purchaserOptions" placeholder="请选择" class="rm-picker" /></div></div>
             <label class="rm-field"><span>备注（可选）</span><input v-model.trim="itemForm.note" class="rm-input" maxlength="120" placeholder="例如：放在厨房水槽下方" /></label>
             <p class="rm-help">当前量小于或等于提醒阈值时，仅生成一个补货待办，并按所选方式确定采购人。</p>
           </div>
@@ -47,17 +75,17 @@
       </div>
     </div>
 
-    <div v-if="consumeModal.open" class="rm-overlay" @mousedown.self="consumeModal.open = false">
+    <div v-if="consumeModal.open" class="rm-overlay">
       <div class="rm-modal"><div class="rm-modal-header"><h3>登记消耗</h3><button class="rm-modal-close" aria-label="关闭" @click="consumeModal.open = false">✕</button></div><div class="rm-modal-body"><div class="rm-field"><span>本次使用数量（{{ consumeModal.item?.unit }}）</span><input v-model.number="consumeForm.amount" class="rm-input" type="number" min="0.01" step="any" /></div><p class="rm-help">当前库存 {{ displayQuantity(consumeModal.item?.quantity) }} {{ consumeModal.item?.unit }}，扣减后不能小于 0。</p></div><div class="rm-modal-footer"><button class="rm-btn" @click="consumeModal.open = false">取消</button><button class="rm-btn primary" :disabled="saving" @click="saveConsume">确认消耗</button></div></div>
     </div>
 
-    <div v-if="restockModal.open" class="rm-overlay" @mousedown.self="restockModal.open = false">
+    <div v-if="restockModal.open" class="rm-overlay">
       <div class="rm-modal rm-modal-wide">
         <div class="rm-modal-header"><h3>完成补货 · {{ restockModal.item?.name }}</h3><button class="rm-modal-close" aria-label="关闭" @click="restockModal.open = false">✕</button></div>
         <div class="rm-modal-body"><div class="rm-form">
-          <div class="rm-field-row"><label class="rm-field"><span>本次增加（{{ restockModal.item?.unit }}）</span><input v-model.number="restockForm.quantity" class="rm-input" type="number" min="0.01" step="any" /></label><label class="rm-field"><span>采购人</span><select v-model="restockForm.buyer_id" class="rm-input"><option v-for="member in roommates" :key="member.id" :value="member.id">{{ member.name }}</option></select></label></div>
+          <div class="rm-field-row"><label class="rm-field"><span>本次增加（{{ restockModal.item?.unit }}）</span><input v-model.number="restockForm.quantity" class="rm-input" type="number" min="0.01" step="any" /></label><div class="rm-field"><span>采购人</span><SelectPicker v-model="restockForm.buyer_id" :options="purchaserOptions" class="rm-picker" /></div></div>
           <label class="rm-check-line"><input v-model="restockForm.create_expense" type="checkbox" /><span><b>同时生成公共费用</b><small>库存和费用将在同一次操作中保存</small></span></label>
-          <div v-if="restockForm.create_expense" class="rm-field-row"><label class="rm-field"><span>实付金额（元）</span><input v-model="restockForm.cost" class="rm-input" type="number" min="0.01" step="0.01" /></label><label class="rm-field"><span>分摊方案</span><select v-model="restockForm.scheme_id" class="rm-input"><option :value="null">三人平均分摊</option><option v-for="scheme in splitSchemes" :key="scheme.id" :value="scheme.id">{{ scheme.name }}</option></select></label></div>
+          <div v-if="restockForm.create_expense" class="rm-field-row"><label class="rm-field"><span>实付金额（元）</span><input v-model="restockForm.cost" class="rm-input" type="number" min="0.01" step="0.01" /></label><div class="rm-field"><span>分摊方案</span><SelectPicker v-model="restockForm.scheme_id" :options="schemeOptions" class="rm-picker" /></div></div>
           <p class="rm-help">补货完成后会记录库存流水；若仍低于阈值，补货待办将继续保留。</p>
         </div></div>
         <div class="rm-modal-footer"><button class="rm-btn" @click="restockModal.open = false">取消</button><button class="rm-btn primary" :disabled="saving" @click="saveRestock">确认补货</button></div>
@@ -71,6 +99,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { api } from '../../api'
 import { confirmDialog } from '../../ui/confirm'
 import EditableSelect from '../../ui/EditableSelect.vue'
+import SelectPicker from '../recruitment/SelectPicker.vue'
 import { memberInitial as initial, roommateColor, todayStr, yuanToCents } from './roomie'
 
 const props = defineProps({ roommates: { type: Array, default: () => [] }, currentMemberId: { type: [Number, String], default: null }, splitSchemes: { type: Array, default: () => [] }, guest: { type: Boolean, default: false } })
@@ -101,6 +130,31 @@ const UNIT_VALUES = ['个', '瓶', '卷', '袋', '盒', '包', 'L', 'kg']
 const categories = computed(() => [...new Set([...DEFAULT_CATEGORIES, ...serverCategories.value, ...items.value.map((item) => item.category).filter(Boolean)])])
 const categoryOptions = computed(() => categories.value.map((value) => ({ value, label: value })))
 const unitOptions = UNIT_VALUES.map((value) => ({ value, label: value }))
+const categoryFilterOptions = computed(() => [
+  { value: '', label: '全部分类' },
+  ...categories.value.map((value) => ({ value, label: value })),
+])
+const statusFilterOptions = [
+  { value: '', label: '全部状态' },
+  { value: 'low', label: '待补货' },
+  { value: 'normal', label: '库存正常' },
+]
+const ownerFilterOptions = computed(() => [
+  { value: '', label: '全部负责人' },
+  ...props.roommates.map((member) => ({ value: String(member.id), label: member.name })),
+])
+const purchaseModeOptions = [
+  { value: 'fixed', label: '固定负责人' },
+  { value: 'rotation', label: '室友轮换' },
+  { value: 'claim', label: '等待认领' },
+]
+const purchaserOptions = computed(() =>
+  props.roommates.map((member) => ({ value: Number(member.id), label: member.name }))
+)
+const schemeOptions = computed(() => [
+  { value: null, label: '全员平均分摊' },
+  ...props.splitSchemes.map((scheme) => ({ value: scheme.id, label: scheme.name })),
+])
 const lowItems = computed(() => items.value.filter(isLow))
 const filteredItems = computed(() => items.value.filter((item) => {
   if (filters.q && !`${item.name} ${item.note || ''}`.toLowerCase().includes(filters.q.toLowerCase())) return false
@@ -128,6 +182,16 @@ function isLow(item) { return item.status === 'low' || (Number(item.low_threshol
 function stockPercent(item) { return `${Math.max(0, Math.min(100, Number(item.quantity) / Math.max(0.01, Number(item.target_quantity) || 1) * 100))}%` }
 function purchaseModeLabel(mode) { return ({ fixed: '固定负责人', rotation: '室友轮换', claim: '等待认领' })[mode] || '室友轮换' }
 function purchaserLabel(item) { if (item.current_purchaser_id) return memberName(item.current_purchaser_id); if (item.purchase_mode === 'claim') return '等待认领'; if (item.fixed_purchaser_id) return memberName(item.fixed_purchaser_id); return '触发后分配' }
+// 本次采购人：库存偏低时才有；没有时退回展示固定负责人，保证头像始终能显示
+function purchaserId(item) {
+  return Number(item.current_purchaser_id) || Number(item.fixed_purchaser_id) || 0
+}
+function purchaserTitle(item) {
+  if (item.current_purchaser_id) return `本次采购人：${memberName(item.current_purchaser_id)}`
+  if (item.fixed_purchaser_id) return `固定负责人：${memberName(item.fixed_purchaser_id)}，库存偏低时自动分给他`
+  if (item.purchase_mode === 'claim') return '等待成员认领'
+  return '库存偏低时按成员轮换自动分配'
+}
 function canRestock(item) {
   return isLow(item) &&
     !!props.currentMemberId &&

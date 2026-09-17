@@ -185,6 +185,7 @@
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
 }
 .rm-avatar.sm { width: 28px; height: 28px; font-size: 13px; }
+.rm-avatar.xs { width: 18px; height: 18px; font-size: 9.5px; }
 
 /* 室友卡片 */
 .rm-roommate-grid {
@@ -694,9 +695,7 @@
 .rm-search { width: 190px; min-width: 140px; }
 .rm-search-field .rm-input { width: 100%; }
 .rm .sp.rm-toolbar-picker,
-.rm .sp.rm-filter-picker,
-.rm .rm-filter-group > select.rm-input,
-.rm .rm-toolbar-filters > select.rm-input {
+.rm .sp.rm-filter-picker {
   flex: 0 0 auto;
   width: 128px;
   min-width: 0;
@@ -708,19 +707,6 @@
 /* 下拉箭头与右边框保持舒适间距 */
 .rm .sp .sp-trigger { padding-right: 13px; }
 
-/* 原生下拉统一使用自定义箭头，外观与选择器组件保持一致 */
-.rm select.rm-input {
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  padding-right: 34px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2398a2b3' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 13px;
-  cursor: pointer;
-}
-.rm select.rm-input:disabled { cursor: not-allowed; opacity: 0.55; }
 .rm-result-count { color: var(--tk-faint); font-size: 11.5px; white-space: nowrap; }
 
 .rm-month-picker {
@@ -798,7 +784,8 @@
 .rm-expense-table-head,
 .rm-expense-row {
   display: grid;
-  grid-template-columns: minmax(190px, 1.05fr) 84px minmax(220px, 1.1fr) 118px 150px;
+  /* 总金额与每人分摊分开成两列，多出来的宽度给“每人分摊”，其余列按内容紧凑排布 */
+  grid-template-columns: minmax(150px, 268px) 92px 108px minmax(230px, 1fr) 108px 132px;
   gap: 16px;
   align-items: center;
 }
@@ -830,12 +817,12 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.rm-expense-amount { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; min-width: 0; }
-.rm-expense-amount > strong { flex: none; font-size: 14px; white-space: nowrap; }
-.rm-expense-amount .rm-share-list { margin: 0; }
+.rm-expense-amount { min-width: 0; }
+.rm-expense-amount > strong { font-size: 14px; white-space: nowrap; }
+.rm-expense-shares { margin: 0; min-width: 0; }
 .rm-expense-split { color: var(--tk-muted); font-size: 12px; }
 .rm-expense-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
-.rm-share-list { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.rm-share-list { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-top: 8px; }
 .rm-share-chip {
   display: inline-flex;
   align-items: center;
@@ -1057,7 +1044,9 @@
 .rm-day-number span { color: var(--tk-blue); }
 .rm-day-cell.is-today .rm-day-number b { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--tk-blue); color: #fff; }
 .rm-calendar-task {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   width: 100%;
   margin-top: 3px;
   padding: 3px 6px;
@@ -1072,6 +1061,9 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.rm-calendar-task-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rm-calendar-task .rm-avatar { flex: none; }
+.rm-calendar-task-who { flex: none; color: var(--tk-faint); font-size: 10px; }
 .rm-calendar-task:hover { border-color: #bcd0f2; }
 .rm-calendar-task.is-done { border-color: var(--rm-line); background: #f3f4f6; color: var(--tk-faint); text-decoration: line-through; }
 .rm-calendar-task.is-overdue { border-color: #f2cbc7; background: var(--rm-danger-soft); color: var(--rm-danger); }
@@ -1080,7 +1072,14 @@
 .rm-calendar-more:hover { color: var(--tk-blue); }
 .rm-chore-board { overflow: hidden; }
 .rm-chore-board-head,
-.rm-chore-row { display: grid; grid-template-columns: 96px minmax(230px, 1fr) 150px 90px 190px; gap: 16px; align-items: center; }
+.rm-chore-row {
+  display: grid;
+  /* 各列按内容定宽，剩余空间均匀分配到列间距，避免某一列特别空旷、某一列又挤在一起 */
+  grid-template-columns: 88px minmax(240px, 360px) 160px 100px 200px;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: center;
+}
 .rm-chore-board-head { padding: 10px 18px; border-bottom: 1px solid var(--rm-line); background: var(--rm-panel); color: var(--tk-faint); font-size: 11.5px; font-weight: 600; }
 .rm-chore-board-head > :last-child { text-align: right; }
 .rm-chore-row { min-height: 70px; padding: 13px 18px; border-bottom: 1px solid var(--rm-line); background: #fff; }
@@ -1100,7 +1099,7 @@
 .rm-status.pending { background: var(--tk-blue-soft); color: var(--tk-blue); }
 .rm-status.done { background: #f1f3f6; color: #667085; }
 .rm-status.claim { border: 1px dashed #c9d2df; background: #fff; color: var(--tk-muted); }
-.rm-chore-actions { display: flex; justify-content: flex-end; gap: 5px; }
+.rm-chore-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
 .rm-form-note { padding: 10px 12px; border: 1px solid var(--rm-line); border-radius: 10px; background: #fafbfd; color: var(--tk-muted); font-size: 11.5px; line-height: 1.6; }
 
 /* 公共物品台账 */
@@ -1129,7 +1128,9 @@
 .rm-stock-track > span { display: block; height: 100%; border-radius: inherit; background: var(--tk-blue); }
 .rm-stock-track.low > span { background: var(--rm-danger); }
 .rm-owner { display: flex; align-items: center; gap: 7px; min-width: 0; color: var(--tk-muted); }
-.rm-owner { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rm-owner-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rm-owner-hint { flex: none; color: var(--tk-faint); font-size: 10.5px; }
+.rm-owner.unassigned .rm-owner-name { color: var(--tk-faint); }
 .rm-inventory-actions { display: flex; justify-content: flex-end; gap: 5px; }
 
 /* 设置 */
@@ -1211,16 +1212,9 @@
 .rm-fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
 .rm-fieldset > legend { margin-bottom: 7px; color: var(--tk-muted); font-size: 12.5px; font-weight: 600; }
 .rm-split-tabs { align-self: flex-start; flex-wrap: wrap; }
+.rm-scope-tabs { align-self: flex-start; flex-wrap: wrap; }
+.rm-field-hint { display: block; color: var(--tk-faint); font-size: 11.5px; line-height: 1.6; }
 .rm-split-panel { margin-top: 4px; padding: 10px 13px; border: 1px solid var(--rm-line); border-radius: 11px; background: #fafbfd; }
-.rm-form-error {
-  padding: 10px 14px;
-  border: 1px solid #fecaca;
-  border-radius: 10px;
-  background: #fef2f2;
-  color: #dc2626;
-  font-size: 12.5px;
-  line-height: 1.6;
-}
 .rm-scheme-row { display: flex; align-items: center; gap: 8px; }
 .rm-scheme-row > .sp { flex: 1; min-width: 0; }
 .rm-scheme-row > .rm-btn { flex: none; }
@@ -1248,7 +1242,7 @@
   .rm-inventory-head > :nth-child(5),
   .rm-inventory-row > :nth-child(5) { display: none; }
   .rm-chore-board-head,
-  .rm-chore-row { grid-template-columns: 82px minmax(200px, 1fr) 135px 88px 155px; gap: 12px; }
+  .rm-chore-row { grid-template-columns: 84px minmax(220px, 300px) 150px 96px 176px; gap: 12px; }
 }
 
 @media (max-width: 860px) {
@@ -1257,13 +1251,13 @@
   .rm-summary-metric { flex: 1 1 130px; }
   .rm-summary-count { margin-left: 0; }
   .rm-expense-table-head,
-  .rm-expense-row { grid-template-columns: minmax(150px, 1fr) 72px minmax(200px, 1.3fr) 120px; }
+  .rm-expense-row { grid-template-columns: minmax(140px, 1fr) 84px 104px minmax(190px, 1.15fr) 116px; }
   /* 窄屏把分摊明细收紧，避免金额列被挤成多行 */
   .rm-share-chip .rm-avatar { display: none; }
   .rm-share-chip { padding: 2px 8px; }
   .rm-share-chip .rm-share-name { max-width: 64px; }
-  /* 窄屏隐藏“分摊”列，保留金额里的每人明细 */
-  .rm-expense-table-head > :nth-child(4),
+  /* 窄屏隐藏“分摊方式”列，保留金额与每人明细 */
+  .rm-expense-table-head > :nth-child(5),
   .rm-expense-row > .rm-expense-split { display: none; }
   .rm-settlement-head,
   .rm-settlement-row { grid-template-columns: minmax(230px, 1fr) 100px 180px; }
@@ -1274,9 +1268,7 @@
   .rm-weekdays,
   .rm-month-grid { min-width: 760px; }
   .rm-chore-board-head,
-  .rm-chore-row { grid-template-columns: 78px minmax(170px, 1fr) 120px 86px; }
-  .rm-chore-board-head > :last-child,
-  .rm-chore-row > :last-child { display: none; }
+  .rm-chore-row { grid-template-columns: 64px minmax(130px, 1fr) 96px 76px 140px; gap: 10px; }
   .rm-inventory-head,
   .rm-inventory-row { grid-template-columns: minmax(120px, 1fr) minmax(145px, 1.25fr) 105px 94px 160px; }
   .rm-inventory-head > :nth-child(4),
@@ -1323,6 +1315,10 @@
     border-radius: 50%;
     font-size: 0;
   }
+  /* 手机上只保留色点，隐藏标题与头像 */
+  .rm-calendar-task-title,
+  .rm-calendar-task .rm-avatar,
+  .rm-calendar-task-who { display: none; }
   .rm-calendar-task.is-unassigned { border: 1px dashed var(--tk-muted); }
   .rm-calendar-more { padding: 2px 0; font-size: 9px; text-align: center; }
   .rm-expense-table-head,
@@ -1333,8 +1329,9 @@
   .rm-expense-main { grid-column: 2; grid-row: 1; }
   .rm-cat { grid-column: 1; grid-row: 1; }
   .rm-expense-amount { grid-column: 1 / -1; grid-row: 2; }
-  .rm-expense-row > .rm-expense-split { display: block; grid-column: 1 / -1; grid-row: 3; text-align: left; }
-  .rm-expense-row > .rm-expense-actions { display: flex; grid-column: 1 / -1; grid-row: 4; justify-content: flex-start; }
+  .rm-expense-shares { grid-column: 1 / -1; grid-row: 3; }
+  .rm-expense-row > .rm-expense-split { display: block; grid-column: 1 / -1; grid-row: 4; text-align: left; }
+  .rm-expense-row > .rm-expense-actions { display: flex; grid-column: 1 / -1; grid-row: 5; justify-content: flex-start; }
   .rm-settlement-row { grid-template-columns: 1fr; gap: 8px; padding: 14px; }
   .rm-transfer-action { justify-content: flex-start; }
   .rm-chore-row { grid-template-columns: 64px 1fr; gap: 9px 12px; padding: 13px 14px; }
