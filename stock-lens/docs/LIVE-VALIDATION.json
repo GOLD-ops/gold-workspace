@@ -1,0 +1,297 @@
+{
+  "verifiedAt": "2026-10-10T13:54:42.762Z",
+  "ai": [
+    {
+      "input": "寻找经营改善、估值合理、走势相对稳定的公司",
+      "result": {
+        "mode": "llm",
+        "conditions": [
+          {
+            "id": "ai0",
+            "field": "revenueGrowth",
+            "op": "gte",
+            "value": 0,
+            "enabled": true,
+            "origin": "解释映射"
+          },
+          {
+            "id": "ai1",
+            "field": "profitGrowth",
+            "op": "gte",
+            "value": 0,
+            "enabled": true,
+            "origin": "解释映射"
+          },
+          {
+            "id": "ai2",
+            "field": "acceleration",
+            "op": "gte",
+            "value": 0,
+            "enabled": true,
+            "origin": "解释映射"
+          },
+          {
+            "id": "ai3",
+            "field": "pe",
+            "op": "lte",
+            "value": 25,
+            "enabled": true,
+            "origin": "解释映射"
+          },
+          {
+            "id": "ai4",
+            "field": "volatility",
+            "op": "lte",
+            "value": 30,
+            "enabled": true,
+            "origin": "解释映射"
+          }
+        ],
+        "questions": [
+          {
+            "id": "improvement",
+            "label": "经营改善采用什么证据？",
+            "options": [
+              {
+                "label": "收入与利润增长＋增速提升",
+                "keep": true
+              },
+              {
+                "label": "仅收入与利润增长",
+                "disable": "acceleration"
+              },
+              {
+                "label": "只看利润增速提升",
+                "disable": [
+                  "revenueGrowth",
+                  "profitGrowth"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "valuation",
+            "label": "“合理”如何衡量？",
+            "options": [
+              {
+                "label": "绝对PE ≤25倍",
+                "patch": {
+                  "field": "pe",
+                  "value": 25
+                }
+              },
+              {
+                "label": "更严格：PE ≤15倍",
+                "patch": {
+                  "field": "pe",
+                  "value": 15
+                }
+              },
+              {
+                "label": "行业相对估值",
+                "unsupported": true
+              }
+            ]
+          },
+          {
+            "id": "stability",
+            "label": "“稳定”采用哪种代理？",
+            "options": [
+              {
+                "label": "60日年化波动 ≤30%",
+                "patch": {
+                  "field": "volatility",
+                  "value": 30
+                }
+              },
+              {
+                "label": "最大回撤 ≤10%",
+                "replace": "volatility",
+                "patch": {
+                  "field": "drawdown",
+                  "value": 10
+                }
+              },
+              {
+                "label": "波动 ≤20%",
+                "patch": {
+                  "field": "volatility",
+                  "value": 20
+                }
+              }
+            ]
+          }
+        ],
+        "assumptions": [
+          "经营改善定义为营收同比>=0、归母净利润同比>=0、利润增速改善>=0",
+          "估值合理定义为市盈率TTM<=25倍",
+          "走势相对稳定定义为60日年化波动率<=30%"
+        ],
+        "unresolved": [],
+        "industry": "全部行业",
+        "conflicts": [],
+        "message": "大模型仅建议条件；必须人工确认，确定性引擎独立计算。",
+        "model": "deepseek-flash",
+        "trace": {
+          "provider": "DeepSeek / OpenAI兼容接口",
+          "requestId": "c254e619-d67a-44b9-ab21-1eec898b59ab",
+          "parsedAt": "2026-10-10T13:54:44.025Z",
+          "usage": {
+            "prompt_tokens": 407,
+            "completion_tokens": 158,
+            "total_tokens": 565,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "prompt_cache_hit_tokens": 0,
+            "prompt_cache_miss_tokens": 407
+          },
+          "validatedConditions": [
+            {
+              "id": "ai0",
+              "field": "revenueGrowth",
+              "op": "gte",
+              "value": 0,
+              "enabled": true,
+              "origin": "解释映射"
+            },
+            {
+              "id": "ai1",
+              "field": "profitGrowth",
+              "op": "gte",
+              "value": 0,
+              "enabled": true,
+              "origin": "解释映射"
+            },
+            {
+              "id": "ai2",
+              "field": "acceleration",
+              "op": "gte",
+              "value": 0,
+              "enabled": true,
+              "origin": "解释映射"
+            },
+            {
+              "id": "ai3",
+              "field": "pe",
+              "op": "lte",
+              "value": 25,
+              "enabled": true,
+              "origin": "解释映射"
+            },
+            {
+              "id": "ai4",
+              "field": "volatility",
+              "op": "lte",
+              "value": 30,
+              "enabled": true,
+              "origin": "解释映射"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "input": "银行行业，市盈率不超过15倍，营收同比至少5%",
+      "result": {
+        "mode": "llm",
+        "conditions": [
+          {
+            "id": "ai0",
+            "field": "pe",
+            "op": "lte",
+            "value": 15,
+            "enabled": true,
+            "origin": "解释映射"
+          },
+          {
+            "id": "ai1",
+            "field": "revenueGrowth",
+            "op": "gte",
+            "value": 5,
+            "enabled": true,
+            "origin": "解释映射"
+          }
+        ],
+        "questions": [],
+        "assumptions": [],
+        "unresolved": [],
+        "industry": "银行",
+        "conflicts": [],
+        "message": "大模型仅建议条件；必须人工确认，确定性引擎独立计算。",
+        "model": "deepseek-flash",
+        "trace": {
+          "provider": "DeepSeek / OpenAI兼容接口",
+          "requestId": "d7d0d884-1e2a-4f75-a778-f1b84a211891",
+          "parsedAt": "2026-10-10T13:54:44.561Z",
+          "usage": {
+            "prompt_tokens": 410,
+            "completion_tokens": 54,
+            "total_tokens": 464,
+            "prompt_tokens_details": {
+              "cached_tokens": 256
+            },
+            "prompt_cache_hit_tokens": 256,
+            "prompt_cache_miss_tokens": 154
+          },
+          "validatedConditions": [
+            {
+              "id": "ai0",
+              "field": "pe",
+              "op": "lte",
+              "value": 15,
+              "enabled": true,
+              "origin": "解释映射"
+            },
+            {
+              "id": "ai1",
+              "field": "revenueGrowth",
+              "op": "gte",
+              "value": 5,
+              "enabled": true,
+              "origin": "解释映射"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "finance": {
+    "provider": "扶摇 · 同花顺金融数据",
+    "code": "600036",
+    "asOf": "2026-10-09",
+    "status": "included",
+    "issues": [],
+    "requestIds": [
+      {
+        "type": "quote",
+        "requestId": "f07579d83ccb411a9e176a6240bb6b2c",
+        "source": "扶摇 · 同花顺金融数据"
+      },
+      {
+        "type": "financials",
+        "requestId": "d8e6463efbe549978faebaca29516ab6",
+        "source": "扶摇 · 同花顺金融数据"
+      },
+      {
+        "type": "history",
+        "requestId": "29d70d7b5c97404c8319390ddfae634c",
+        "source": "扶摇 · 同花顺金融数据"
+      },
+      {
+        "type": "valuation",
+        "requestId": "21d48802abad4b828a5a37d680f1129e",
+        "source": "扶摇 · 同花顺金融数据"
+      }
+    ]
+  },
+  "ifind": {
+    "source": "iFinD MCP",
+    "tool": "get_stock_financials",
+    "query": "招商银行（600036）2026-06-30累计营业总收入、累计归属于母公司股东净利润；单位元，合并报表。",
+    "fetchedAt": "2026-10-10T13:54:49.640Z",
+    "hasAnswer": true,
+    "hasIndicatorParams": true,
+    "conclusion": "仅确认工具返回成功，尚未自动对齐单位、累计/单季度或判定一致。"
+  }
+}

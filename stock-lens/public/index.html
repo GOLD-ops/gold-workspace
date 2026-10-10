@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="把自然语言研究意图转换为可修改、可验证的选股条件。"><title>见微 · 自然语言选股研究台</title><link rel="stylesheet" href="/style.css"><script type="module" src="/app.js"></script></head>
+<body>
+  <aside class="rail" aria-label="主导航">
+    <a href="/" class="brand" aria-label="见微首页"><svg viewBox="0 0 36 36" fill="none"><path d="M6 27V9h7v18M15 27V16h7v11M24 27V5h7v22" stroke="currentColor" stroke-width="2.5"/><circle cx="27.5" cy="7.5" r="2.5" fill="currentColor"/></svg></a>
+    <div class="rail-name">见微</div><div class="rail-rule"></div>
+    <button class="nav-button active" data-view="research" aria-current="page"><span class="nav-icon">⌘</span><span>策略研究</span></button>
+    <button class="nav-button" data-view="saved"><span class="nav-icon">▤</span><span>策略库</span></button>
+    <button class="nav-button" data-view="monitors"><span class="nav-icon">◷</span><span>条件监控</span></button>
+    <button class="nav-button" data-view="sources"><span class="nav-icon">▧</span><span>数据口径</span></button>
+    <div class="rail-bottom"><span class="live-dot"></span><span>研究工具<br>非投资建议</span></div>
+  </aside>
+  <div class="shell">
+    <header class="topbar"><div class="wordmark">见微 <span>STOCK LENS</span><small>自然语言选股研究台</small></div><div class="top-actions"><span class="tag muted">A 股 · 研究样本</span><button id="help" class="icon-button" aria-label="使用说明">?</button><span class="avatar">研</span></div></header>
+    <main id="main-content">
+      <section class="page-head"><div><div class="eyebrow">从想法，到证据</div><h1>让每一个选股条件，都有据可查<span class="heading-dot">。</span></h1><p>说出你的研究意图，检查条件与口径，再看哪些公司符合。</p></div><button class="button secondary" id="refresh"><span>↻</span> 更新数据</button></section>
+      <div id="load-status" class="status-strip" role="status"><span class="live-dot"></span>正在读取真实数据快照…</div>
+      <section id="research-view">
+        <div class="intent-card">
+          <div class="intent-top"><div class="section-label"><span class="spark">✦</span> 描述你的研究意图</div><span id="ai-mode" class="mode-badge">检查解析服务…</span></div>
+          <div class="intent-input"><label class="sr-only" for="intent">自然语言研究意图</label><textarea id="intent" rows="2" maxlength="1500">寻找经营改善、估值合理、走势相对稳定的公司</textarea><button class="button primary" id="interpret">拆解为条件 <span>↗</span></button></div>
+          <div class="examples"><span>试试看</span><button data-example="寻找经营改善、估值合理、走势相对稳定的公司">经营改善 · 合理估值</button><button data-example="银行行业，市盈率不超过15倍，营收同比至少0%，60日年化波动率不超过25%">低估值银行</button><button data-example="利润同比至少10%，60日最大回撤不超过10%">利润增长 · 控制回撤</button></div>
+        </div>
+        <div class="workspace">
+          <section class="condition-panel panel">
+            <div class="panel-heading"><div><span class="step-dot">1</span><h2>检查筛选条件</h2></div><span id="condition-count" class="small-label">5 项 AND</span></div>
+            <div class="panel-body"><p class="helper">模糊表达会转成可量化的代理。阈值只是研究假设，你可以随时修改。</p><div id="parse-message"></div><div id="clarifications"></div>
+              <label class="field-label" for="industry">研究范围</label><select id="industry"><option>全部行业</option></select><div class="scope-note">固定 24 只 A 股样本 · 非全市场</div>
+              <div id="conditions"></div>
+              <button class="add-condition" id="add-condition">＋ 添加一个条件</button>
+              <div id="unresolved"></div><div id="conflicts" role="alert"></div>
+              <div class="confirm-box"><label><input type="checkbox" id="confirm" checked> 我已检查字段、阈值与默认假设</label><small>所有启用条件同时满足才入选；缺失数据不放行。</small></div>
+              <button class="button primary full" id="execute">确认条件并筛选 <span>→</span></button>
+              <div class="engine-note"><span>◇</span><p>AI 负责翻译意图<br>筛选引擎负责逐条计算<br>金融工具负责提供原始数据</p></div>
+            </div>
+          </section>
+          <div class="results-column">
+            <section class="result-panel panel">
+              <div class="result-title"><div><span class="step-dot">2</span><h2>研究结果</h2><span id="result-label" class="tag muted">示例策略</span></div><div><button class="text-button" id="export">导出证据</button><button class="button secondary small" id="save">＋ 保存策略</button></div></div>
+              <div id="stale" class="notice hidden">条件已修改，下方仍是上次确认的结果。重新筛选后生效。</div>
+              <div id="result-summary" class="summary-row"></div>
+              <div class="results-toolbar"><div class="result-tabs" role="tablist"><button data-tab="included" class="active" role="tab" aria-selected="true">符合条件 <b id="included-count">—</b></button><button data-tab="excluded" role="tab" aria-selected="false">被排除 <b id="excluded-count">—</b></button><button data-tab="unknown" role="tab" aria-selected="false">待核验 <b id="unknown-count">—</b></button></div><label class="search-box"><span>⌕</span><input id="search" aria-label="搜索股票名称或代码" placeholder="名称 / 代码"></label></div>
+              <div id="compare-bar" class="compare-bar hidden"></div>
+              <div class="table-scroll"><table class="stock-table"><thead><tr><th><span class="sr-only">选择比较</span></th><th>公司 / 代码</th><th>营收同比</th><th>利润同比</th><th>PE TTM</th><th>60日波动</th><th>条件证据</th></tr></thead><tbody id="stock-rows"></tbody></table></div>
+              <div class="table-footer"><span id="table-caption">每项结果由确定性引擎计算</span><span>按代码排序 · 无收益排名</span></div>
+            </section>
+            <section class="sensitivity-panel panel"><div class="panel-heading"><div><span class="step-dot">3</span><h2>条件变化，会改变什么？</h2></div><span class="tag mint">反事实分析</span></div><div class="sensitivity-content"><div><p>保持其他条件不变，试着移动一个阈值。</p><div class="sensitivity-input"><label class="sr-only" for="sensitivity-field">变化的条件</label><select id="sensitivity-field"></select><span>调整为</span><label class="sr-only" for="sensitivity-value">新的阈值</label><input type="number" id="sensitivity-value" value="15" step="1"><span id="sensitivity-unit">倍</span></div><div class="threshold-presets"><button data-value="15">更严格 15 倍</button><button data-value="25">当前 25 倍</button><button data-value="35">放宽 35 倍</button></div></div><div id="sensitivity-result"></div></div><div class="sensitivity-bottom"><div id="sensitivity-changes"></div><button class="text-button" id="apply-sensitivity">应用到条件 →</button></div></section>
+            <div class="research-disclaimer"><span>ⓘ</span><p>结果表示“符合已确认的研究条件”，不代表投资价值判断。历史波动不预示未来风险，不提供涨跌预测、收益承诺或直接买卖建议。</p><button class="text-button" id="create-monitor">转为条件监控 →</button></div>
+          </div>
+        </div>
+      </section>
+      <section id="other-view" class="hidden"></section>
+    </main>
+    <footer class="page-footer"><span>见微 · 把推断留给人，把证据交给数据。</span><span>字段可溯源 / 缺失不猜测 / 条件可复现</span></footer>
+  </div>
+  <div id="overlay" class="overlay hidden"><section id="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title" tabindex="-1"></section></div>
+  <div id="toast" role="status" class="toast hidden"></div>
+</body></html>
