@@ -1,6 +1,8 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {parseIntent,interpretIntent,validateAIResult} from '../src/interpreter.js';
-test('主意图澄清生成5项条件；走势相对稳定不误判为相对估值',()=>{const p=parseIntent('经营改善、估值合理、走势相对稳定');assert.equal(p.conditions.length,5);assert.equal(p.questions.length,3);assert.equal(p.unresolved.length,0);});
+test('主意图仅生成四项条件，经营改善不附加利润增速，保留两种可选澄清',()=>{const p=parseIntent('经营改善、估值合理、走势相对稳定');assert.equal(p.conditions.length,4);assert.equal(p.questions.length,2);assert.equal(p.unresolved.length,0);assert.ok(!p.conditions.some(c=>c.field==='acceleration'));});
+test('用户明确要求利润增速时仍可解释并执行高级指标',()=>{for(const text of ['经营改善，利润增速提升至少3个百分点，估值合理','利润增速改善至少3个百分点']){const p=parseIntent(text),c=p.conditions.find(c=>c.field==='acceleration');assert.equal(c.value,3);assert.equal(c.op,'gte');}});
+test('AI自作主张添加高级指标会回退，防止默认逻辑复杂化',async()=>{const fetcher=async()=>new Response(JSON.stringify({choices:[{message:{content:JSON.stringify({conditions:[{field:'revenueGrowth',op:'gte',value:0},{field:'profitGrowth',op:'gte',value:0},{field:'acceleration',op:'gte',value:0}],unresolved:[],assumptions:[]})}}]}));const p=await interpretIntent('经营改善',{AI_API_KEY:'test-key'},fetcher);assert.equal(p.mode,'fallback');assert.ok(!p.conditions.some(c=>c.field==='acceleration'));});
 test('明确条件、行业范围与AND冲突可识别',()=>{const p=parseIntent('银行行业，市盈率不超过10倍，市盈率至少20倍，营收同比至少5%');assert.equal(p.industry,'银行');assert.equal(p.conditions.length,3);assert.ok(p.conflicts.some(e=>e.includes('冲突')));});
 test('不支持的ROE、全市场、行业相对估值不能静默忽略',()=>{for(const text of ['ROE至少10%，市盈率不超过20倍','全市场低估值股票','寻找相对估值低的公司'])assert.ok(parseIntent(text).unresolved.length>0);});
 test('收益承诺、预测与直接买卖建议在模型调用前被阻止',async()=>{for(const text of ['稳赚翻倍的股票','明天必涨的股票','告诉我买入哪只']){let called=false;const result=await interpretIntent(text,{AI_API_KEY:'test-key'},async()=>{called=true;});assert.equal(result.mode,'blocked');assert.equal(called,false);}});

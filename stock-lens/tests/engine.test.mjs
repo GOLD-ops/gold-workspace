@@ -5,9 +5,9 @@ import {defaultConditions,screen,validateConditions,historyMetrics,financialMetr
 const fixture=JSON.parse(await readFile(new URL('../data/snapshot.json',import.meta.url),'utf8'));
 const now=Date.parse('2026-10-10T12:00:00+08:00');
 const cond=(field,op,value,id='t')=>({id,field,op,value,enabled:true});
-test('真实公开快照主链路：9入选、14排除、1待核验，逐项原始证据可用',()=>{
+test('简化后的四项默认条件：12入选、11排除、1待核验，逐项原始证据可用',()=>{
   const r=screen(fixture.stocks,defaultConditions(),{now});
-  assert.equal(r.included.length,9);assert.equal(r.excluded.length,14);assert.equal(r.unknown.length,1);
+  assert.equal(r.included.length,12);assert.equal(r.excluded.length,11);assert.equal(r.unknown.length,1);
   assert.equal(r.unknown[0].code,'601012');
   for(const s of r.included){assert.ok(s.checks.every(c=>c.status==='pass'));assert.ok(s.evidence.length>=3);assert.ok(s.evidence.every(e=>e.url&&e.fetchedAt&&e.raw));}
 });
@@ -30,6 +30,13 @@ test('财报按披露日进行点时选择，未来披露不能用于当日研�
   assert.equal(financialMetrics(reports,'2026-08-01').period,'2026-03-31');
 });
 test('负基期与零基期不制造增长率',()=>{assert.equal(growth(10,-20),null);assert.equal(growth(10,0),null);assert.equal(growth(null,20),null);assert.equal(growth(30,20),50);});
+test('无法判断保留明确原因，区分负基期与真正字段缺失',()=>{
+  const s=structuredClone(fixture.stocks[0]);
+  s.reports.find(r=>r.period==='2025-06-30').profit=-10;
+  let r=screen([s],[cond('profitGrowth','gte',0)],{now});assert.match(r.rows[0].checks[0].reason,/零或负数/);
+  s.reports=s.reports.filter(r=>r.period!=='2025-06-30');
+  r=screen([s],[cond('profitGrowth','gte',0)],{now});assert.match(r.rows[0].checks[0].reason,/缺少/);assert.equal(r.unknown.length,1);
+});
 test('负PE不能当作低估值入选',()=>{
   const stock=structuredClone(fixture.stocks[0]);stock.valuation={peTTM:-5,timestamp:now};
   const r=screen([stock],[cond('pe','lte',15)],{now});assert.equal(r.unknown.length,1);assert.equal(r.rows[0].checks[0].value,null);
@@ -55,8 +62,16 @@ test('未来行情日期和早于研究时点的估值拒绝静默放行',()=>{
   const s=structuredClone(fixture.stocks[0]);s.quote.date='2026-10-11';assert.equal(screen([s],[cond('pe','lte',25)],{now}).unknown.length,1);
   s.quote.date='2026-10-09';s.valuation={peTTM:5,timestamp:Date.parse('2026-10-08')};assert.equal(screen([s],[cond('pe','lte',25)],{now}).unknown.length,1);
 });
-test('反事实分析：PE 25→15，9→7，移出五粮液与中国神华',()=>{
-  const r=sensitivity(fixture.stocks,defaultConditions(),'pe',15,{now});assert.equal(r.before,9);assert.equal(r.after,7);assert.deepEqual(r.removed.map(s=>s.code).sort(),['000858','601088']);assert.equal(r.unknown,1);
+test('条件调整：PE 25→15，12→8，逐只给出移出依据',()=>{
+  const r=sensitivity(fixture.stocks,defaultConditions(),'pe',15,{now});assert.equal(r.before,12);assert.equal(r.after,8);assert.deepEqual(r.removed.map(s=>s.code).sort(),['000858','600028','600900','601088']);assert.equal(r.unknown,1);
+});
+test('高级利润增速条件按需加入，恢复旧版九只候选，保留三只新增依据',()=>{
+  const cs=defaultConditions(),advanced=[...cs,cond('acceleration','gte',0,'improve')];
+  const a=screen(fixture.stocks,cs,{now}),b=screen(fixture.stocks,advanced,{now});
+  assert.equal(b.included.length,9);
+  const old=new Set(b.included.map(s=>s.code));
+  assert.deepEqual(a.included.filter(s=>!old.has(s.code)).map(s=>s.code).sort(),['000333','600028','600900']);
+  assert.ok(a.included.filter(s=>!old.has(s.code)).every(s=>s.metrics.acceleration<0));
 });
 test('收紧PE上限时，候选必为原候选子集',()=>{
   let previous=new Set(screen(fixture.stocks,[cond('pe','lte',100)],{now}).included.map(s=>s.code));

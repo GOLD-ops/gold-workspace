@@ -17,9 +17,8 @@ export const UNIVERSE = [
   ['600309','万华化学','化工'],['002475','立讯精密','电子'],['600028','中国石化','石油石化'],['601857','中国石油','石油石化']
 ].map(([code,name,industry])=>({ code, name, industry, thscode: code + (code.startsWith('6')?'.SH':'.SZ') }));
 export const defaultConditions = () => [
-  { id: 'revenue', field: 'revenueGrowth', op: 'gte', value: 0, enabled: true, origin: '经营改善 → 收入保持增长（需确认）' },
-  { id: 'profit', field: 'profitGrowth', op: 'gte', value: 0, enabled: true, origin: '经营改善 → 利润保持增长（需确认）' },
-  { id: 'improve', field: 'acceleration', op: 'gte', value: 0, enabled: true, origin: '经营改善 → 累计利润同比增速提升（需确认）' },
+  { id: 'revenue', field: 'revenueGrowth', op: 'gte', value: 0, enabled: true, origin: '经营改善 → 收入不下降（需确认）' },
+  { id: 'profit', field: 'profitGrowth', op: 'gte', value: 0, enabled: true, origin: '经营改善 → 利润不下降（需确认）' },
   { id: 'pe', field: 'pe', op: 'lte', value: 25, enabled: true, origin: '估值合理 → 绝对市盈率≤25倍（需确认）' },
   { id: 'vol', field: 'volatility', op: 'lte', value: 30, enabled: true, origin: '走势相对稳定 → 年化波动率≤30%（需确认）' }
 ];
@@ -78,11 +77,25 @@ export function normalizeStock(stock, now=Date.now()){
   const metricDates={revenueGrowth:fin.period,profitGrowth:fin.period,acceleration:fin.period,pe:asOf,volatility:hist.window?.[1],drawdown:hist.window?.[1],marketCap:asOf};
   return {...stock,metrics,fin,hist,metricDates,issues:[...new Set(issues)],ageDays};
 }
+export function missingMetricReason(stock,field){
+  if(field==='revenueGrowth'||field==='profitGrowth'){
+    const key=field==='revenueGrowth'?'revenue':'profit',name=field==='revenueGrowth'?'收入':'利润';
+    if(Number.isFinite(stock.fin.prior?.[key])&&stock.fin.prior[key]<=0)return `上年同期${name}为零或负数，普通同比增长率不适用`;
+    return `缺少已披露的本期或上年同期${name}，无法计算同比`;
+  }
+  if(field==='pe'){
+    if(stock.valuation)return Number.isFinite(stock.valuation.peTTM)&&stock.valuation.peTTM<=0?'估值接口返回非正市盈率，不能作为正常低估值':'估值接口缺少有效市盈率';
+    return Number.isFinite(stock.fin.ttm)&&stock.fin.ttm<=0?'近12个月利润为零或负数，市盈率不适用':'缺少总市值或近12个月利润，无法计算市盈率';
+  }
+  if(field==='acceleration')return '缺少两个累计报告期的可比利润增长率，或其上年基数非正';
+  if(field==='volatility'||field==='drawdown')return '历史收盘价不足61条、日期重复或价格无效，无法计算';
+  return '行情接口未提供有效的总市值';
+}
 export function screen(stocks,conditions,options={}){
   const errors=validateConditions(conditions);if(errors.length)return {errors,rows:[],included:[],excluded:[],unknown:[]};
   const rows=stocks.filter(s=>!options.industry||options.industry==='全部行业'||s.industry===options.industry).map(raw=>{
     const s=normalizeStock(raw,options.now??Date.now());
-    const checks=conditions.filter(c=>c.enabled).map(c=>{const value=s.metrics[c.field],missing=!Number.isFinite(value);return {condition:c,value:missing?null:value,status:missing?'unknown':compare(value,c.op,c.value)?'pass':'fail',date:s.metricDates[c.field]??null,unit:FIELDS[c.field].unit};});
+    const checks=conditions.filter(c=>c.enabled).map(c=>{const value=s.metrics[c.field],missing=!Number.isFinite(value);return {condition:c,value:missing?null:value,status:missing?'unknown':compare(value,c.op,c.value)?'pass':'fail',reason:missing?missingMetricReason(s,c.field):null,date:s.metricDates[c.field]??null,unit:FIELDS[c.field].unit};});
     const status=s.issues.length||checks.some(c=>c.status==='unknown')?'unknown':checks.some(c=>c.status==='fail')?'excluded':'included';
     return {...s,checks,status};
   });
