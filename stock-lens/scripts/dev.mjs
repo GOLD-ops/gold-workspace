@@ -1,7 +1,7 @@
 import {createServer} from 'node:http';
 import {readFile} from 'node:fs/promises';
 import {createHandler} from '../src/server.js';
-const types={'/index.html':'text/html; charset=utf-8','/app.js':'text/javascript; charset=utf-8','/engine.js':'text/javascript; charset=utf-8','/style.css':'text/css; charset=utf-8'};
+const types={'/index.html':'text/html; charset=utf-8','/app.js':'text/javascript; charset=utf-8','/engine.js':'text/javascript; charset=utf-8','/style.css':'text/css; charset=utf-8','/stock-lens.svg':'image/svg+xml'};
 const server=createServer(async(req,res)=>{
   try{
     const assets={};for(const [path,type]of Object.entries(types))assets[path]={body:await readFile(path==='/engine.js'?'src/engine.js':'public'+path,'utf8'),type};
