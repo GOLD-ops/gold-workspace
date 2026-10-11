@@ -2,9 +2,9 @@
 <html lang="zh-CN">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="用一句话描述想找的公司，检查 AI 理解的条件，再查看真实数据筛选结果。"><title>智能选股 · GOLD Workspace</title><link rel="icon" type="image/svg+xml" href="./stock-lens.svg"><link rel="stylesheet" href="./style.css"><script type="module" src="./app.js"></script></head>
 <body>
-  <header class="navbar"><div class="nav-content"><div class="tool-brand"><img class="tool-icon" src="./stock-lens.svg" alt="" aria-hidden="true" width="32" height="32"><h1>智能选股</h1><span class="tool-sub">用一句话，找到符合条件的公司</span></div><div class="nav-right"><a href="http://goldsm.site/" class="nav-link">返回工具列表</a><button id="help" class="text-button">使用说明</button></div></div></header>
+  <header class="navbar"><div class="nav-content"><div class="tool-brand"><img class="tool-icon" src="./stock-lens.svg" alt="" aria-hidden="true" width="32" height="32"><h1>智能选股</h1><span class="tool-sub">用一句话，找到符合条件的公司</span></div><div class="nav-right"><button id="help" class="text-button">使用说明</button></div></div></header>
   <main id="main-content" class="tool-container">
-    <nav class="tool-tabs" aria-label="工具导航"><button class="nav-button active" data-view="research" aria-current="page">选股</button><button class="nav-button" data-view="saved">我的筛选</button><button class="nav-button" data-view="sources">设置与说明</button></nav>
+    <nav class="tool-tabs" aria-label="工具导航"><button class="nav-button active" data-view="research" aria-current="page">选股</button><button class="nav-button" data-view="saved">我的筛选</button><button class="nav-button" data-view="sources">数据与说明</button></nav>
     <section id="research-view">
       <nav class="workflow-nav" aria-label="筛选步骤">
         <button data-stage="input" aria-current="step"><span class="step-number">1</span><span>描述想法</span></button><span class="step-line" aria-hidden="true"></span>
@@ -19,13 +19,13 @@
           <div id="intent-error" role="alert"></div>
         </section>
         <div class="example-area"><span class="small-label">没有具体想法？试试这些</span><div class="examples"><button data-example="寻找经营改善、估值合理、走势相对稳定的公司">经营改善，估值合理 <span aria-hidden="true">↗</span></button><button data-example="银行行业，市盈率不超过15倍，营收同比至少0%">低估值银行 <span aria-hidden="true">↗</span></button><button data-example="利润同比至少10%，60日最大回撤不超过10%">利润增长，回撤较小 <span aria-hidden="true">↗</span></button></div></div>
-        <p class="scope-note">当前为 24 只 A 股研究样本，覆盖多个行业。</p>
+        <p class="scope-note">当前在 24 只 A 股演示样本中筛选。<button class="text-button" data-action="show-universe">为什么是 24 只？</button></p>
       </div>
       <section id="condition-section" class="panel condition-panel hidden" aria-labelledby="condition-title">
         <div class="intent-review"><div><span class="context-label">你的想法</span><p id="review-intent"></p></div><button class="text-button" data-stage="input">修改想法</button></div>
         <div class="panel-heading"><div><h2 id="condition-title" tabindex="-1">确认这次筛选的条件</h2><span id="condition-count" class="small-label"></span></div></div>
         <div class="panel-body"><div id="parse-message"></div><div id="condition-summary" class="condition-summary"></div><p class="assumption-note">这些阈值是本次筛选的假设，可以修改；符合条件不等于值得买入。</p>
-          <details id="advanced" class="advanced"><summary>修改条件与高级指标</summary><div class="advanced-body"><div class="scope-row"><label for="industry">行业范围</label><select id="industry"><option>全部行业</option></select><span class="small-label">固定 24 只 A 股研究样本</span></div><div id="conditions"></div><button class="add-condition" id="add-condition">＋ 添加条件</button><details id="clarification-options"><summary>换一种衡量方式</summary><div id="clarifications"></div></details></div></details>
+          <details id="advanced" class="advanced"><summary>修改条件与高级指标</summary><div class="advanced-body"><div class="scope-row"><label for="industry">行业范围</label><select id="industry"><option>全部行业</option></select><span class="small-label">在当前演示样本内选择</span><button class="text-button" data-action="show-universe">查看覆盖公司</button></div><div id="conditions"></div><button class="add-condition" id="add-condition">＋ 添加条件</button><details id="clarification-options"><summary>换一种衡量方式</summary><div id="clarifications"></div></details></div></details>
           <div id="unresolved"></div><div id="conflicts" role="alert"></div><div class="condition-footer"><button class="text-button" data-stage="input">← 返回修改想法</button><button class="button primary" id="execute" disabled>按这些条件筛选 <span aria-hidden="true">→</span></button></div>
         </div>
       </section>
