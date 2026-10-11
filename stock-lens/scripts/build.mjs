@@ -1,5 +1,5 @@
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
-const modules=['engine','providers','interpreter','ifind','server'];
+const modules=['engine','providers','universe','interpreter','ifind','server'];
 let source='';for(const name of modules){source+=(await readFile(`src/${name}.js`,'utf8')).replace(/^import .*;\r?\n/gm,'')+'\n';}
 const snapshot=JSON.parse(await readFile('data/snapshot.json','utf8'));
 if(snapshot.stocks.some(s=>s.evidence?.some(e=>e.source?.startsWith('扶摇'))))throw new Error('不能把授权数据嵌入提交源码；请使用公开快照作为可复现基线');
