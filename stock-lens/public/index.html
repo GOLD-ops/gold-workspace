@@ -6,29 +6,40 @@
   <main id="main-content" class="tool-container">
     <nav class="tool-tabs" aria-label="工具导航"><button class="nav-button active" data-view="research" aria-current="page">选股</button><button class="nav-button" data-view="saved">我的筛选</button><button class="nav-button" data-view="sources">设置与说明</button></nav>
     <section id="research-view">
-      <section class="intent-card panel">
-        <div class="intent-top"><div><h2>你想找什么样的公司？</h2><p class="helper">直接说出想法，AI 会整理成可以检查、修改的条件。</p></div><span id="ai-mode" class="mode-badge">正在连接…</span></div>
-        <label class="sr-only" for="intent">描述选股想法</label><textarea id="intent" rows="3" maxlength="1500" placeholder="例如：找收入和利润在增长、估值不太高、最近走势比较平稳的公司"></textarea>
-        <div class="intent-bottom"><div class="examples"><span>试试看</span><button data-example="寻找经营改善、估值合理、走势相对稳定的公司">经营改善，估值合理</button><button data-example="银行行业，市盈率不超过15倍，营收同比至少0%">低估值银行</button><button data-example="利润同比至少10%，60日最大回撤不超过10%">利润增长，回撤较小</button></div><button class="button primary" id="interpret">整理筛选条件</button></div>
-        <div id="intent-error" role="alert"></div>
-      </section>
+      <nav class="workflow-nav" aria-label="筛选步骤">
+        <button data-stage="input" aria-current="step"><span class="step-number">1</span><span>描述想法</span></button><span class="step-line" aria-hidden="true"></span>
+        <button data-stage="conditions" disabled><span class="step-number">2</span><span>确认条件</span></button><span class="step-line" aria-hidden="true"></span>
+        <button data-stage="results" disabled><span class="step-number">3</span><span>查看结果</span></button>
+      </nav>
+      <div id="input-stage" class="input-stage">
+        <div class="phase-intro"><h2>你想找什么样的公司？</h2><p>先说出想法，再一起把条件说清楚。</p></div>
+        <section class="intent-card panel">
+          <label class="sr-only" for="intent">描述选股想法</label><textarea id="intent" rows="4" maxlength="1500" placeholder="例如：找收入和利润在增长、估值不太高、最近走势比较平稳的公司"></textarea>
+          <div class="intent-bottom"><span id="ai-mode" class="mode-badge">正在连接…</span><button class="button primary" id="interpret">整理筛选条件 <span aria-hidden="true">→</span></button></div>
+          <div id="intent-error" role="alert"></div>
+        </section>
+        <div class="example-area"><span class="small-label">没有具体想法？试试这些</span><div class="examples"><button data-example="寻找经营改善、估值合理、走势相对稳定的公司">经营改善，估值合理 <span aria-hidden="true">↗</span></button><button data-example="银行行业，市盈率不超过15倍，营收同比至少0%">低估值银行 <span aria-hidden="true">↗</span></button><button data-example="利润同比至少10%，60日最大回撤不超过10%">利润增长，回撤较小 <span aria-hidden="true">↗</span></button></div></div>
+        <p class="scope-note">当前为 24 只 A 股研究样本，覆盖多个行业。</p>
+      </div>
       <section id="condition-section" class="panel condition-panel hidden" aria-labelledby="condition-title">
-        <div class="panel-heading"><h2 id="condition-title">我理解的条件</h2><span id="condition-count" class="small-label"></span></div>
+        <div class="intent-review"><div><span class="context-label">你的想法</span><p id="review-intent"></p></div><button class="text-button" data-stage="input">修改想法</button></div>
+        <div class="panel-heading"><div><h2 id="condition-title" tabindex="-1">确认这次筛选的条件</h2><span id="condition-count" class="small-label"></span></div></div>
         <div class="panel-body"><div id="parse-message"></div><div id="condition-summary" class="condition-summary"></div><p class="assumption-note">这些阈值是本次筛选的假设，可以修改；符合条件不等于值得买入。</p>
           <details id="advanced" class="advanced"><summary>修改条件与高级指标</summary><div class="advanced-body"><div class="scope-row"><label for="industry">行业范围</label><select id="industry"><option>全部行业</option></select><span class="small-label">固定 24 只 A 股研究样本</span></div><div id="conditions"></div><button class="add-condition" id="add-condition">＋ 添加条件</button><details id="clarification-options"><summary>换一种衡量方式</summary><div id="clarifications"></div></details></div></details>
-          <div id="unresolved"></div><div id="conflicts" role="alert"></div><div class="condition-footer"><span class="small-label">确认后按以上条件筛选，全部满足才入选。</span><button class="button primary" id="execute" disabled>按这些条件筛选</button></div>
+          <div id="unresolved"></div><div id="conflicts" role="alert"></div><div class="condition-footer"><button class="text-button" data-stage="input">← 返回修改想法</button><button class="button primary" id="execute" disabled>按这些条件筛选 <span aria-hidden="true">→</span></button></div>
         </div>
       </section>
-      <div class="data-line"><div id="load-status" role="status">正在读取数据…</div><button class="text-button" id="refresh">更新数据</button></div>
-      <section id="start-state" class="start-state"><div class="start-icon" aria-hidden="true">⌕</div><h2>从一个想法开始</h2><p>输入一句话，或点上面的例子。先检查条件，再看哪些公司符合。</p><div class="flow-hint"><span>描述想法</span><span aria-hidden="true">→</span><span>确认条件</span><span aria-hidden="true">→</span><span>查看结果</span></div><small>当前覆盖 24 只 A 股样本，不是全市场选股。</small></section>
       <section id="results-section" class="hidden">
-        <section class="result-panel panel"><div class="result-title"><div><h2>筛选结果</h2><span id="result-label" class="tag muted"></span></div><div class="result-actions"><button class="button secondary small" id="save">保存筛选</button><details class="more-actions"><summary>更多操作</summary><div><button class="text-button" id="export">导出结果与依据</button><button class="text-button" id="create-monitor">创建条件监控</button></div></details></div></div>
-          <div id="stale" class="notice hidden">条件已修改，下方还是上次的结果。重新筛选后生效。</div><div id="result-summary" class="summary-row"></div>
+        <div class="result-title"><div><h2 id="result-heading" tabindex="-1">筛选结果</h2><span id="result-label" class="sr-only"></span></div><div class="result-actions"><button class="button secondary small" id="save">保存筛选</button><details class="more-actions"><summary>更多操作 ···</summary><div><button class="text-button" id="export">导出结果与依据</button><button class="text-button" id="create-monitor">创建条件监控</button></div></details></div></div>
+        <div class="applied-filter"><div class="applied-top"><p id="applied-intent"></p><button class="text-button" data-stage="conditions">修改条件</button></div><div id="applied-conditions" class="applied-conditions"></div></div>
+        <div id="stale" class="notice hidden">想法或条件已修改，这里仍是上次确认条件的结果。<button class="text-button" data-action="review-draft">返回确认新条件 →</button></div>
+        <section class="result-panel panel">
           <div class="results-toolbar"><div class="result-tabs" role="tablist"><button data-tab="included" class="active" role="tab" aria-selected="true">符合条件 <b id="included-count">—</b></button><button data-tab="excluded" role="tab" aria-selected="false">未符合 <b id="excluded-count">—</b></button><button data-tab="unknown" role="tab" aria-selected="false">暂无法判断 <b id="unknown-count">—</b></button></div><input id="search" aria-label="搜索股票名称或代码" placeholder="搜索名称 / 代码"></div>
           <div id="compare-bar" class="compare-bar hidden"></div><div class="table-scroll"><table class="stock-table"><thead><tr><th><span class="sr-only">选择比较</span></th><th>公司</th><th>收入增长 <button class="metric-help" data-field="revenueGrowth" aria-label="收入增长解释" aria-expanded="false">?</button></th><th>利润增长 <button class="metric-help" data-field="profitGrowth" aria-label="利润增长解释" aria-expanded="false">?</button></th><th>市盈率 <button class="metric-help" data-field="pe" aria-label="市盈率解释" aria-expanded="false">?</button></th><th>价格波动 <button class="metric-help" data-field="volatility" aria-label="价格波动解释" aria-expanded="false">?</button></th><th>筛选依据</th></tr></thead><tbody id="stock-rows"></tbody></table></div><div class="table-footer"><span id="table-caption"></span><span>按代码排序，不作收益排名</span></div>
         </section>
         <details id="sensitivity-panel" class="sensitivity-panel panel"><summary>条件改一点，结果会怎样？</summary><div class="sensitivity-content"><div><p>其他条件保持不变，调整一个阈值。</p><div class="sensitivity-input"><label class="sr-only" for="sensitivity-field">变化的条件</label><select id="sensitivity-field"></select><span>改为</span><label class="sr-only" for="sensitivity-value">新的阈值</label><input type="number" id="sensitivity-value" value="15" step="any"><span id="sensitivity-unit">倍</span></div><div class="threshold-presets"><button data-value="15">更严格：15 倍</button><button data-value="25">25 倍</button><button data-value="35">放宽：35 倍</button></div></div><div id="sensitivity-result"></div></div><div class="sensitivity-bottom"><div id="sensitivity-changes"></div><button class="text-button" id="apply-sensitivity">使用这个阈值</button></div></details>
       </section>
+      <div class="data-line"><div id="load-status" role="status">正在读取数据…</div><button class="text-button" id="refresh">更新数据</button></div>
       <p class="research-disclaimer">仅用于研究条件匹配，不提供买卖建议、涨跌预测或收益承诺。</p>
     </section>
     <section id="other-view" class="hidden"></section>
